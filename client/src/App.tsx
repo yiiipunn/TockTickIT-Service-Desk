@@ -1,19 +1,24 @@
 import { useState } from "react";
 import { checkSystem, Category } from "./api.js";
 
-// UI states you must handle for Issue 4: idle, loading, success, error.
+// UI states used for checking the system status.
 type UiState = "idle" | "loading" | "success" | "error";
 
 export default function App() {
   const [state, setState] = useState<UiState>("idle");
   const [categories, setCategories] = useState<Category[]>([]);
   void categories;
+  void setCategories;
 
   async function handleCheck() {
-    // TODO(Issue 4): set loading, call checkSystem(), then either
-    //   - success: store categories and show Online + the list, or
-    //   - error: show Offline + a useful message.
     setState("loading");
+
+    try {
+      await checkSystem();
+      setState("success");
+    } catch {
+      setState("error");
+    }
   }
 
   return (
@@ -22,11 +27,28 @@ export default function App() {
         TokTickIT <span className="text-success">IT Service Desk</span>
       </h1>
 
-      <button className="btn btn-success" onClick={handleCheck} disabled={state === "loading"}>
+      <button
+        className="btn btn-success"
+        onClick={handleCheck}
+        disabled={state === "loading"}
+      >
         {state === "loading" ? "Loading…" : "Check System"}
       </button>
 
-      {/* TODO(Issue 4): render loading / success (Online + categories) / error (Offline) states. */}
+      {state === "success" && (
+        <div className="alert alert-success mt-4">
+          Backend status: <strong>Online</strong>
+        </div>
+      )}
+
+      {state === "error" && (
+        <div className="alert alert-danger mt-4">
+          Backend status: <strong>Offline</strong>
+          <div>Unable to connect to the TokTickIT API.</div>
+        </div>
+      )}
+
+      {/* TODO(Issue 4): display categories after a successful system check. */}
     </div>
   );
 }
