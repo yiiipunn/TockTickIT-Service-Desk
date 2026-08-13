@@ -7,16 +7,17 @@ type UiState = "idle" | "loading" | "success" | "error";
 export default function App() {
   const [state, setState] = useState<UiState>("idle");
   const [categories, setCategories] = useState<Category[]>([]);
-  void categories;
-  void setCategories;
 
   async function handleCheck() {
     setState("loading");
 
     try {
-      await checkSystem();
+      const result = await checkSystem();
+
+      setCategories(result.categories);
       setState("success");
     } catch {
+      setCategories([]);
       setState("error");
     }
   }
@@ -36,8 +37,20 @@ export default function App() {
       </button>
 
       {state === "success" && (
-        <div className="alert alert-success mt-4">
-          Backend status: <strong>Online</strong>
+        <div className="mt-4">
+          <div className="alert alert-success">
+            Backend status: <strong>Online</strong>
+          </div>
+
+          <h2 className="h5">Supported Request Categories</h2>
+
+          <ol className="list-group list-group-numbered">
+            {categories.map((category) => (
+              <li className="list-group-item" key={category.id}>
+                {category.name}
+              </li>
+            ))}
+          </ol>
         </div>
       )}
 
@@ -47,8 +60,6 @@ export default function App() {
           <div>Unable to connect to the TokTickIT API.</div>
         </div>
       )}
-
-      {/* TODO(Issue 4): display categories after a successful system check. */}
     </div>
   );
 }
