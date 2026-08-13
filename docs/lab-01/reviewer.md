@@ -53,6 +53,33 @@ I'll check the client/src/api.ts issue separately. Thanks for pointing it out!
 
 
 ## Pull Requests I reviewed for my partner
-My comment: 
+My comment:  
+
+<img width="1290" height="1046" alt="Image" src="https://github.com/user-attachments/assets/3b982bc7-06da-413c-9621-0a984695b87f" />
+
+Tested locally and everything works as expected. The health check test passed and the system status shows Online correctly. Looks good to me ka! 
+
+Partner's response: After I reviewed his code, I approved the pull request and he merged it into `lab1-staging`.
+
+### Issue 3 — Category Seed
+
+Reviewer comment I received:    
+After I review it
+Category model - good
+creates the Category table correctly - good
+Seed inserts - good
+Seed uses upsert, safe to run multiple times without duplicates - good
+No credentials committed - good
+look good to me , Good job
+
+
+
+How I response: Thanks buddy! And fter he reviewed my code, he approved the pull request and I merged it into `lab1-staging`.
+
+
+
+## Pull Requests I reviewed for my partner
+My comment:  
+
 
 Partner's response: 
