@@ -1,6 +1,6 @@
 # Lab 1 — AI Use and Reflection  (fill this in)
 
-**LLM/agent used:** ChatGPT
+**LLM/agent used:** ChatGPT Plus
 
 ## Selected key prompts (6–10)
 
