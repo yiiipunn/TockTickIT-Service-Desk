@@ -79,10 +79,10 @@ How I response: Thanks buddy! And after he reviewed my code, he approved the pul
 
 
 ## Pull Requests I reviewed for my partner
-My comment:  
+My comment: Checked the implementation and test results. Everything works as expected and the required categories are returned correctly. Looks good mak ka! 
 
 
-Partner's response: 
+Partner's response: Thank you so much (After I reviewed his code, I approved the pull request and he merged it into `lab1-staging`.)
 
 
 
@@ -106,6 +106,16 @@ How I response: Thank you. And after he reviewed my code, he approved the pull r
 
 ## Pull Requests I reviewed for my partner
 My comment:  
+Checked frontend connection to health and categories APIs ✅
+Checked loading state ✅
+Checked online/offline states ✅
+Checked UI tests ✅
+npm test passed ✅
+Success and failure cases work as expected ✅
+
+Everything looks good and matches the requirements. Approved!
+
+Merge dai loeyyyy
 
 
-Partner's response: 
+Partner's response: Thank you kubbbbbb (After I reviewed his code, I approved the pull request and he merged it into `lab1-staging`.)
