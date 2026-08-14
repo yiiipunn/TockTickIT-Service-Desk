@@ -25,6 +25,9 @@
 | 8 | How should I troubleshoot the Prisma migration and database permission errors? | I used the error messages to identify authentication and database permission problems, checked the PostgreSQL roles, fixed the local database user's permissions, and reran the migration to verify that it completed successfully. |
 
 | 9 | Why did Prisma reject the existing datasource configuration even though the migration had worked before? | I checked the installed Prisma version and found that it did not match the starter project setup. I used the compatible Prisma version, regenerated Prisma Client, and ran the seed again to verify that it worked. |
+
+| 10 | How should I implement and test the category list from the PostgreSQL database through the API to the frontend? | I implemented the `/api/categories` endpoint using Prisma, connected `checkSystem()` to fetch the categories, and displayed the returned data in the React UI instead of hard-coding it. I then completed the Supertest and Vitest tests and verified both the Online category list and Offline error states. |
+
 ## Reflection
 
-_To be completed after finishing all Lab 1 issues._
+My prompts became more effective when I included the exact error messages, relevant code, and the acceptance criteria for each issue. I did not apply every AI suggestion immediately; for example, during Issue 2, I checked the actual source code with `git grep` and found that some reported problems were no longer present, so I avoided making unnecessary changes. I also verified AI-assisted solutions by running the provided tests and checking the application and database results myself.

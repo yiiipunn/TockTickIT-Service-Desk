@@ -9,8 +9,8 @@
 |----|--------|------------------|
 | #5 | feature/1-project-foundation |approved|
 | #6 | feature/2-health-check       |approved|
-|    | feature/3-category-seed      |  |
-|    | feature/4-category-list      |  |
+| #7 | feature/3-category-seed      |approved|  
+| #8 | feature/4-category-list      |approved|
 
 
 ### Issue 1 — Project Foundation
@@ -74,7 +74,33 @@ look good to me , Good job
 
 
 
-How I response: Thanks buddy! And fter he reviewed my code, he approved the pull request and I merged it into `lab1-staging`.
+How I response: Thanks buddy! And after he reviewed my code, he approved the pull request and I merged it into `lab1-staging`.
+
+
+
+## Pull Requests I reviewed for my partner
+My comment:  
+
+
+Partner's response: 
+
+
+
+### Issue 4 — Category List
+
+Reviewer comment I received: 
+Review
+GET /api/categories reads from PostgreSQL via Prisma that ordered by id pass
+have supertest verifies status, names, and id ordering pass
+React renders categories from the real API response pass
+Loading state and error state both show pass
+Vitest covers success and error UI states pass
+No credentials commit pass
+Look good to me good work
+
+
+
+How I response: Thank you. And after he reviewed my code, he approved the pull request and I merged it into `lab1-staging`.
 
 
 
