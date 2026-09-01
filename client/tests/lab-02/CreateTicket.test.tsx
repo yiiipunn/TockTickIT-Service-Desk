@@ -1,7 +1,9 @@
 import "@testing-library/jest-dom";
-import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+
+import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, describe, expect, it, vi } from "vitest";
+
 import App from "../../src/App.js";
 
 const requesters = [
@@ -25,6 +27,23 @@ const relatedSystems = [
     name: "Campus Wi-Fi",
   },
 ];
+
+const emptyTicketList = {
+  items: [],
+  pagination: {
+    page: 1,
+    pageSize: 10,
+    totalItems: 0,
+    totalPages: 0,
+  },
+};
+
+function isGetTicketsRequest(url: string, init?: RequestInit) {
+  return (
+    url.includes("/api/tickets") &&
+    init?.method !== "POST"
+  );
+}
 
 function mockFetchForCreateTicket() {
   vi.stubGlobal(
@@ -53,6 +72,14 @@ function mockFetchForCreateTicket() {
         } as Response;
       }
 
+      // My Tickets is loaded after selecting a requester.
+      if (isGetTicketsRequest(url, init)) {
+        return {
+          ok: true,
+          json: async () => emptyTicketList,
+        } as Response;
+      }
+
       if (
         url.endsWith("/api/tickets") &&
         init?.method === "POST"
@@ -77,26 +104,40 @@ function mockFetchForCreateTicket() {
       }
 
       throw new Error(`Unexpected fetch: ${url}`);
-    })
+    }),
   );
 }
 
 async function selectRequesterAndContinue() {
-  await screen.findByText(/Select a requester before continuing/i);
+  await screen.findByText(
+    /Select a requester before continuing/i,
+  );
 
   await userEvent.selectOptions(
     screen.getByLabelText("Development Requester"),
-    "1"
+    "1",
   );
 
   await userEvent.click(
     screen.getByRole("button", {
       name: "Continue",
-    })
+    }),
   );
 
   await screen.findByRole("heading", {
     name: "Create Ticket",
+  });
+}
+
+function getCreateTicketCategory() {
+  return screen.getByLabelText("Category", {
+    selector: "#ticket-category",
+  });
+}
+
+function getCreateTicketRelatedSystem() {
+  return screen.getByLabelText("Related System", {
+    selector: "#ticket-related-system",
   });
 }
 
@@ -106,304 +147,364 @@ afterEach(() => {
 });
 
 describe("Lab 2 - Create Ticket UI", () => {
-  it("shows the Create Ticket form after selecting a requester", async () => {
-    mockFetchForCreateTicket();
+  it(
+    "shows the Create Ticket form after selecting a requester",
+    async () => {
+      mockFetchForCreateTicket();
 
-    render(<App />);
+      render(<App />);
 
-    await selectRequesterAndContinue();
+      await selectRequesterAndContinue();
 
-    expect(
-      screen.getByLabelText("Category")
-    ).toBeInTheDocument();
+      expect(
+        getCreateTicketCategory(),
+      ).toBeInTheDocument();
 
-    expect(
-      screen.getByLabelText("Related System")
-    ).toBeInTheDocument();
+      expect(
+        getCreateTicketRelatedSystem(),
+      ).toBeInTheDocument();
 
-    expect(
-      screen.getByLabelText("Summary")
-    ).toBeInTheDocument();
+      expect(
+        screen.getByLabelText("Summary"),
+      ).toBeInTheDocument();
 
-    expect(
-      screen.getByLabelText("Requested Priority")
-    ).toBeInTheDocument();
+      expect(
+        screen.getByLabelText("Requested Priority"),
+      ).toBeInTheDocument();
 
-    expect(
-      screen.getByLabelText("Description")
-    ).toBeInTheDocument();
-  });
+      expect(
+        screen.getByLabelText("Description"),
+      ).toBeInTheDocument();
+    },
+  );
 
-  it("keeps Create Ticket disabled when required fields are empty", async () => {
-    mockFetchForCreateTicket();
+  it(
+    "keeps Create Ticket disabled when required fields are empty",
+    async () => {
+      mockFetchForCreateTicket();
 
-    render(<App />);
+      render(<App />);
 
-    await selectRequesterAndContinue();
+      await selectRequesterAndContinue();
 
-    expect(
-      screen.getByRole("button", {
-        name: "Create Ticket",
-      })
-    ).toBeDisabled();
-  });
+      expect(
+        screen.getByRole("button", {
+          name: "Create Ticket",
+        }),
+      ).toBeDisabled();
+    },
+  );
 
-  it("enables Create Ticket when required fields are valid", async () => {
-    mockFetchForCreateTicket();
+  it(
+    "enables Create Ticket when required fields are valid",
+    async () => {
+      mockFetchForCreateTicket();
 
-    render(<App />);
+      render(<App />);
 
-    await selectRequesterAndContinue();
+      await selectRequesterAndContinue();
 
-    await userEvent.selectOptions(
-      screen.getByLabelText("Category"),
-      "1"
-    );
-
-    await userEvent.selectOptions(
-      screen.getByLabelText("Related System"),
-      "1"
-    );
-
-    await userEvent.type(
-      screen.getByLabelText("Summary"),
-      "Unable to connect to campus Wi-Fi"
-    );
-
-    await userEvent.type(
-      screen.getByLabelText("Description"),
-      "I cannot connect to the campus Wi-Fi from the engineering building."
-    );
-
-    expect(
-      screen.getByRole("button", {
-        name: "Create Ticket",
-      })
-    ).toBeEnabled();
-  });
-
-  it("creates a ticket and displays the Ticket Number", async () => {
-    mockFetchForCreateTicket();
-
-    render(<App />);
-
-    await selectRequesterAndContinue();
-
-    await userEvent.selectOptions(
-      screen.getByLabelText("Category"),
-      "1"
-    );
-
-    await userEvent.selectOptions(
-      screen.getByLabelText("Related System"),
-      "1"
-    );
-
-    await userEvent.type(
-      screen.getByLabelText("Summary"),
-      "Unable to connect to campus Wi-Fi"
-    );
-
-    await userEvent.type(
-      screen.getByLabelText("Description"),
-      "I cannot connect to the campus Wi-Fi from the engineering building."
-    );
-
-    await userEvent.click(
-      screen.getByRole("button", {
-        name: "Create Ticket",
-      })
-    );
-
-    expect(
-      await screen.findByText("Ticket created successfully")
-    ).toBeInTheDocument();
-
-    expect(
-      screen.getByText("TKT-000001")
-    ).toBeInTheDocument();
-
-    expect(
-      screen.getByText("NEW")
-    ).toBeInTheDocument();
-  });
-
-  it("sends the selected requester in X-Requester-Id", async () => {
-    const fetchMock = vi.fn(
-      async (input: RequestInfo | URL, init?: RequestInit) => {
-        const url = String(input);
-
-        if (url.endsWith("/api/requesters")) {
-          return {
-            ok: true,
-            json: async () => requesters,
-          } as Response;
-        }
-
-        if (url.endsWith("/api/categories")) {
-          return {
-            ok: true,
-            json: async () => categories,
-          } as Response;
-        }
-
-        if (url.endsWith("/api/related-systems")) {
-          return {
-            ok: true,
-            json: async () => relatedSystems,
-          } as Response;
-        }
-
-        if (url.endsWith("/api/tickets")) {
-          expect(init?.headers).toMatchObject({
-            "Content-Type": "application/json",
-            "X-Requester-Id": "1",
-          });
-
-          return {
-            ok: true,
-            json: async () => ({
-              id: 1,
-              ticketNumber: "TKT-000001",
-              requesterId: 1,
-              categoryId: 1,
-              relatedSystemId: 1,
-              summary: "Printer issue",
-              requestedPriority: "MEDIUM",
-              description: "Printer is not responding.",
-              status: "NEW",
-              createdAt: "2026-09-01T08:00:00.000Z",
-              updatedAt: "2026-09-01T08:00:00.000Z",
-            }),
-          } as Response;
-        }
-
-        throw new Error(`Unexpected fetch: ${url}`);
-      }
-    );
-
-    vi.stubGlobal("fetch", fetchMock);
-
-    render(<App />);
-
-    await selectRequesterAndContinue();
-
-    await userEvent.selectOptions(
-      screen.getByLabelText("Category"),
-      "1"
-    );
-
-    await userEvent.selectOptions(
-      screen.getByLabelText("Related System"),
-      "1"
-    );
-
-    await userEvent.type(
-      screen.getByLabelText("Summary"),
-      "Printer issue"
-    );
-
-    await userEvent.type(
-      screen.getByLabelText("Description"),
-      "Printer is not responding."
-    );
-
-    await userEvent.click(
-      screen.getByRole("button", {
-        name: "Create Ticket",
-      })
-    );
-
-    await waitFor(() => {
-      expect(fetchMock).toHaveBeenCalledWith(
-        "http://localhost:3000/api/tickets",
-        expect.objectContaining({
-          method: "POST",
-        })
+      await userEvent.selectOptions(
+        getCreateTicketCategory(),
+        "1",
       );
-    });
-  });
 
-  it("keeps entered data when ticket creation fails", async () => {
-    vi.stubGlobal(
-      "fetch",
-      vi.fn(async (input: RequestInfo | URL) => {
-        const url = String(input);
+      await userEvent.selectOptions(
+        getCreateTicketRelatedSystem(),
+        "1",
+      );
 
-        if (url.endsWith("/api/requesters")) {
-          return {
-            ok: true,
-            json: async () => requesters,
-          } as Response;
-        }
+      await userEvent.type(
+        screen.getByLabelText("Summary"),
+        "Unable to connect to campus Wi-Fi",
+      );
 
-        if (url.endsWith("/api/categories")) {
-          return {
-            ok: true,
-            json: async () => categories,
-          } as Response;
-        }
+      await userEvent.type(
+        screen.getByLabelText("Description"),
+        "I cannot connect to the campus Wi-Fi from the engineering building.",
+      );
 
-        if (url.endsWith("/api/related-systems")) {
-          return {
-            ok: true,
-            json: async () => relatedSystems,
-          } as Response;
-        }
+      expect(
+        screen.getByRole("button", {
+          name: "Create Ticket",
+        }),
+      ).toBeEnabled();
+    },
+  );
 
-        if (url.endsWith("/api/tickets")) {
-          return {
-            ok: false,
-            json: async () => ({
-              error: "Unable to create ticket",
-            }),
-          } as Response;
-        }
+  it(
+    "creates a ticket and displays the Ticket Number",
+    async () => {
+      mockFetchForCreateTicket();
 
-        throw new Error(`Unexpected fetch: ${url}`);
-      })
-    );
+      render(<App />);
 
-    render(<App />);
+      await selectRequesterAndContinue();
 
-    await selectRequesterAndContinue();
+      await userEvent.selectOptions(
+        getCreateTicketCategory(),
+        "1",
+      );
 
-    await userEvent.selectOptions(
-      screen.getByLabelText("Category"),
-      "1"
-    );
+      await userEvent.selectOptions(
+        getCreateTicketRelatedSystem(),
+        "1",
+      );
 
-    await userEvent.selectOptions(
-      screen.getByLabelText("Related System"),
-      "1"
-    );
+      await userEvent.type(
+        screen.getByLabelText("Summary"),
+        "Unable to connect to campus Wi-Fi",
+      );
 
-    await userEvent.type(
-      screen.getByLabelText("Summary"),
-      "Network problem"
-    );
+      await userEvent.type(
+        screen.getByLabelText("Description"),
+        "I cannot connect to the campus Wi-Fi from the engineering building.",
+      );
 
-    await userEvent.type(
-      screen.getByLabelText("Description"),
-      "The connection keeps dropping."
-    );
+      await userEvent.click(
+        screen.getByRole("button", {
+          name: "Create Ticket",
+        }),
+      );
 
-    await userEvent.click(
-      screen.getByRole("button", {
-        name: "Create Ticket",
-      })
-    );
+      expect(
+        await screen.findByText(
+          "Ticket created successfully",
+        ),
+      ).toBeInTheDocument();
 
-    expect(
-      await screen.findByText("Unable to create ticket")
-    ).toBeInTheDocument();
+      expect(
+        screen.getByText("TKT-000001"),
+      ).toBeInTheDocument();
 
-    expect(
-      screen.getByLabelText("Summary")
-    ).toHaveValue("Network problem");
+      expect(
+        screen.getByText("NEW"),
+      ).toBeInTheDocument();
+    },
+  );
 
-    expect(
-      screen.getByLabelText("Description")
-    ).toHaveValue("The connection keeps dropping.");
-  });
+  it(
+    "sends the selected requester in X-Requester-Id",
+    async () => {
+      const fetchMock = vi.fn(
+        async (
+          input: RequestInfo | URL,
+          init?: RequestInit,
+        ) => {
+          const url = String(input);
+
+          if (url.endsWith("/api/requesters")) {
+            return {
+              ok: true,
+              json: async () => requesters,
+            } as Response;
+          }
+
+          if (url.endsWith("/api/categories")) {
+            return {
+              ok: true,
+              json: async () => categories,
+            } as Response;
+          }
+
+          if (url.endsWith("/api/related-systems")) {
+            return {
+              ok: true,
+              json: async () => relatedSystems,
+            } as Response;
+          }
+
+          if (isGetTicketsRequest(url, init)) {
+            expect(init?.headers).toMatchObject({
+              "X-Requester-Id": "1",
+            });
+
+            return {
+              ok: true,
+              json: async () => emptyTicketList,
+            } as Response;
+          }
+
+          if (
+            url.endsWith("/api/tickets") &&
+            init?.method === "POST"
+          ) {
+            expect(init?.headers).toMatchObject({
+              "Content-Type": "application/json",
+              "X-Requester-Id": "1",
+            });
+
+            return {
+              ok: true,
+              json: async () => ({
+                id: 1,
+                ticketNumber: "TKT-000001",
+                requesterId: 1,
+                categoryId: 1,
+                relatedSystemId: 1,
+                summary: "Printer issue",
+                requestedPriority: "MEDIUM",
+                description: "Printer is not responding.",
+                status: "NEW",
+                createdAt:
+                  "2026-09-01T08:00:00.000Z",
+                updatedAt:
+                  "2026-09-01T08:00:00.000Z",
+              }),
+            } as Response;
+          }
+
+          throw new Error(`Unexpected fetch: ${url}`);
+        },
+      );
+
+      vi.stubGlobal("fetch", fetchMock);
+
+      render(<App />);
+
+      await selectRequesterAndContinue();
+
+      await userEvent.selectOptions(
+        getCreateTicketCategory(),
+        "1",
+      );
+
+      await userEvent.selectOptions(
+        getCreateTicketRelatedSystem(),
+        "1",
+      );
+
+      await userEvent.type(
+        screen.getByLabelText("Summary"),
+        "Printer issue",
+      );
+
+      await userEvent.type(
+        screen.getByLabelText("Description"),
+        "Printer is not responding.",
+      );
+
+      await userEvent.click(
+        screen.getByRole("button", {
+          name: "Create Ticket",
+        }),
+      );
+
+      await waitFor(() => {
+        expect(fetchMock).toHaveBeenCalledWith(
+          "http://localhost:3000/api/tickets",
+          expect.objectContaining({
+            method: "POST",
+          }),
+        );
+      });
+    },
+  );
+
+  it(
+    "keeps entered data when ticket creation fails",
+    async () => {
+      vi.stubGlobal(
+        "fetch",
+        vi.fn(
+          async (
+            input: RequestInfo | URL,
+            init?: RequestInit,
+          ) => {
+            const url = String(input);
+
+            if (url.endsWith("/api/requesters")) {
+              return {
+                ok: true,
+                json: async () => requesters,
+              } as Response;
+            }
+
+            if (url.endsWith("/api/categories")) {
+              return {
+                ok: true,
+                json: async () => categories,
+              } as Response;
+            }
+
+            if (url.endsWith("/api/related-systems")) {
+              return {
+                ok: true,
+                json: async () => relatedSystems,
+              } as Response;
+            }
+
+            if (isGetTicketsRequest(url, init)) {
+              return {
+                ok: true,
+                json: async () => emptyTicketList,
+              } as Response;
+            }
+
+            if (
+              url.endsWith("/api/tickets") &&
+              init?.method === "POST"
+            ) {
+              return {
+                ok: false,
+                json: async () => ({
+                  error: "Unable to create ticket",
+                }),
+              } as Response;
+            }
+
+            throw new Error(
+              `Unexpected fetch: ${url}`,
+            );
+          },
+        ),
+      );
+
+      render(<App />);
+
+      await selectRequesterAndContinue();
+
+      await userEvent.selectOptions(
+        getCreateTicketCategory(),
+        "1",
+      );
+
+      await userEvent.selectOptions(
+        getCreateTicketRelatedSystem(),
+        "1",
+      );
+
+      await userEvent.type(
+        screen.getByLabelText("Summary"),
+        "Network problem",
+      );
+
+      await userEvent.type(
+        screen.getByLabelText("Description"),
+        "The connection keeps dropping.",
+      );
+
+      await userEvent.click(
+        screen.getByRole("button", {
+          name: "Create Ticket",
+        }),
+      );
+
+      expect(
+        await screen.findByText(
+          "Unable to create ticket",
+        ),
+      ).toBeInTheDocument();
+
+      expect(
+        screen.getByLabelText("Summary"),
+      ).toHaveValue("Network problem");
+
+      expect(
+        screen.getByLabelText("Description"),
+      ).toHaveValue(
+        "The connection keeps dropping.",
+      );
+    },
+  );
 });
