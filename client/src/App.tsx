@@ -7,11 +7,13 @@ import {
   getCategories,
   getRelatedSystems,
   getRequesters,
+  getTicketDetail,
   getTickets,
   GetTicketsParams,
   RelatedSystem,
   RequestedPriority,
   Ticket,
+  TicketDetail,
   TicketListItem,
   TicketPagination,
 } from "./api.js";
@@ -92,6 +94,15 @@ export default function App() {
       totalItems: 0,
       totalPages: 0,
     });
+
+  // -------------------------------------------------------------------------
+  // Lab 2 - Requester Ticket Detail
+  // -------------------------------------------------------------------------
+  const [selectedTicketDetail, setSelectedTicketDetail] =
+    useState<TicketDetail | null>(null);
+  const [ticketDetailState, setTicketDetailState] =
+    useState<UiState>("idle");
+  const [ticketDetailError, setTicketDetailError] = useState("");
 
   useEffect(() => {
     loadRequesters();
@@ -175,6 +186,10 @@ export default function App() {
       totalItems: 0,
       totalPages: 0,
     });
+
+    setSelectedTicketDetail(null);
+    setTicketDetailState("idle");
+    setTicketDetailError("");
   }
 
   // -------------------------------------------------------------------------
@@ -314,6 +329,55 @@ export default function App() {
     setTicketSortBy("updatedAt");
     setTicketSortOrder("desc");
     setTicketPageSize(10);
+  }
+
+  // -------------------------------------------------------------------------
+  // Requester Ticket Detail
+  // -------------------------------------------------------------------------
+  async function handleViewTicket(ticketId: number) {
+    if (!currentRequester) {
+      return;
+    }
+
+    setSelectedTicketDetail(null);
+    setTicketDetailState("loading");
+    setTicketDetailError("");
+
+    try {
+      const result = await getTicketDetail(
+        currentRequester.id,
+        ticketId,
+      );
+
+      setSelectedTicketDetail(result);
+      setTicketDetailState("success");
+    } catch (error) {
+      setTicketDetailState("error");
+
+      if (error instanceof Error) {
+        setTicketDetailError(error.message);
+      } else {
+        setTicketDetailError("Unable to load ticket");
+      }
+    }
+  }
+
+  function handleBackToTickets() {
+    setSelectedTicketDetail(null);
+    setTicketDetailState("idle");
+    setTicketDetailError("");
+  }
+
+  function formatFileSize(sizeBytes: number) {
+    if (sizeBytes < 1024) {
+      return `${sizeBytes} B`;
+    }
+
+    if (sizeBytes < 1024 * 1024) {
+      return `${(sizeBytes / 1024).toFixed(1)} KB`;
+    }
+
+    return `${(sizeBytes / (1024 * 1024)).toFixed(1)} MB`;
   }
 
   const formIsValid =
@@ -845,7 +909,14 @@ export default function App() {
                       {tickets.map((ticket) => (
                         <tr key={ticket.id}>
                           <td>
-                            <strong>{ticket.ticketNumber}</strong>
+                            <button
+                              type="button"
+                              className="btn btn-link p-0 fw-semibold text-success"
+                              onClick={() => handleViewTicket(ticket.id)}
+                              aria-label={`View ${ticket.ticketNumber}`}
+                            >
+                              {ticket.ticketNumber}
+                            </button>
                           </td>
                           <td>{ticket.summary}</td>
                           <td>{ticket.category.name}</td>
@@ -928,6 +999,131 @@ export default function App() {
                       Next
                     </button>
                   </div>
+                </div>
+              </>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* Requester Ticket Detail */}
+      {currentRequester && ticketDetailState !== "idle" && (
+        <div className="card shadow-sm mb-4">
+          <div className="card-body">
+            <div className="d-flex flex-wrap justify-content-between align-items-start gap-3 mb-4">
+              <div>
+                <h2 className="h5 mb-1">Ticket Detail</h2>
+                <p className="text-muted mb-0">
+                  View the complete information for your ticket.
+                </p>
+              </div>
+
+              <button
+                type="button"
+                className="btn btn-outline-success"
+                onClick={handleBackToTickets}
+              >
+                Back to My Tickets
+              </button>
+            </div>
+
+            {ticketDetailState === "loading" && (
+              <div className="text-muted">Loading ticket detail...</div>
+            )}
+
+            {ticketDetailState === "error" && (
+              <div className="alert alert-danger mb-0">
+                {ticketDetailError || "Unable to load ticket"}
+              </div>
+            )}
+
+            {ticketDetailState === "success" && selectedTicketDetail && (
+              <>
+                <div className="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-4">
+                  <div>
+                    <div className="small text-muted">Ticket Number</div>
+                    <div className="fs-5 fw-semibold">
+                      {selectedTicketDetail.ticketNumber}
+                    </div>
+                  </div>
+
+                  <span className="badge text-bg-success">
+                    {selectedTicketDetail.status}
+                  </span>
+                </div>
+
+                <div className="row g-3 mb-4">
+                  <div className="col-md-6">
+                    <div className="small text-muted">Category</div>
+                    <div>{selectedTicketDetail.category.name}</div>
+                  </div>
+
+                  <div className="col-md-6">
+                    <div className="small text-muted">Related System</div>
+                    <div>{selectedTicketDetail.relatedSystem.name}</div>
+                  </div>
+
+                  <div className="col-md-6">
+                    <div className="small text-muted">Requested Priority</div>
+                    <div>{selectedTicketDetail.requestedPriority}</div>
+                  </div>
+
+                  <div className="col-md-6">
+                    <div className="small text-muted">Created</div>
+                    <div>
+                      {new Date(
+                        selectedTicketDetail.createdAt,
+                      ).toLocaleString()}
+                    </div>
+                  </div>
+
+                  <div className="col-md-6">
+                    <div className="small text-muted">Last Updated</div>
+                    <div>
+                      {new Date(
+                        selectedTicketDetail.updatedAt,
+                      ).toLocaleString()}
+                    </div>
+                  </div>
+                </div>
+
+                <div className="mb-4">
+                  <h3 className="h6">Summary</h3>
+                  <p className="mb-0">{selectedTicketDetail.summary}</p>
+                </div>
+
+                <div className="mb-4">
+                  <h3 className="h6">Description</h3>
+                  <p className="mb-0" style={{ whiteSpace: "pre-wrap" }}>
+                    {selectedTicketDetail.description}
+                  </p>
+                </div>
+
+                <div>
+                  <h3 className="h6 mb-3">Attachments</h3>
+
+                  {selectedTicketDetail.attachments.length === 0 ? (
+                    <div className="alert alert-light border mb-0">
+                      No active attachments for this ticket.
+                    </div>
+                  ) : (
+                    <div className="list-group">
+                      {selectedTicketDetail.attachments.map((attachment) => (
+                        <div
+                          className="list-group-item"
+                          key={attachment.id}
+                        >
+                          <div className="fw-semibold">
+                            {attachment.originalFilename}
+                          </div>
+                          <div className="small text-muted">
+                            {attachment.mimeType} ·{" "}
+                            {formatFileSize(attachment.sizeBytes)}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
                 </div>
               </>
             )}
