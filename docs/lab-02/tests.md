@@ -49,7 +49,7 @@ server/tests/
 ├── create-ticket.api.test.ts
 ├── my-tickets.api.test.ts
 ├── ticket-detail.api.test.ts
-└── attachments.api.test.ts
+└── attachments.test.ts
 ```
 
 ### 2.2 UI Component Tests
@@ -73,7 +73,7 @@ client/tests/lab-02/
 ├── RequesterSelection.test.tsx
 ├── CreateTicket.test.tsx
 ├── MyTickets.test.tsx
-├── RequesterTicketDetail.test.tsx
+├── TicketDetail.test.tsx
 └── AttachmentSection.test.tsx
 ```
 
@@ -214,12 +214,12 @@ e2e/requester-ticket-flow.spec.ts
 | T-68 | API | FR-26, AC-23 | Retrieve owned Ticket | Correct Ticket data returned | `ticket-detail.api.test.ts` |
 | T-69 | API | FR-28, BR-17, AC-24 | Cross-Requester access | `404`; Ticket data not returned | `ticket-detail.api.test.ts` |
 | T-70 | API | FR-30, AC-25 | Missing Ticket | `404 Not Found` | `ticket-detail.api.test.ts` |
-| T-71 | UI | FR-27, AC-23 | Ticket Detail rendering | Correct Ticket information displayed | `RequesterTicketDetail.test.tsx` |
-| T-72 | UI | FR-27, AC-26 | Read-only presentation | Requester cannot edit Ticket Detail fields | `RequesterTicketDetail.test.tsx` |
-| T-73 | UI | FR-30 | Loading state | Loading feedback displayed | `RequesterTicketDetail.test.tsx` |
-| T-74 | UI | FR-30, AC-25 | Missing state | Safe not-found feedback displayed | `RequesterTicketDetail.test.tsx` |
-| T-75 | UI | FR-30, AC-24 | Ownership failure | No other Requester's Ticket data displayed | `RequesterTicketDetail.test.tsx` |
-| T-76 | UI | FR-30 | API failure | Safe error feedback displayed | `RequesterTicketDetail.test.tsx` |
+| T-71 | UI | FR-27, AC-23 | Ticket Detail rendering | Correct Ticket information displayed | `TicketDetail.test.tsx` |
+| T-72 | UI | FR-27, AC-26 | Read-only presentation | Requester cannot edit Ticket Detail fields | `TicketDetail.test.tsx` |
+| T-73 | UI | FR-30 | Loading state | Loading feedback displayed | `TicketDetail.test.tsx` |
+| T-74 | UI | FR-30, AC-25 | Missing state | Safe not-found feedback displayed | `TicketDetail.test.tsx` |
+| T-75 | UI | FR-30, AC-24 | Ownership failure | No other Requester's Ticket data displayed | `TicketDetail.test.tsx` |
+| T-76 | UI | FR-30 | API failure | Safe error feedback displayed | `TicketDetail.test.tsx` |
 
 ---
 
@@ -227,28 +227,28 @@ e2e/requester-ticket-flow.spec.ts
 
 | ID | Type | Req / AC | What is Tested | Expected Result | Planned Test File |
 |---|---|---|---|---|---|
-| T-77 | API | FR-31, AC-27 | Valid JPG/JPEG upload | `201`; Attachment stored | `attachments.api.test.ts` |
-| T-78 | API | FR-31, AC-27 | Valid PNG upload | `201`; Attachment stored | `attachments.api.test.ts` |
-| T-79 | API | FR-31, AC-27 | Valid WEBP upload | `201`; Attachment stored | `attachments.api.test.ts` |
-| T-80 | API | FR-31, AC-27 | Valid PDF upload | `201`; Attachment stored | `attachments.api.test.ts` |
-| T-81 | API | FR-32, BR-33, AC-28 | Unsupported type | `415`; Attachment rejected | `attachments.api.test.ts` |
-| T-82 | API | FR-32, BR-34, AC-29 | File exactly 5 MB | Accepted if otherwise valid | `attachments.api.test.ts` |
-| T-83 | API | FR-32, BR-34, AC-29 | File over 5 MB | `413`; Attachment rejected | `attachments.api.test.ts` |
-| T-84 | API | FR-32, BR-35, AC-30 | Fifth active Attachment | Accepted | `attachments.api.test.ts` |
-| T-85 | API | FR-32, BR-35, AC-30 | Sixth active Attachment | `409`; rejected | `attachments.api.test.ts` |
-| T-86 | API | FR-34, AC-31 | Download active Attachment | File returned | `attachments.api.test.ts` |
-| T-87 | API | FR-35, AC-32 | Soft-remove own Attachment | Metadata marked removed | `attachments.api.test.ts` |
-| T-88 | API | BR-43, AC-32 | Valid removal reason | Reason and timestamp stored | `attachments.api.test.ts` |
-| T-89 | API | BR-43, AC-32 | Missing removal reason | `400`; removal rejected | `attachments.api.test.ts` |
-| T-90 | API | BR-43, AC-32 | Whitespace removal reason | `400`; removal rejected | `attachments.api.test.ts` |
-| T-91 | API | BR-43 | Removal reason >250 chars | `400`; removal rejected | `attachments.api.test.ts` |
-| T-92 | API | FR-36, AC-32 | Metadata after removal | Metadata remains stored | `attachments.api.test.ts` |
-| T-93 | API | FR-37, AC-33 | Download removed Attachment | File not returned | `attachments.api.test.ts` |
-| T-94 | API | FR-38, AC-34 | Upload to another Requester's Ticket | `404`; upload rejected | `attachments.api.test.ts` |
-| T-95 | API | FR-38, AC-34 | Download another Requester's Attachment | `404`; no file returned | `attachments.api.test.ts` |
-| T-96 | API | FR-38, AC-34 | Remove another Requester's Attachment | `404`; no modification | `attachments.api.test.ts` |
-| T-97 | API | BR-36 | Remove already removed Attachment | Predictable conflict response | `attachments.api.test.ts` |
-| T-98 | API | AC-35 | Attachment failure after Ticket creation | Existing Ticket remains stored | `attachments.api.test.ts` |
+| T-77 | API | FR-31, AC-27 | Valid JPG/JPEG upload | `201`; Attachment stored | `attachments.test.ts` |
+| T-78 | API | FR-31, AC-27 | Valid PNG upload | `201`; Attachment stored | `attachments.test.ts` |
+| T-79 | API | FR-31, AC-27 | Valid WEBP upload | `201`; Attachment stored | `attachments.test.ts` |
+| T-80 | API | FR-31, AC-27 | Valid PDF upload | `201`; Attachment stored | `attachments.test.ts` |
+| T-81 | API | FR-32, BR-33, AC-28 | Unsupported type | `415`; Attachment rejected | `attachments.test.ts` |
+| T-82 | API | FR-32, BR-34, AC-29 | File exactly 5 MB | Accepted if otherwise valid | `attachments.test.ts` |
+| T-83 | API | FR-32, BR-34, AC-29 | File over 5 MB | `413`; Attachment rejected | `attachments.test.ts` |
+| T-84 | API | FR-32, BR-35, AC-30 | Fifth active Attachment | Accepted | `attachments.test.ts` |
+| T-85 | API | FR-32, BR-35, AC-30 | Sixth or concurrent Attachment beyond limit | `409`; exactly 5 remain active | `attachments.test.ts` |
+| T-86 | API | FR-34, AC-31 | Download active Attachment | File returned | `attachments.test.ts` |
+| T-87 | API | FR-35, AC-32 | Soft-remove own Attachment | Metadata marked removed | `attachments.test.ts` |
+| T-88 | API | BR-43, AC-32 | Valid removal reason | Reason and timestamp stored | `attachments.test.ts` |
+| T-89 | API | BR-43, AC-32 | Missing removal reason | `400`; removal rejected | `attachments.test.ts` |
+| T-90 | API | BR-43, AC-32 | Whitespace removal reason | `400`; removal rejected | `attachments.test.ts` |
+| T-91 | API | BR-43 | Removal reason >250 chars | `400`; removal rejected | `attachments.test.ts` |
+| T-92 | API | FR-36, AC-32 | Metadata after removal | Metadata remains stored | `attachments.test.ts` |
+| T-93 | API | FR-37, AC-33 | Download removed Attachment | File not returned | `attachments.test.ts` |
+| T-94 | API | FR-38, AC-34 | Upload to another Requester's Ticket | `404`; upload rejected | `attachments.test.ts` |
+| T-95 | API | FR-38, AC-34 | Metadata/download for another Requester's Attachment | `404`; no metadata or file returned | `attachments.test.ts` |
+| T-96 | API | FR-38, AC-34 | Remove another Requester's Attachment | `404`; no modification | `attachments.test.ts` |
+| T-97 | API | BR-36 | Remove already removed Attachment | `409`; predictable conflict response | `attachments.test.ts` |
+| T-98 | UI | AC-35 | Attachment failure after Ticket creation | Existing Ticket remains visible and retry is offered | `CreateTicket.test.tsx` |
 
 ---
 
@@ -437,11 +437,13 @@ The table below will be updated after implementation.
 
 | Test Area | Command | Result | Evidence |
 |---|---|---|---|
-| Server API / Integration | TBD | Not Run | TBD |
-| Client Component | TBD | Not Run | TBD |
-| UI Style | TBD | Not Run | TBD |
-| E2E | TBD | Not Run | TBD |
-| Full Test Suite | TBD | Not Run | TBD |
+| Server API / Integration | `cd server && npm test` | Passed | 8 files, 78 tests; includes `server/tests/lab-02/attachments.test.ts` |
+| Client Component | `cd client && npm test` | Passed | 6 files, 40 tests; includes `AttachmentSection.test.tsx` and Create Ticket attachment coverage |
+| Server Production Build | `cd server && npm run build` | Passed | TypeScript compilation completed successfully |
+| Client Production Build | `cd client && npm run build` | Passed | TypeScript and Vite production build completed successfully |
+| UI Style | Not run | Not Run | No dedicated automated style suite exists in this Issue |
+| E2E | Not run | Not Run | Reserved for the separate E2E and release-integration Issue |
+| Full Test Suite | Server and client `npm test` commands above | Passed | 118 tests passed across 14 files |
 
 Final values must use the actual project commands and evidence paths.
 
@@ -449,13 +451,11 @@ Final values must use the actual project commands and evidence paths.
 
 # 17. Final Test Summary
 
-To be completed after implementation.
-
 ```text
-Total Tests:
-Passed:
-Failed:
-Skipped:
+Total Tests: 118
+Passed: 118
+Failed: 0
+Skipped: 0
 ```
 
 Expected final condition:

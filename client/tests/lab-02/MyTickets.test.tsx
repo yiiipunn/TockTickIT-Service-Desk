@@ -168,20 +168,18 @@ function mockBaseFetch(
 async function selectRequester(
   requesterId = "1",
 ) {
-  await screen.findByText(
-    /Select a requester before continuing/i,
+  const requesterSelect = await screen.findByLabelText(
+    "Development Requester",
   );
 
   await userEvent.selectOptions(
-    screen.getByLabelText(
-      "Development Requester",
-    ),
+    requesterSelect,
     requesterId,
   );
 
   await userEvent.click(
     screen.getByRole("button", {
-      name: "Continue",
+      name: /Continue/i,
     }),
   );
 
@@ -190,11 +188,14 @@ async function selectRequester(
   });
 }
 
+async function expectResponsiveTicketText(text: string) {
+  expect((await screen.findAllByText(text)).length).toBeGreaterThan(0);
+}
+
 afterEach(() => {
   vi.unstubAllGlobals();
   vi.restoreAllMocks();
 });
-
 describe("Lab 2 - My Tickets UI", () => {
   it(
     "loads and displays tickets for the selected requester",
@@ -205,25 +206,10 @@ describe("Lab 2 - My Tickets UI", () => {
 
       await selectRequester();
 
-      expect(
-        await screen.findByText("TKT-000001"),
-      ).toBeInTheDocument();
-
-      expect(
-        screen.getByText(
-          "Unable to connect to Wi-Fi",
-        ),
-      ).toBeInTheDocument();
-
-      expect(
-        screen.getByText("TKT-000002"),
-      ).toBeInTheDocument();
-
-      expect(
-        screen.getByText(
-          "Printer is not responding",
-        ),
-      ).toBeInTheDocument();
+      await expectResponsiveTicketText("TKT-000001");
+      await expectResponsiveTicketText("Unable to connect to Wi-Fi");
+      await expectResponsiveTicketText("TKT-000002");
+      await expectResponsiveTicketText("Printer is not responding");
     },
   );
 
@@ -541,11 +527,7 @@ describe("Lab 2 - My Tickets UI", () => {
         }),
       );
 
-      expect(
-        await screen.findByText(
-          "TKT-000001",
-        ),
-      ).toBeInTheDocument();
+      await expectResponsiveTicketText("TKT-000001");
     },
   );
 
@@ -595,9 +577,7 @@ describe("Lab 2 - My Tickets UI", () => {
 
       await selectRequester();
 
-      await screen.findByText(
-        "TKT-000001",
-      );
+      await screen.findAllByText("TKT-000001");
 
       await userEvent.click(
         screen.getByRole("button", {
@@ -605,17 +585,8 @@ describe("Lab 2 - My Tickets UI", () => {
         }),
       );
 
-      expect(
-        await screen.findByText(
-          "TKT-000003",
-        ),
-      ).toBeInTheDocument();
-
-      expect(
-        screen.getByText(
-          "Second page ticket",
-        ),
-      ).toBeInTheDocument();
+      await expectResponsiveTicketText("TKT-000003");
+      await expectResponsiveTicketText("Second page ticket");
 
       expect(
         fetchMock.mock.calls.some(
@@ -637,15 +608,11 @@ describe("Lab 2 - My Tickets UI", () => {
 
       await selectRequester();
 
-      expect(
-        await screen.findByText(
-          "TKT-000001",
-        ),
-      ).toBeInTheDocument();
+      await expectResponsiveTicketText("TKT-000001");
 
       await userEvent.click(
         screen.getByRole("button", {
-          name: "Change Requester",
+          name: /Change/i,
         }),
       );
 

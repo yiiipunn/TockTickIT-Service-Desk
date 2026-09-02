@@ -821,6 +821,16 @@ Attachment rules are fixed for Lab 2:
 
 Removed Attachments retain metadata but cannot be downloaded or previewed.
 
+### Storage Decision
+
+Attachment bytes are persisted on the server filesystem. The default location
+is `server/storage/attachments`; deployments may override it with the
+`ATTACHMENT_STORAGE_DIR` environment variable. The stored filename is a UUID
+plus an extension derived from the backend-validated MIME type. The original
+filename is metadata only and is never used as a storage path. Public API
+responses do not expose the stored filename. Soft removal retains the stored
+bytes while all download and preview access is blocked.
+
 ---
 
 ## 10.1 Upload Attachment
@@ -898,7 +908,8 @@ Example:
     "mimeType": "image/png",
     "sizeBytes": 245810,
     "isRemoved": false,
-    "createdAt": "2026-08-28T10:35:00.000Z"
+    "createdAt": "2026-08-28T10:35:00.000Z",
+    "updatedAt": "2026-08-28T10:35:00.000Z"
   }
 }
 ```
@@ -997,7 +1008,8 @@ Example active Attachment:
     "isRemoved": false,
     "removedAt": null,
     "removalReason": null,
-    "createdAt": "2026-08-28T10:35:00.000Z"
+    "createdAt": "2026-08-28T10:35:00.000Z",
+    "updatedAt": "2026-08-28T10:35:00.000Z"
   }
 }
 ```
@@ -1015,7 +1027,8 @@ Example removed Attachment:
     "isRemoved": true,
     "removedAt": "2026-08-28T11:00:00.000Z",
     "removalReason": "Uploaded the wrong file",
-    "createdAt": "2026-08-28T10:35:00.000Z"
+    "createdAt": "2026-08-28T10:35:00.000Z",
+    "updatedAt": "2026-08-28T11:00:00.000Z"
   }
 }
 ```
@@ -1354,7 +1367,7 @@ server/tests/
 ├── create-ticket.api.test.ts
 ├── my-tickets.api.test.ts
 ├── ticket-detail.api.test.ts
-└── attachments.api.test.ts
+└── attachments.test.ts
 ```
 
 Coverage should include:
