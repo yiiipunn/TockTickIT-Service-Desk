@@ -1,0 +1,67 @@
+/* Global CSS - Reset and root styling */
+
+html,
+body,
+#root {
+  width: 100%;
+  height: 100%;
+  margin: 0;
+  padding: 0;
+}
+
+body {
+  min-width: 320px;
+  background: #f5f7f6;
+}
+
+#root {
+  display: flex;
+  flex-direction: column;
+}
+
+/* Application shell - full width outer container */
+.app-shell {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  min-height: 100vh;
+}
+
+/* Navbar spans full width */
+.app-navbar {
+  width: 100%;
+}
+
+/* Main content - centered inner container with responsive sizing */
+.app-content {
+  width: 100%;
+  max-width: 1440px;
+  margin: 0 auto;
+  padding: 32px 40px;
+  flex: 1;
+}
+
+/* Responsive padding for smaller screens */
+@media (max-width: 991px) {
+  .app-content {
+    padding: 24px 24px;
+  }
+}
+
+@media (max-width: 767px) {
+  .app-content {
+    padding: 16px 16px;
+  }
+}
+
+/* Remove text-align center that may come from Vite starter */
+.app-content {
+  text-align: left;
+}
+
+/* Ensure Bootstrap container doesn't add extra constraints */
+.app-content .container {
+  width: 100%;
+  max-width: 100%;
+  padding: 0;
+}
