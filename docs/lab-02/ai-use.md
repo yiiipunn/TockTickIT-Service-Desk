@@ -22,7 +22,7 @@ All AI-generated suggestions were reviewed before being accepted. Final decision
 | **AI Tool** | ChatGPT |
 | **Main Purpose** | Planning, specification, test planning, and implementation support |
 | **Usage Approach** | AI-assisted, student-reviewed |
-| **Current Phase** | Issue #7 / #11 Attachment Management implementation and verification |
+| **Current Phase** | Issue #12 / GitHub Issue #20 E2E, responsive, and release-integration verification |
 
 ---
 
@@ -39,6 +39,7 @@ All AI-generated suggestions were reviewed before being accepted. Final decision
 | **7** | Test Planning | Help create `tests.md` and map the Acceptance Criteria to planned automated tests before implementation. | Helped plan API, UI component, responsive, boundary, ownership, failure-state, attachment, and E2E tests. | I kept test results as planned/not run because implementation has not started. Actual results will only be recorded after execution. |
 | **8** | Peer Review Documentation | Help prepare `reviewer.md` before implementation and Pull Request review begins. | Created a structure for reviewer information, PR records, feedback, required changes, author responses, and approval status. | I kept unknown review information as `TBD` or `Pending` until the actual peer review occurs. |
 | **9** | Attachment Management Implementation | Implement the attachment-management Issue from the approved Lab 2 documents, preserving existing work and keeping E2E/release integration out of scope. | Audited the existing code, added persistent upload/download/metadata/soft-removal behavior, enforced ownership and validation boundaries, integrated Create Ticket and Ticket Detail UI flows, updated scoped tests and documentation, and ran the complete server/client suites and builds. | The implementation is in the working tree for student review. Verification evidence is recorded in `tests.md`; E2E and release integration remain unstarted. |
+| **10** | E2E, Responsive, and Release Integration | Complete the final Lab 2 integration Issue: add a repeatable browser suite, verify requester and attachment workflows, capture responsive evidence, correct discovered defects, and update delivery documentation without fabricating peer-review results. | Added Playwright configuration and browser tests for requester selection, ticket creation, My Tickets, Ticket Detail, attachment upload/download/soft-removal, requester isolation, visual tokens, and desktop/tablet/mobile layouts. Captured screenshots and corrected a 390 px navigation overlap discovered during visual review. | I reviewed the browser evidence and test results, accepted the responsive navigation correction, and recorded only the actual verification results. Peer-review and final merge evidence remain pending until they occur on GitHub. |
 
 ---
 
@@ -54,7 +55,7 @@ All AI-generated suggestions were reviewed before being accepted. Final decision
 | **Default Sorting** | Define predictable My Tickets ordering. | Use `updatedAt DESC` with internal ID descending as secondary sort. |
 | **Pagination** | Define default and supported page sizes. | Default to 10; support 10, 20, and 50. |
 | **Attachment Removal** | Keep historical Attachment information. | Use soft removal and retain metadata. |
-| **Test Results** | Record only commands and results that were actually executed. | Issue #7 / #11 server and client suites and builds are recorded in `tests.md`; E2E remains `Not Run`. |
+| **Test Results** | Record only commands and results that were actually executed. | Server/client suites, production builds, and the 2-test Playwright browser suite are recorded in `tests.md`; peer review and release merge remain pending. |
 | **Peer Review Evidence** | Prepare the review document early. | Keep PR numbers, reviewer results, and evidence as `TBD` until they actually exist. |
 
 ---
@@ -101,9 +102,9 @@ This document is still **In Progress**. Additional significant AI interactions w
 | React component implementation | Used for Attachment Management |
 | Automated test implementation | Used for Attachment Management |
 | Debugging | Used for Attachment Management |
-| E2E testing | Not Started |
-| Responsive UI fixes | Not Started |
-| Pull Request review fixes | Not Started |
+| E2E testing | Used for Issue #12 / GitHub Issue #20 |
+| Responsive UI fixes | Used for the mobile navigation overlap correction |
+| Pull Request review fixes | Pending peer review |
 
 ---
 

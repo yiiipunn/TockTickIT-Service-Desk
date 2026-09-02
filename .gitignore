@@ -16,3 +16,6 @@ server/prisma/*.db
 client/.vite/
 # persisted attachment files
 server/storage/
+# Playwright reports and transient test output
+client/playwright-report/
+client/test-results/

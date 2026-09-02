@@ -4,7 +4,7 @@
 **Lab:** Lab 2 — Requester Ticketing MVP with UI Foundation  
 **Author:** Phurithip Paisanworajit  67070503437
 **Reviewer:** TBD  
-**Status:** In Progress
+**Status:** Prior implementation PRs merged; final integration review pending
 
 ---
 
@@ -68,14 +68,14 @@ This section will be updated as Lab 2 Pull Requests are created and reviewed.
 
 | PR | Issue | Branch | Reviewer | Review Result | Merge Status |
 |---|---|---|---|---|---|
-| TBD | #1 Specification & Test Plan | `feature/lab2-specification` | TBD | Pending | Pending |
-| TBD | #2 Development Requester Context | TBD | TBD | Pending | Pending |
-| TBD | #3 Ticket Data Model & Reference Data | TBD | TBD | Pending | Pending |
-| TBD | #4 Create Ticket | TBD | TBD | Pending | Pending |
-| TBD | #5 My Tickets | TBD | TBD | Pending | Pending |
-| TBD | #6 Requester Ticket Detail | TBD | TBD | Pending | Pending |
-| TBD | #7 Attachment Management | TBD | TBD | Pending | Pending |
-| TBD | #8 E2E, Responsive & Release Integration | TBD | TBD | Pending | Pending |
+| #21 | #1 Specification & Test Plan | `feature/lab2-specification` | No reviewer recorded | No recorded review | Merged to `lab2-staging` |
+| #23 | #2 Development Requester Context | `feature/development-requester-context` | No reviewer recorded | No recorded review | Merged to `lab2-staging` |
+| #22 | #3 Ticket Data Model & Reference Data | `feature/ticket-data-model` | No reviewer recorded | No recorded review | Merged to `lab2-staging` |
+| #24 | #4 Create Ticket | `feature/create-ticket` | No reviewer recorded | No recorded review | Merged to `lab2-staging` |
+| #25 | #5 My Tickets | `feature/my-tickets` | No reviewer recorded | No recorded review | Merged to `lab2-staging` |
+| #26 | #6 Requester Ticket Detail | `feature/ticket-detail` | No reviewer recorded | No recorded review | Merged to `lab2-staging` |
+| #27 | #7 / #11 Attachment Management | `feature/attachment-management` | No reviewer recorded | No recorded review | Merged to `lab2-staging` |
+| Pending | #20 / Issue #12 E2E, Responsive & Release Integration | `feature/lab2-integration` | @DEV4952 (peer reviewer) | Pending | Pending |
 
 ---
 

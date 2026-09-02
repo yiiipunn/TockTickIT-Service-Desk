@@ -771,7 +771,7 @@ export default function App() {
         <>
           {/* Requester Application Navbar */}
           <nav
-            className="navbar navbar-expand-md bg-success rounded-0 shadow-sm mb-0 px-4 py-3"
+            className="navbar navbar-expand-md requester-navbar bg-success rounded-0 shadow-sm mb-0 px-4 py-3"
             style={{ borderRadius: 0 }}
             aria-label="Requester application navigation"
           >
@@ -785,7 +785,7 @@ export default function App() {
               TokTickIT
             </button>
 
-            <div className="d-flex flex-wrap align-items-center gap-2 flex-grow-1">
+            <div className="requester-nav-actions d-flex flex-wrap align-items-center gap-2 flex-grow-1">
               <button
                 type="button"
                 className={`btn btn-sm ${
@@ -811,7 +811,7 @@ export default function App() {
               </button>
             </div>
 
-            <div className="ms-auto ps-md-3">
+            <div className="requester-identity ms-auto ps-md-3">
               <div className="d-flex flex-column align-items-end gap-1">
                 <div className="small text-white-50">Requester</div>
                 <div className="small fw-semibold text-white">{currentRequester.name}</div>
