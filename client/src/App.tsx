@@ -7,9 +7,13 @@ import {
   getCategories,
   getRelatedSystems,
   getRequesters,
+  getTickets,
+  GetTicketsParams,
   RelatedSystem,
   RequestedPriority,
   Ticket,
+  TicketListItem,
+  TicketPagination,
 } from "./api.js";
 
 type UiState = "idle" | "loading" | "success" | "error";
@@ -32,9 +36,8 @@ export default function App() {
 
   const [requesters, setRequesters] = useState<DevelopmentRequester[]>([]);
 
-  const [selectedRequesterId, setSelectedRequesterId] = useState<number | null>(
-    null
-  );
+  const [selectedRequesterId, setSelectedRequesterId] =
+    useState<number | null>(null);
 
   const [currentRequester, setCurrentRequester] =
     useState<DevelopmentRequester | null>(null);
@@ -52,21 +55,43 @@ export default function App() {
   // Lab 2 - Create Ticket Form
   // -------------------------------------------------------------------------
   const [categoryId, setCategoryId] = useState<number | null>(null);
-
-  const [relatedSystemId, setRelatedSystemId] = useState<number | null>(null);
-
+  const [relatedSystemId, setRelatedSystemId] =
+    useState<number | null>(null);
   const [summary, setSummary] = useState("");
-
   const [requestedPriority, setRequestedPriority] =
     useState<RequestedPriority>("MEDIUM");
-
   const [description, setDescription] = useState("");
-
   const [submitState, setSubmitState] = useState<SubmitState>("idle");
-
   const [createdTicket, setCreatedTicket] = useState<Ticket | null>(null);
-
   const [submitError, setSubmitError] = useState("");
+
+  // -------------------------------------------------------------------------
+  // Lab 2 - My Tickets
+  // -------------------------------------------------------------------------
+  const [tickets, setTickets] = useState<TicketListItem[]>([]);
+  const [ticketsState, setTicketsState] = useState<UiState>("idle");
+  const [ticketsError, setTicketsError] = useState("");
+  const [ticketSearch, setTicketSearch] = useState("");
+  const [ticketCategoryFilter, setTicketCategoryFilter] =
+    useState<number | null>(null);
+  const [ticketSystemFilter, setTicketSystemFilter] =
+    useState<number | null>(null);
+  const [ticketPriorityFilter, setTicketPriorityFilter] =
+    useState<RequestedPriority | "">("");
+  const [ticketStatusFilter, setTicketStatusFilter] = useState("");
+  const [ticketSortBy, setTicketSortBy] =
+    useState<GetTicketsParams["sortBy"]>("updatedAt");
+  const [ticketSortOrder, setTicketSortOrder] =
+    useState<GetTicketsParams["sortOrder"]>("desc");
+  const [ticketPageSize, setTicketPageSize] =
+    useState<10 | 20 | 50>(10);
+  const [ticketPagination, setTicketPagination] =
+    useState<TicketPagination>({
+      page: 1,
+      pageSize: 10,
+      totalItems: 0,
+      totalPages: 0,
+    });
 
   useEffect(() => {
     loadRequesters();
@@ -80,7 +105,6 @@ export default function App() {
 
     try {
       const result = await checkSystem();
-
       setCategories(result.categories);
       setState("success");
     } catch {
@@ -97,7 +121,6 @@ export default function App() {
 
     try {
       const result = await getRequesters();
-
       setRequesters(result);
       setRequesterState("success");
     } catch {
@@ -109,7 +132,7 @@ export default function App() {
   async function handleContinue() {
     const requester =
       requesters.find(
-        (requester) => requester.id === selectedRequesterId
+        (requester) => requester.id === selectedRequesterId,
       ) ?? null;
 
     if (!requester) {
@@ -118,7 +141,10 @@ export default function App() {
 
     setCurrentRequester(requester);
 
-    await loadTicketReferenceData();
+    await Promise.all([
+      loadTicketReferenceData(),
+      loadTickets(requester.id, 1),
+    ]);
   }
 
   function handleChangeRequester() {
@@ -130,6 +156,25 @@ export default function App() {
     setTicketCategories([]);
     setRelatedSystems([]);
     setReferenceDataState("idle");
+
+    setTickets([]);
+    setTicketsState("idle");
+    setTicketsError("");
+    setTicketSearch("");
+    setTicketCategoryFilter(null);
+    setTicketSystemFilter(null);
+    setTicketPriorityFilter("");
+    setTicketStatusFilter("");
+    setTicketSortBy("updatedAt");
+    setTicketSortOrder("desc");
+    setTicketPageSize(10);
+
+    setTicketPagination({
+      page: 1,
+      pageSize: 10,
+      totalItems: 0,
+      totalPages: 0,
+    });
   }
 
   // -------------------------------------------------------------------------
@@ -170,7 +215,6 @@ export default function App() {
       return;
     }
 
-    // Prevent duplicate submission while the request is in progress.
     if (submitState === "submitting") {
       return;
     }
@@ -190,6 +234,8 @@ export default function App() {
 
       setCreatedTicket(ticket);
       setSubmitState("success");
+
+      await loadTickets(currentRequester.id, 1);
     } catch (error) {
       setSubmitState("error");
 
@@ -216,6 +262,60 @@ export default function App() {
     resetTicketForm();
   }
 
+  // -------------------------------------------------------------------------
+  // My Tickets
+  // -------------------------------------------------------------------------
+  async function loadTickets(requesterId: number, page = 1) {
+    setTicketsState("loading");
+    setTicketsError("");
+
+    try {
+      const result = await getTickets(requesterId, {
+        search: ticketSearch,
+        categoryId: ticketCategoryFilter ?? undefined,
+        relatedSystemId: ticketSystemFilter ?? undefined,
+        requestedPriority: ticketPriorityFilter || undefined,
+        status: ticketStatusFilter || undefined,
+        sortBy: ticketSortBy,
+        sortOrder: ticketSortOrder,
+        page,
+        pageSize: ticketPageSize,
+      });
+
+      setTickets(result.items);
+      setTicketPagination(result.pagination);
+      setTicketsState("success");
+    } catch (error) {
+      setTickets([]);
+      setTicketsState("error");
+
+      if (error instanceof Error) {
+        setTicketsError(error.message);
+      } else {
+        setTicketsError("Unable to load tickets");
+      }
+    }
+  }
+
+  function handleTicketSearch(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+
+    if (currentRequester) {
+      void loadTickets(currentRequester.id, 1);
+    }
+  }
+
+  function handleClearTicketFilters() {
+    setTicketSearch("");
+    setTicketCategoryFilter(null);
+    setTicketSystemFilter(null);
+    setTicketPriorityFilter("");
+    setTicketStatusFilter("");
+    setTicketSortBy("updatedAt");
+    setTicketSortOrder("desc");
+    setTicketPageSize(10);
+  }
+
   const formIsValid =
     categoryId !== null &&
     relatedSystemId !== null &&
@@ -225,7 +325,7 @@ export default function App() {
     description.trim().length <= 2000;
 
   return (
-    <div className="container py-5" style={{ maxWidth: 720 }}>
+    <div className="container py-5" style={{ maxWidth: 960 }}>
       <h1 className="h3 mb-2">
         TokTickIT <span className="text-success">IT Service Desk</span>
       </h1>
@@ -243,7 +343,6 @@ export default function App() {
                 <div>
                   Current requester: <strong>{currentRequester.name}</strong>
                 </div>
-
                 <div className="small">{currentRequester.email}</div>
               </div>
 
@@ -268,7 +367,6 @@ export default function App() {
                   <div className="mb-3">
                     Unable to load development requesters.
                   </div>
-
                   <button className="btn btn-danger" onClick={loadRequesters}>
                     Retry
                   </button>
@@ -293,9 +391,8 @@ export default function App() {
                     value={selectedRequesterId ?? ""}
                     onChange={(event) => {
                       const value = event.target.value;
-
                       setSelectedRequesterId(
-                        value === "" ? null : Number(value)
+                        value === "" ? null : Number(value),
                       );
                     }}
                   >
@@ -333,9 +430,7 @@ export default function App() {
             </p>
 
             {referenceDataState === "loading" && (
-              <div className="text-muted">
-                Loading ticket information...
-              </div>
+              <div className="text-muted">Loading ticket information...</div>
             )}
 
             {referenceDataState === "error" && (
@@ -343,7 +438,6 @@ export default function App() {
                 <div className="mb-3">
                   Unable to load ticket information.
                 </div>
-
                 <button
                   className="btn btn-danger"
                   onClick={loadTicketReferenceData}
@@ -368,16 +462,13 @@ export default function App() {
               createdTicket && (
                 <div className="alert alert-success mb-0">
                   <h3 className="h6">Ticket created successfully</h3>
-
                   <p className="mb-1">
                     Ticket Number:{" "}
                     <strong>{createdTicket.ticketNumber}</strong>
                   </p>
-
                   <p className="mb-3">
                     Status: <strong>{createdTicket.status}</strong>
                   </p>
-
                   <button
                     className="btn btn-success"
                     onClick={handleCreateAnotherTicket}
@@ -396,21 +487,18 @@ export default function App() {
                     <label htmlFor="ticket-category" className="form-label">
                       Category
                     </label>
-
                     <select
                       id="ticket-category"
                       className="form-select"
                       value={categoryId ?? ""}
                       onChange={(event) => {
                         const value = event.target.value;
-
                         setCategoryId(value === "" ? null : Number(value));
                       }}
                       disabled={submitState === "submitting"}
                       required
                     >
                       <option value="">Select a category</option>
-
                       {ticketCategories.map((category) => (
                         <option key={category.id} value={category.id}>
                           {category.name}
@@ -426,23 +514,20 @@ export default function App() {
                     >
                       Related System
                     </label>
-
                     <select
                       id="ticket-related-system"
                       className="form-select"
                       value={relatedSystemId ?? ""}
                       onChange={(event) => {
                         const value = event.target.value;
-
                         setRelatedSystemId(
-                          value === "" ? null : Number(value)
+                          value === "" ? null : Number(value),
                         );
                       }}
                       disabled={submitState === "submitting"}
                       required
                     >
                       <option value="">Select a related system</option>
-
                       {relatedSystems.map((system) => (
                         <option key={system.id} value={system.id}>
                           {system.name}
@@ -455,7 +540,6 @@ export default function App() {
                     <label htmlFor="ticket-summary" className="form-label">
                       Summary
                     </label>
-
                     <input
                       id="ticket-summary"
                       className="form-control"
@@ -466,7 +550,6 @@ export default function App() {
                       disabled={submitState === "submitting"}
                       required
                     />
-
                     <div className="form-text">
                       {summary.length}/120 characters
                     </div>
@@ -476,14 +559,13 @@ export default function App() {
                     <label htmlFor="ticket-priority" className="form-label">
                       Requested Priority
                     </label>
-
                     <select
                       id="ticket-priority"
                       className="form-select"
                       value={requestedPriority}
                       onChange={(event) =>
                         setRequestedPriority(
-                          event.target.value as RequestedPriority
+                          event.target.value as RequestedPriority,
                         )
                       }
                       disabled={submitState === "submitting"}
@@ -498,7 +580,6 @@ export default function App() {
                     <label htmlFor="ticket-description" className="form-label">
                       Description
                     </label>
-
                     <textarea
                       id="ticket-description"
                       className="form-control"
@@ -509,7 +590,6 @@ export default function App() {
                       disabled={submitState === "submitting"}
                       required
                     />
-
                     <div className="form-text">
                       {description.length}/2000 characters
                     </div>
@@ -524,9 +604,7 @@ export default function App() {
                   <button
                     className="btn btn-success"
                     type="submit"
-                    disabled={
-                      !formIsValid || submitState === "submitting"
-                    }
+                    disabled={!formIsValid || submitState === "submitting"}
                   >
                     {submitState === "submitting"
                       ? "Creating Ticket..."
@@ -534,6 +612,325 @@ export default function App() {
                   </button>
                 </form>
               )}
+          </div>
+        </div>
+      )}
+
+      {/* My Tickets */}
+      {currentRequester && (
+        <div className="card shadow-sm mb-4">
+          <div className="card-body">
+            <div className="d-flex justify-content-between align-items-center mb-3">
+              <div>
+                <h2 className="h5 mb-1">My Tickets</h2>
+                <p className="text-muted mb-0">
+                  View and search your submitted tickets.
+                </p>
+              </div>
+
+              <button
+                className="btn btn-outline-success"
+                onClick={() =>
+                  loadTickets(currentRequester.id, ticketPagination.page)
+                }
+                disabled={ticketsState === "loading"}
+              >
+                Refresh
+              </button>
+            </div>
+
+            <form onSubmit={handleTicketSearch}>
+              <div className="mb-3">
+                <label htmlFor="ticket-search" className="form-label">
+                  Search
+                </label>
+                <input
+                  id="ticket-search"
+                  className="form-control"
+                  type="search"
+                  placeholder="Ticket Number or Summary"
+                  value={ticketSearch}
+                  onChange={(event) => setTicketSearch(event.target.value)}
+                />
+              </div>
+
+              <div className="row g-3 mb-3">
+                <div className="col-md-6">
+                  <div className="form-label">Filter by Category</div>
+                  <select
+                    id="my-ticket-category"
+                    className="form-select"
+                    aria-label="My Tickets category filter"
+                    value={ticketCategoryFilter ?? ""}
+                    onChange={(event) =>
+                      setTicketCategoryFilter(
+                        event.target.value === ""
+                          ? null
+                          : Number(event.target.value),
+                      )
+                    }
+                  >
+                    <option value="">All Categories</option>
+                    {ticketCategories.map((category) => (
+                      <option key={category.id} value={category.id}>
+                        {category.name}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                <div className="col-md-6">
+                  <div className="form-label">Filter by Related System</div>
+                  <select
+                    id="my-ticket-system"
+                    className="form-select"
+                    aria-label="My Tickets related system filter"
+                    value={ticketSystemFilter ?? ""}
+                    onChange={(event) =>
+                      setTicketSystemFilter(
+                        event.target.value === ""
+                          ? null
+                          : Number(event.target.value),
+                      )
+                    }
+                  >
+                    <option value="">All Related Systems</option>
+                    {relatedSystems.map((system) => (
+                      <option key={system.id} value={system.id}>
+                        {system.name}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                <div className="col-md-6">
+                  <div className="form-label">Filter by Priority</div>
+                  <select
+                    id="my-ticket-priority"
+                    className="form-select"
+                    aria-label="My Tickets priority filter"
+                    value={ticketPriorityFilter}
+                    onChange={(event) =>
+                      setTicketPriorityFilter(
+                        event.target.value as RequestedPriority | "",
+                      )
+                    }
+                  >
+                    <option value="">All Priorities</option>
+                    <option value="LOW">Low</option>
+                    <option value="MEDIUM">Medium</option>
+                    <option value="HIGH">High</option>
+                  </select>
+                </div>
+
+                <div className="col-md-6">
+                  <div className="form-label">Filter by Status</div>
+                  <select
+                    id="my-ticket-status"
+                    className="form-select"
+                    aria-label="My Tickets status filter"
+                    value={ticketStatusFilter}
+                    onChange={(event) =>
+                      setTicketStatusFilter(event.target.value)
+                    }
+                  >
+                    <option value="">All Statuses</option>
+                    <option value="NEW">New</option>
+                  </select>
+                </div>
+
+                <div className="col-md-6">
+                  <label htmlFor="my-ticket-sort" className="form-label">
+                    Sort By
+                  </label>
+                  <select
+                    id="my-ticket-sort"
+                    className="form-select"
+                    value={ticketSortBy}
+                    onChange={(event) =>
+                      setTicketSortBy(
+                        event.target.value as GetTicketsParams["sortBy"],
+                      )
+                    }
+                  >
+                    <option value="updatedAt">Last Updated</option>
+                    <option value="createdAt">Created Date</option>
+                    <option value="ticketNumber">Ticket Number</option>
+                  </select>
+                </div>
+
+                <div className="col-md-6">
+                  <label htmlFor="my-ticket-order" className="form-label">
+                    Order
+                  </label>
+                  <select
+                    id="my-ticket-order"
+                    className="form-select"
+                    value={ticketSortOrder}
+                    onChange={(event) =>
+                      setTicketSortOrder(
+                        event.target.value as GetTicketsParams["sortOrder"],
+                      )
+                    }
+                  >
+                    <option value="desc">Descending</option>
+                    <option value="asc">Ascending</option>
+                  </select>
+                </div>
+              </div>
+
+              <div className="d-flex gap-2 mb-4">
+                <button className="btn btn-success" type="submit">
+                  Apply
+                </button>
+
+                <button
+                  className="btn btn-outline-secondary"
+                  type="button"
+                  onClick={handleClearTicketFilters}
+                >
+                  Clear
+                </button>
+              </div>
+            </form>
+
+            {ticketsState === "loading" && (
+              <div className="text-muted">Loading tickets...</div>
+            )}
+
+            {ticketsState === "error" && (
+              <div className="alert alert-danger">
+                <div className="mb-3">
+                  {ticketsError || "Unable to load tickets"}
+                </div>
+                <button
+                  className="btn btn-danger"
+                  onClick={() =>
+                    loadTickets(currentRequester.id, ticketPagination.page)
+                  }
+                >
+                  Retry
+                </button>
+              </div>
+            )}
+
+            {ticketsState === "success" && tickets.length === 0 && (
+              <div className="alert alert-light border">
+                {ticketSearch ||
+                ticketCategoryFilter !== null ||
+                ticketSystemFilter !== null ||
+                ticketPriorityFilter ||
+                ticketStatusFilter
+                  ? "No tickets match the current search or filters."
+                  : "You have not created any tickets yet."}
+              </div>
+            )}
+
+            {ticketsState === "success" && tickets.length > 0 && (
+              <>
+                <div className="table-responsive">
+                  <table className="table align-middle">
+                    <thead>
+                      <tr>
+                        <th>Ticket</th>
+                        <th>Summary</th>
+                        <th>Category</th>
+                        <th>System</th>
+                        <th>Priority</th>
+                        <th>Status</th>
+                      </tr>
+                    </thead>
+
+                    <tbody>
+                      {tickets.map((ticket) => (
+                        <tr key={ticket.id}>
+                          <td>
+                            <strong>{ticket.ticketNumber}</strong>
+                          </td>
+                          <td>{ticket.summary}</td>
+                          <td>{ticket.category.name}</td>
+                          <td>{ticket.relatedSystem.name}</td>
+                          <td>{ticket.requestedPriority}</td>
+                          <td>
+                            <span className="badge text-bg-success">
+                              {ticket.status}
+                            </span>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+
+                <div className="d-flex flex-wrap justify-content-between align-items-center gap-3 mt-3">
+                  <div className="small text-muted">
+                    {ticketPagination.totalItems} ticket
+                    {ticketPagination.totalItems === 1 ? "" : "s"}
+                  </div>
+
+                  <div className="d-flex align-items-center gap-2">
+                    <label
+                      htmlFor="my-ticket-page-size"
+                      className="small"
+                    >
+                      Per page
+                    </label>
+
+                    <select
+                      id="my-ticket-page-size"
+                      className="form-select form-select-sm"
+                      style={{ width: 80 }}
+                      value={ticketPageSize}
+                      onChange={(event) => {
+                        const size = Number(event.target.value) as
+                          | 10
+                          | 20
+                          | 50;
+                        setTicketPageSize(size);
+                      }}
+                    >
+                      <option value={10}>10</option>
+                      <option value={20}>20</option>
+                      <option value={50}>50</option>
+                    </select>
+
+                    <button
+                      className="btn btn-sm btn-outline-success"
+                      disabled={ticketPagination.page <= 1}
+                      onClick={() =>
+                        loadTickets(
+                          currentRequester.id,
+                          ticketPagination.page - 1,
+                        )
+                      }
+                    >
+                      Previous
+                    </button>
+
+                    <span className="small">
+                      Page {ticketPagination.page} of{" "}
+                      {Math.max(ticketPagination.totalPages, 1)}
+                    </span>
+
+                    <button
+                      className="btn btn-sm btn-outline-success"
+                      disabled={
+                        ticketPagination.totalPages === 0 ||
+                        ticketPagination.page >= ticketPagination.totalPages
+                      }
+                      onClick={() =>
+                        loadTickets(
+                          currentRequester.id,
+                          ticketPagination.page + 1,
+                        )
+                      }
+                    >
+                      Next
+                    </button>
+                  </div>
+                </div>
+              </>
+            )}
           </div>
         </div>
       )}
@@ -572,7 +969,6 @@ export default function App() {
           {state === "error" && (
             <div className="alert alert-danger mt-4">
               Backend status: <strong>Offline</strong>
-
               <div>Unable to connect to the TokTickIT API.</div>
             </div>
           )}
