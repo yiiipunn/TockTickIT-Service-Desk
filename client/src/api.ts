@@ -96,6 +96,42 @@ export interface GetTicketsParams {
 }
 
 // ---------------------------------------------------------------------------
+// Lab 2 - Requester Ticket Detail types
+// ---------------------------------------------------------------------------
+
+export interface TicketAttachment {
+  id: number;
+  originalFilename: string;
+  mimeType: string;
+  sizeBytes: number;
+  createdAt: string;
+}
+
+export interface TicketDetail {
+  id: number;
+  ticketNumber: string;
+  requesterId: number;
+  summary: string;
+  requestedPriority: RequestedPriority;
+  description: string;
+  status: string;
+  createdAt: string;
+  updatedAt: string;
+
+  category: {
+    id: number;
+    name: string;
+  };
+
+  relatedSystem: {
+    id: number;
+    name: string;
+  };
+
+  attachments: TicketAttachment[];
+}
+
+// ---------------------------------------------------------------------------
 // Lab 1 - System check
 // ---------------------------------------------------------------------------
 
@@ -159,7 +195,8 @@ export async function getCategories(): Promise<Category[]> {
     );
   }
 
-  const categories: Category[] = await response.json();
+  const categories: Category[] =
+    await response.json();
 
   return categories;
 }
@@ -332,4 +369,43 @@ export async function getTickets(
     await response.json();
 
   return result;
+}
+
+// ---------------------------------------------------------------------------
+// Lab 2 - Requester Ticket Detail
+// ---------------------------------------------------------------------------
+
+export async function getTicketDetail(
+  requesterId: number,
+  ticketId: number,
+): Promise<TicketDetail> {
+  const response = await fetch(
+    `${API_URL}/api/tickets/${ticketId}`,
+    {
+      headers: {
+        "X-Requester-Id": String(requesterId),
+      },
+    },
+  );
+
+  if (!response.ok) {
+    let message = "Unable to load ticket";
+
+    try {
+      const body = await response.json();
+
+      if (typeof body.error === "string") {
+        message = body.error;
+      }
+    } catch {
+      // Keep the default message if the response cannot be parsed.
+    }
+
+    throw new Error(message);
+  }
+
+  const ticket: TicketDetail =
+    await response.json();
+
+  return ticket;
 }

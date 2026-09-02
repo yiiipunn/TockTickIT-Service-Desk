@@ -599,4 +599,126 @@ app.get("/api/tickets", async (req: Request, res: Response) => {
     });
   }
 });
+
+// ---------------------------------------------------------------------------
+// Lab 2 - Requester Ticket Detail
+// Returns one ticket only when it belongs to the selected Development Requester.
+// Missing tickets and cross-requester access both return 404.
+// ---------------------------------------------------------------------------
+app.get("/api/tickets/:id", async (req: Request, res: Response) => {
+  try {
+    const prisma = getPrisma();
+
+    // -----------------------------------------------------------------------
+    // Development Requester context
+    // -----------------------------------------------------------------------
+    const requesterHeader = req.header("X-Requester-Id");
+
+    if (!requesterHeader) {
+      return res.status(400).json({
+        error: "Development Requester is required",
+      });
+    }
+
+    const requesterId = Number(requesterHeader);
+
+    if (!Number.isInteger(requesterId) || requesterId <= 0) {
+      return res.status(400).json({
+        error: "Invalid Development Requester",
+      });
+    }
+
+    const requester = await prisma.developmentRequester.findFirst({
+      where: {
+        id: requesterId,
+        isActive: true,
+      },
+      select: {
+        id: true,
+      },
+    });
+
+    if (!requester) {
+      return res.status(400).json({
+        error: "Invalid or inactive Development Requester",
+      });
+    }
+
+    // -----------------------------------------------------------------------
+    // Ticket ID
+    // -----------------------------------------------------------------------
+    const ticketId = Number(req.params.id);
+
+    if (!Number.isInteger(ticketId) || ticketId <= 0) {
+      return res.status(404).json({
+        error: "Ticket not found",
+      });
+    }
+
+    // -----------------------------------------------------------------------
+    // Load owned ticket
+    // Ownership is enforced directly in the query.
+    // -----------------------------------------------------------------------
+    const ticket = await prisma.ticket.findFirst({
+      where: {
+        id: ticketId,
+        requesterId,
+      },
+      select: {
+        id: true,
+        ticketNumber: true,
+        requesterId: true,
+        summary: true,
+        requestedPriority: true,
+        description: true,
+        status: true,
+        createdAt: true,
+        updatedAt: true,
+
+        category: {
+          select: {
+            id: true,
+            name: true,
+          },
+        },
+
+        relatedSystem: {
+          select: {
+            id: true,
+            name: true,
+          },
+        },
+
+        attachments: {
+          where: {
+            isRemoved: false,
+          },
+          select: {
+            id: true,
+            originalFilename: true,
+            mimeType: true,
+            sizeBytes: true,
+            createdAt: true,
+          },
+          orderBy: {
+            createdAt: "desc",
+          },
+        },
+      },
+    });
+
+    if (!ticket) {
+      return res.status(404).json({
+        error: "Ticket not found",
+      });
+    }
+
+    return res.status(200).json(ticket);
+  } catch {
+    return res.status(500).json({
+      error: "Unable to load ticket",
+    });
+  }
+});
+
 export default app;
