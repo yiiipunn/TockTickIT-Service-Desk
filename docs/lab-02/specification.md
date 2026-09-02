@@ -1307,7 +1307,7 @@ The following decisions resolve implementation details that are not completely p
 | AD-14 | Ticket creation and Attachment upload are separate operations. | A file-transfer failure should not invalidate an otherwise successfully created Ticket. |
 | AD-15 | If an Attachment upload fails after Ticket creation, the Ticket remains created. | This prevents loss of valid Ticket data and allows failed files to be retried later. |
 | AD-16 | Attachment metadata is retained after soft removal. | This preserves the Attachment lifecycle history required by Lab 2. |
-| AD-17 | The backend generates safe Attachment storage identifiers rather than trusting user-supplied file paths. | This provides predictable and safer file-storage behavior. |
+| AD-17 | Attachment bytes are stored under `server/storage/attachments` by default, with `ATTACHMENT_STORAGE_DIR` available as an environment override. Stored filenames use a generated UUID plus the extension derived from the validated MIME type; the user-supplied filename is retained only as metadata. Soft removal retains the stored bytes but blocks access through the API. | This gives development and deployment a concrete, configurable storage location, prevents path traversal through uploaded filenames, and preserves the removal audit trail. |
 | AD-18 | The frontend disables Ticket submission while a creation request is in progress. | This reduces accidental duplicate submissions and provides clear processing feedback. |
 | AD-19 | Desktop may use a Ticket table while mobile may use a responsive table or card representation. | Different representations may provide better usability at different viewport widths while preserving the same Ticket information. |
 | AD-20 | Development Requester context will be designed so it can be replaced by authenticated user context in Lab 3. | This reduces unnecessary coupling between the temporary Lab 2 mechanism and future authentication. |
@@ -1319,7 +1319,6 @@ The following implementation-level details may be finalized when their related I
 - Exact official Ticket Number format
 - Exact Prisma field types
 - Exact database index definitions
-- Exact Attachment storage location and naming implementation
 - Exact frontend persistence mechanism for the selected Development Requester
 - Exact UI component implementation
 - Additional safe API error codes where required

@@ -59,12 +59,10 @@ export interface TicketListItem {
   status: string;
   createdAt: string;
   updatedAt: string;
-
   category: {
     id: number;
     name: string;
   };
-
   relatedSystem: {
     id: number;
     name: string;
@@ -101,10 +99,15 @@ export interface GetTicketsParams {
 
 export interface TicketAttachment {
   id: number;
+  ticketId: number;
   originalFilename: string;
   mimeType: string;
   sizeBytes: number;
+  isRemoved: boolean;
+  removedAt: string | null;
+  removalReason: string | null;
   createdAt: string;
+  updatedAt: string;
 }
 
 export interface TicketDetail {
@@ -117,18 +120,53 @@ export interface TicketDetail {
   status: string;
   createdAt: string;
   updatedAt: string;
-
   category: {
     id: number;
     name: string;
   };
-
   relatedSystem: {
     id: number;
     name: string;
   };
-
   attachments: TicketAttachment[];
+}
+
+// ---------------------------------------------------------------------------
+// Shared response error helper
+// ---------------------------------------------------------------------------
+
+async function getErrorMessage(
+  response: Response,
+  fallback: string,
+): Promise<string> {
+  try {
+    const body = await response.json();
+
+    if (
+      body &&
+      typeof body === "object" &&
+      "error" in body &&
+      typeof body.error === "string"
+    ) {
+      return body.error;
+    }
+
+    if (
+      body &&
+      typeof body === "object" &&
+      "error" in body &&
+      body.error &&
+      typeof body.error === "object" &&
+      "message" in body.error &&
+      typeof body.error.message === "string"
+    ) {
+      return body.error.message;
+    }
+  } catch {
+    // Keep fallback when the response body is not JSON.
+  }
+
+  return fallback;
 }
 
 // ---------------------------------------------------------------------------
@@ -243,19 +281,12 @@ export async function createTicket(
   );
 
   if (!response.ok) {
-    let message = "Unable to create ticket";
-
-    try {
-      const body = await response.json();
-
-      if (typeof body.error === "string") {
-        message = body.error;
-      }
-    } catch {
-      // Keep the default message if the response cannot be parsed.
-    }
-
-    throw new Error(message);
+    throw new Error(
+      await getErrorMessage(
+        response,
+        "Unable to create ticket",
+      ),
+    );
   }
 
   const ticket: Ticket = await response.json();
@@ -339,9 +370,7 @@ export async function getTickets(
   const query = searchParams.toString();
 
   const response = await fetch(
-    `${API_URL}/api/tickets${
-      query ? `?${query}` : ""
-    }`,
+    `${API_URL}/api/tickets${query ? `?${query}` : ""}`,
     {
       headers: {
         "X-Requester-Id": String(requesterId),
@@ -350,19 +379,12 @@ export async function getTickets(
   );
 
   if (!response.ok) {
-    let message = "Unable to load tickets";
-
-    try {
-      const body = await response.json();
-
-      if (typeof body.error === "string") {
-        message = body.error;
-      }
-    } catch {
-      // Keep the default message if the response cannot be parsed.
-    }
-
-    throw new Error(message);
+    throw new Error(
+      await getErrorMessage(
+        response,
+        "Unable to load tickets",
+      ),
+    );
   }
 
   const result: TicketListResponse =
@@ -389,23 +411,129 @@ export async function getTicketDetail(
   );
 
   if (!response.ok) {
-    let message = "Unable to load ticket";
-
-    try {
-      const body = await response.json();
-
-      if (typeof body.error === "string") {
-        message = body.error;
-      }
-    } catch {
-      // Keep the default message if the response cannot be parsed.
-    }
-
-    throw new Error(message);
+    throw new Error(
+      await getErrorMessage(
+        response,
+        "Unable to load ticket",
+      ),
+    );
   }
 
   const ticket: TicketDetail =
     await response.json();
 
   return ticket;
+}
+
+// ---------------------------------------------------------------------------
+// Lab 2 - Attachment Management
+// ---------------------------------------------------------------------------
+
+export async function uploadTicketAttachment(
+  requesterId: number,
+  ticketId: number,
+  file: File,
+): Promise<TicketAttachment> {
+  const formData = new FormData();
+  formData.append("file", file);
+
+  const response = await fetch(
+    `${API_URL}/api/tickets/${ticketId}/attachments`,
+    {
+      method: "POST",
+      headers: {
+        "X-Requester-Id": String(requesterId),
+      },
+      body: formData,
+    },
+  );
+
+  if (!response.ok) {
+    throw new Error(
+      await getErrorMessage(
+        response,
+        "Unable to upload attachment",
+      ),
+    );
+  }
+
+  const body: { data: TicketAttachment } =
+    await response.json();
+
+  return body.data;
+}
+
+export async function removeTicketAttachment(
+  requesterId: number,
+  attachmentId: number,
+  reason: string,
+): Promise<TicketAttachment> {
+  const response = await fetch(
+    `${API_URL}/api/attachments/${attachmentId}`,
+    {
+      method: "DELETE",
+      headers: {
+        "Content-Type": "application/json",
+        "X-Requester-Id": String(requesterId),
+      },
+      body: JSON.stringify({ reason }),
+    },
+  );
+
+  if (!response.ok) {
+    throw new Error(
+      await getErrorMessage(
+        response,
+        "Unable to remove attachment",
+      ),
+    );
+  }
+
+  const body: { data: TicketAttachment } = await response.json();
+  return body.data;
+}
+
+export async function getAttachmentMetadata(
+  requesterId: number,
+  attachmentId: number,
+): Promise<TicketAttachment> {
+  const response = await fetch(
+    `${API_URL}/api/attachments/${attachmentId}`,
+    {
+      headers: {
+        "X-Requester-Id": String(requesterId),
+      },
+    },
+  );
+
+  if (!response.ok) {
+    throw new Error(
+      await getErrorMessage(response, "Unable to load attachment"),
+    );
+  }
+
+  const body: { data: TicketAttachment } = await response.json();
+  return body.data;
+}
+
+export async function downloadTicketAttachment(
+  requesterId: number,
+  attachmentId: number,
+): Promise<Blob> {
+  const response = await fetch(
+    `${API_URL}/api/attachments/${attachmentId}/download`,
+    {
+      headers: {
+        "X-Requester-Id": String(requesterId),
+      },
+    },
+  );
+
+  if (!response.ok) {
+    throw new Error(
+      await getErrorMessage(response, "Unable to download attachment"),
+    );
+  }
+
+  return response.blob();
 }

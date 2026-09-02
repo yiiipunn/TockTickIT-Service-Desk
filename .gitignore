@@ -14,3 +14,5 @@ server/prisma/*.db
 .DS_Store
 # Vite cache
 client/.vite/
+# persisted attachment files
+server/storage/

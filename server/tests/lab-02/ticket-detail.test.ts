@@ -204,7 +204,7 @@ describe("Lab 2 - Requester Ticket Detail API", () => {
     );
   });
 
-  it("excludes soft-removed Attachments", async () => {
+  it("retains soft-removed Attachment metadata", async () => {
     const response = await request(app)
       .get(`/api/tickets/${requesterATicketId}`)
       .set(
@@ -214,19 +214,19 @@ describe("Lab 2 - Requester Ticket Detail API", () => {
 
     expect(response.status).toBe(200);
 
-    const filenames =
-      response.body.attachments.map(
-        (attachment: {
-          originalFilename: string;
-        }) => attachment.originalFilename,
-      );
-
-    expect(filenames).toContain(
-      "active-evidence.png",
-    );
-
-    expect(filenames).not.toContain(
-      "removed-evidence.pdf",
+    expect(response.body.attachments).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          originalFilename: "active-evidence.png",
+          isRemoved: false,
+        }),
+        expect.objectContaining({
+          originalFilename: "removed-evidence.pdf",
+          isRemoved: true,
+          removedAt: expect.any(String),
+          removalReason: "No longer needed",
+        }),
+      ]),
     );
   });
 

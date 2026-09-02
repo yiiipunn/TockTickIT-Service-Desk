@@ -52,7 +52,8 @@ const ticketDetailResponse = {
   requesterId: 1,
   summary: "Printer is not working",
   requestedPriority: "MEDIUM",
-  description: "The printer does not respond when I send a document.",
+  description:
+    "The printer does not respond when I send a document.",
   status: "NEW",
   createdAt: "2026-09-02T08:00:00.000Z",
   updatedAt: "2026-09-02T08:30:00.000Z",
@@ -108,7 +109,9 @@ function installFetchMock(options?: {
       if (pathname === "/api/tickets/101") {
         if (options?.detailError) {
           return jsonResponse(
-            { error: "Unable to load ticket" },
+            {
+              error: "Unable to load ticket",
+            },
             500,
           );
         }
@@ -126,7 +129,9 @@ function installFetchMock(options?: {
       }
 
       return jsonResponse(
-        { error: "Unexpected request" },
+        {
+          error: "Unexpected request",
+        },
         500,
       );
     }),
@@ -149,11 +154,28 @@ async function selectRequester() {
 
   fireEvent.click(
     screen.getByRole("button", {
-      name: "Continue",
+      name: /Continue/i,
     }),
   );
 
-  await screen.findByText("TKT-000101");
+  await screen.findByRole("heading", {
+    name: "My Tickets",
+  });
+
+  const ticketNumbers =
+    await screen.findAllByText("TKT-000101");
+
+  expect(ticketNumbers.length).toBeGreaterThan(0);
+}
+
+function openTicketDetail() {
+  const viewButtons = screen.getAllByRole("button", {
+    name: "View TKT-000101",
+  });
+
+  expect(viewButtons.length).toBeGreaterThan(0);
+
+  fireEvent.click(viewButtons[0]);
 }
 
 describe("Requester Ticket Detail", () => {
@@ -168,11 +190,7 @@ describe("Requester Ticket Detail", () => {
 
     await selectRequester();
 
-    fireEvent.click(
-      screen.getByRole("button", {
-        name: "View TKT-000101",
-      }),
-    );
+    openTicketDetail();
 
     expect(
       await screen.findByRole("heading", {
@@ -212,11 +230,7 @@ describe("Requester Ticket Detail", () => {
 
     await selectRequester();
 
-    fireEvent.click(
-      screen.getByRole("button", {
-        name: "View TKT-000101",
-      }),
-    );
+    openTicketDetail();
 
     await screen.findByRole("heading", {
       name: "Ticket Detail",
@@ -224,12 +238,18 @@ describe("Requester Ticket Detail", () => {
 
     const fetchMock = vi.mocked(fetch);
 
-    const detailCall = fetchMock.mock.calls.find(([input]) => {
-      const url =
-        typeof input === "string" ? input : input.toString();
+    const detailCall = fetchMock.mock.calls.find(
+      ([input]) => {
+        const url =
+          typeof input === "string"
+            ? input
+            : input.toString();
 
-      return new URL(url).pathname === "/api/tickets/101";
-    });
+        return (
+          new URL(url).pathname === "/api/tickets/101"
+        );
+      },
+    );
 
     expect(detailCall).toBeDefined();
 
@@ -249,11 +269,7 @@ describe("Requester Ticket Detail", () => {
 
     await selectRequester();
 
-    fireEvent.click(
-      screen.getByRole("button", {
-        name: "View TKT-000101",
-      }),
-    );
+    openTicketDetail();
 
     expect(
       await screen.findByText("printer-error.png"),
@@ -273,15 +289,11 @@ describe("Requester Ticket Detail", () => {
 
     await selectRequester();
 
-    fireEvent.click(
-      screen.getByRole("button", {
-        name: "View TKT-000101",
-      }),
-    );
+    openTicketDetail();
 
     expect(
       await screen.findByText(
-        "No active attachments for this ticket.",
+        "No attachments for this ticket.",
       ),
     ).toBeInTheDocument();
   });
@@ -295,11 +307,7 @@ describe("Requester Ticket Detail", () => {
 
     await selectRequester();
 
-    fireEvent.click(
-      screen.getByRole("button", {
-        name: "View TKT-000101",
-      }),
-    );
+    openTicketDetail();
 
     expect(
       await screen.findByText("Unable to load ticket"),
@@ -313,11 +321,7 @@ describe("Requester Ticket Detail", () => {
 
     await selectRequester();
 
-    fireEvent.click(
-      screen.getByRole("button", {
-        name: "View TKT-000101",
-      }),
-    );
+    openTicketDetail();
 
     await screen.findByRole("heading", {
       name: "Ticket Detail",
@@ -325,7 +329,7 @@ describe("Requester Ticket Detail", () => {
 
     fireEvent.click(
       screen.getByRole("button", {
-        name: "Back to My Tickets",
+        name: /Back to My Tickets/i,
       }),
     );
 

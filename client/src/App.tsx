@@ -4,6 +4,7 @@ import {
   checkSystem,
   createTicket,
   DevelopmentRequester,
+  downloadTicketAttachment,
   getCategories,
   getRelatedSystems,
   getRequesters,
@@ -16,6 +17,8 @@ import {
   TicketDetail,
   TicketListItem,
   TicketPagination,
+  uploadTicketAttachment,
+  removeTicketAttachment,
 } from "./api";
 
 type UiState = "idle" | "loading" | "success" | "error";
@@ -23,6 +26,26 @@ type RequesterState = "loading" | "success" | "error";
 type ReferenceDataState = "idle" | "loading" | "success" | "error";
 type SubmitState = "idle" | "submitting" | "success" | "error";
 type AppView = "tickets" | "create" | "detail";
+
+const MAX_ATTACHMENT_SIZE = 5 * 1024 * 1024;
+const ALLOWED_ATTACHMENT_TYPES = new Set([
+  "image/jpeg",
+  "image/png",
+  "image/webp",
+  "application/pdf",
+]);
+
+function getAttachmentValidationError(file: File) {
+  if (!ALLOWED_ATTACHMENT_TYPES.has(file.type)) {
+    return `${file.name}: only JPG, JPEG, PNG, WEBP, and PDF files are allowed.`;
+  }
+
+  if (file.size > MAX_ATTACHMENT_SIZE) {
+    return `${file.name}: the file must not exceed 5 MB.`;
+  }
+
+  return "";
+}
 
 export default function App() {
   // -------------------------------------------------------------------------
@@ -69,6 +92,9 @@ export default function App() {
   const [submitState, setSubmitState] = useState<SubmitState>("idle");
   const [createdTicket, setCreatedTicket] = useState<Ticket | null>(null);
   const [submitError, setSubmitError] = useState("");
+  const [pendingAttachments, setPendingAttachments] = useState<File[]>([]);
+  const [createAttachmentErrors, setCreateAttachmentErrors] = useState<string[]>([]);
+  const [attachmentUploadFailures, setAttachmentUploadFailures] = useState<string[]>([]);
 
   // -------------------------------------------------------------------------
   // Lab 2 - My Tickets
@@ -106,6 +132,16 @@ export default function App() {
   const [ticketDetailState, setTicketDetailState] =
     useState<UiState>("idle");
   const [ticketDetailError, setTicketDetailError] = useState("");
+  const [attachmentFile, setAttachmentFile] = useState<File | null>(null);
+  const [attachmentState, setAttachmentState] = useState<SubmitState>("idle");
+  const [attachmentError, setAttachmentError] = useState("");
+  const [attachmentSuccess, setAttachmentSuccess] = useState("");
+  const [removingAttachmentId, setRemovingAttachmentId] =
+    useState<number | null>(null);
+  const [removalTargetId, setRemovalTargetId] = useState<number | null>(null);
+  const [removalReason, setRemovalReason] = useState("");
+  const [downloadingAttachmentId, setDownloadingAttachmentId] =
+    useState<number | null>(null);
 
   useEffect(() => {
     loadRequesters();
@@ -195,6 +231,12 @@ export default function App() {
     setSelectedTicketDetail(null);
     setTicketDetailState("idle");
     setTicketDetailError("");
+    setAttachmentFile(null);
+    setAttachmentState("idle");
+    setAttachmentError("");
+    setAttachmentSuccess("");
+    setRemovalTargetId(null);
+    setRemovalReason("");
   }
 
   // -------------------------------------------------------------------------
@@ -251,8 +293,22 @@ export default function App() {
         description,
       });
 
+      const uploadFailures: string[] = [];
+
+      for (const file of pendingAttachments) {
+        try {
+          await uploadTicketAttachment(currentRequester.id, ticket.id, file);
+        } catch (error) {
+          const message = error instanceof Error
+            ? error.message
+            : "Unable to upload attachment";
+          uploadFailures.push(`${file.name}: ${message}`);
+        }
+      }
+
       await loadTickets(currentRequester.id, 1);
       setCreatedTicket(ticket);
+      setAttachmentUploadFailures(uploadFailures);
       setSubmitState("success");
     } catch (error) {
       setSubmitState("error");
@@ -274,6 +330,9 @@ export default function App() {
     setSubmitState("idle");
     setCreatedTicket(null);
     setSubmitError("");
+    setPendingAttachments([]);
+    setCreateAttachmentErrors([]);
+    setAttachmentUploadFailures([]);
   }
 
   function handleOpenCreateTicket() {
@@ -352,6 +411,12 @@ export default function App() {
     setSelectedTicketDetail(null);
     setTicketDetailState("loading");
     setTicketDetailError("");
+    setAttachmentFile(null);
+    setAttachmentState("idle");
+    setAttachmentError("");
+    setAttachmentSuccess("");
+    setRemovalTargetId(null);
+    setRemovalReason("");
 
     try {
       const result = await getTicketDetail(
@@ -377,6 +442,144 @@ export default function App() {
     setSelectedTicketDetail(null);
     setTicketDetailState("idle");
     setTicketDetailError("");
+    setAttachmentFile(null);
+    setAttachmentState("idle");
+    setAttachmentError("");
+    setAttachmentSuccess("");
+    setRemovalTargetId(null);
+    setRemovalReason("");
+  }
+
+  async function refreshTicketDetail(ticketId: number) {
+    if (!currentRequester) return;
+    const result = await getTicketDetail(currentRequester.id, ticketId);
+    setSelectedTicketDetail(result);
+  }
+
+  async function handleUploadAttachment(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    if (!currentRequester || !selectedTicketDetail || !attachmentFile ||
+        attachmentState === "submitting") return;
+
+    setAttachmentState("submitting");
+    setAttachmentError("");
+    setAttachmentSuccess("");
+
+    try {
+      await uploadTicketAttachment(
+        currentRequester.id,
+        selectedTicketDetail.id,
+        attachmentFile,
+      );
+      await refreshTicketDetail(selectedTicketDetail.id);
+      setAttachmentFile(null);
+      setAttachmentState("success");
+      setAttachmentSuccess("Attachment uploaded successfully.");
+
+      const input = document.getElementById("ticket-attachment") as HTMLInputElement | null;
+      if (input) input.value = "";
+    } catch (error) {
+      setAttachmentState("error");
+      setAttachmentError(
+        error instanceof Error ? error.message : "Unable to upload attachment",
+      );
+    }
+  }
+
+  function handleSelectDetailAttachment(file: File | null) {
+    setAttachmentState("idle");
+    setAttachmentError("");
+    setAttachmentSuccess("");
+
+    if (!file) {
+      setAttachmentFile(null);
+      return;
+    }
+
+    const validationError = getAttachmentValidationError(file);
+
+    if (validationError) {
+      setAttachmentFile(null);
+      setAttachmentError(validationError);
+      return;
+    }
+
+    setAttachmentFile(file);
+  }
+
+  function handleRequestRemoveAttachment(attachmentId: number) {
+    setRemovalTargetId(attachmentId);
+    setRemovalReason("");
+    setAttachmentError("");
+    setAttachmentSuccess("");
+  }
+
+  async function handleRemoveAttachment(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+
+    if (!currentRequester || !selectedTicketDetail || removalTargetId === null) {
+      return;
+    }
+
+    const trimmedReason = removalReason.trim();
+
+    if (trimmedReason.length < 1 || trimmedReason.length > 250) {
+      setAttachmentError("Removal reason must contain 1 to 250 characters.");
+      return;
+    }
+
+    setRemovingAttachmentId(removalTargetId);
+    setAttachmentError("");
+
+    try {
+      await removeTicketAttachment(
+        currentRequester.id,
+        removalTargetId,
+        trimmedReason,
+      );
+      await refreshTicketDetail(selectedTicketDetail.id);
+      setRemovalTargetId(null);
+      setRemovalReason("");
+      setAttachmentState("success");
+      setAttachmentSuccess("Attachment removed successfully.");
+    } catch (error) {
+      setAttachmentError(
+        error instanceof Error ? error.message : "Unable to remove attachment",
+      );
+    } finally {
+      setRemovingAttachmentId(null);
+    }
+  }
+
+  async function handleDownloadAttachment(
+    attachmentId: number,
+    originalFilename: string,
+  ) {
+    if (!currentRequester) return;
+
+    setDownloadingAttachmentId(attachmentId);
+    setAttachmentError("");
+
+    try {
+      const blob = await downloadTicketAttachment(
+        currentRequester.id,
+        attachmentId,
+      );
+      const objectUrl = URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = objectUrl;
+      link.download = originalFilename;
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      URL.revokeObjectURL(objectUrl);
+    } catch (error) {
+      setAttachmentError(
+        error instanceof Error ? error.message : "Unable to download attachment",
+      );
+    } finally {
+      setDownloadingAttachmentId(null);
+    }
   }
 
   function formatFileSize(sizeBytes: number) {
@@ -1176,6 +1379,26 @@ export default function App() {
                         <p className="mb-3">
                           Status: <strong>{createdTicket.status}</strong>
                         </p>
+                        {pendingAttachments.length > 0 &&
+                          attachmentUploadFailures.length === 0 && (
+                            <p className="mb-3">
+                              {pendingAttachments.length} attachment
+                              {pendingAttachments.length === 1 ? "" : "s"} uploaded successfully.
+                            </p>
+                          )}
+                        {attachmentUploadFailures.length > 0 && (
+                          <div className="alert alert-warning">
+                            <div className="fw-semibold">
+                              The ticket was created, but some attachments could not be uploaded.
+                            </div>
+                            {attachmentUploadFailures.map((message) => (
+                              <div key={message}>{message}</div>
+                            ))}
+                            <div className="mt-1">
+                              You can retry from Ticket Detail.
+                            </div>
+                          </div>
+                        )}
                         <div className="d-flex flex-wrap gap-2">
                           <button
                             type="button"
@@ -1343,6 +1566,100 @@ export default function App() {
                               {description.length}/2000 characters
                             </div>
                           </div>
+
+                          <div className="col-12">
+                            <label
+                              htmlFor="create-ticket-attachments"
+                              className="form-label"
+                            >
+                              Attachments
+                            </label>
+                            <input
+                              id="create-ticket-attachments"
+                              className="form-control"
+                              type="file"
+                              multiple
+                              accept=".jpg,.jpeg,.png,.webp,.pdf,image/jpeg,image/png,image/webp,application/pdf"
+                              disabled={
+                                submitState === "submitting" ||
+                                pendingAttachments.length >= 5
+                              }
+                              onChange={(event) => {
+                                const selectedFiles = Array.from(
+                                  event.target.files ?? [],
+                                );
+                                const errors: string[] = [];
+                                const validFiles = selectedFiles.filter((file) => {
+                                  const validationError =
+                                    getAttachmentValidationError(file);
+
+                                  if (validationError) {
+                                    errors.push(validationError);
+                                    return false;
+                                  }
+
+                                  return true;
+                                });
+                                const remainingSlots =
+                                  5 - pendingAttachments.length;
+
+                                if (validFiles.length > remainingSlots) {
+                                  errors.push(
+                                    "A ticket can have a maximum of 5 active attachments.",
+                                  );
+                                }
+
+                                setPendingAttachments((current) => [
+                                  ...current,
+                                  ...validFiles.slice(0, remainingSlots),
+                                ]);
+                                setCreateAttachmentErrors(errors);
+                                event.target.value = "";
+                              }}
+                            />
+                            <div className="form-text">
+                              JPG, JPEG, PNG, WEBP, or PDF · Maximum 5 MB per file · Up to 5 files
+                            </div>
+
+                            {createAttachmentErrors.length > 0 && (
+                              <div className="alert alert-danger py-2 mt-2 mb-0">
+                                {createAttachmentErrors.map((message) => (
+                                  <div key={message}>{message}</div>
+                                ))}
+                              </div>
+                            )}
+
+                            {pendingAttachments.length > 0 && (
+                              <div className="list-group mt-2">
+                                {pendingAttachments.map((file, index) => (
+                                  <div
+                                    className="list-group-item d-flex justify-content-between align-items-center gap-3"
+                                    key={`${file.name}-${file.size}-${index}`}
+                                  >
+                                    <span className="text-break">
+                                      {file.name} · {formatFileSize(file.size)}
+                                    </span>
+                                    <button
+                                      type="button"
+                                      className="btn btn-sm btn-outline-danger"
+                                      disabled={submitState === "submitting"}
+                                      aria-label={`Remove pending attachment ${file.name}`}
+                                      onClick={() => {
+                                        setPendingAttachments((current) =>
+                                          current.filter((_, itemIndex) =>
+                                            itemIndex !== index,
+                                          ),
+                                        );
+                                        setCreateAttachmentErrors([]);
+                                      }}
+                                    >
+                                      Remove
+                                    </button>
+                                  </div>
+                                ))}
+                              </div>
+                            )}
+                          </div>
                         </div>
 
                         {submitState === "error" && (
@@ -1471,32 +1788,211 @@ export default function App() {
                         </div>
 
                         <div className="mb-4">
-                          <h3 className="h6 mb-3">Attachments</h3>
+                          <div className="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-3">
+                            <div>
+                              <h3 className="h6 mb-1">Attachments</h3>
+                              <div className="small text-muted">
+                                JPG, JPEG, PNG, WEBP, or PDF · Maximum 5 MB per file · Up to 5 active attachments
+                              </div>
+                            </div>
+                            <span className="small text-muted">
+                              {selectedTicketDetail.attachments.filter(
+                                (attachment) => !attachment.isRemoved,
+                              ).length}/5 active
+                            </span>
+                          </div>
+
+                          <form className="border rounded-3 p-3 mb-3" onSubmit={handleUploadAttachment}>
+                            <div className="row g-2 align-items-end">
+                              <div className="col-md">
+                                <label htmlFor="ticket-attachment" className="form-label fw-semibold">
+                                  Add attachment
+                                </label>
+                                <input
+                                  id="ticket-attachment"
+                                  className="form-control"
+                                  type="file"
+                                  accept=".jpg,.jpeg,.png,.webp,.pdf,image/jpeg,image/png,image/webp,application/pdf"
+                                  onChange={(event) => {
+                                    handleSelectDetailAttachment(
+                                      event.target.files?.[0] ?? null,
+                                    );
+                                  }}
+                                  disabled={
+                                    attachmentState === "submitting" ||
+                                    selectedTicketDetail.attachments.filter(
+                                      (attachment) => !attachment.isRemoved,
+                                    ).length >= 5
+                                  }
+                                />
+                              </div>
+                              <div className="col-md-auto">
+                                <button
+                                  type="submit"
+                                  className="btn btn-success w-100"
+                                  disabled={
+                                    !attachmentFile ||
+                                    attachmentState === "submitting" ||
+                                    selectedTicketDetail.attachments.filter(
+                                      (attachment) => !attachment.isRemoved,
+                                    ).length >= 5
+                                  }
+                                >
+                                  {attachmentState === "submitting" ? "Uploading..." : "Upload"}
+                                </button>
+                              </div>
+                            </div>
+                          </form>
+
+                          {attachmentState === "success" && attachmentSuccess && (
+                            <div className="alert alert-success py-2">
+                              {attachmentSuccess}
+                            </div>
+                          )}
+
+                          {attachmentError && (
+                            <div className="alert alert-danger py-2" role="alert">
+                              {attachmentError}
+                            </div>
+                          )}
+
+                          {selectedTicketDetail.attachments.filter(
+                            (attachment) => !attachment.isRemoved,
+                          ).length >= 5 && (
+                            <div className="alert alert-warning py-2">
+                              This ticket already has the maximum of 5 active attachments.
+                            </div>
+                          )}
 
                           {selectedTicketDetail.attachments.length === 0 ? (
                             <div className="alert alert-light border mb-0">
-                              No active attachments for this ticket.
+                              No attachments for this ticket.
                             </div>
                           ) : (
                             <div className="list-group">
-                              {selectedTicketDetail.attachments.map(
-                                (attachment) => (
-                                  <div
-                                    className="list-group-item"
-                                    key={attachment.id}
-                                  >
-                                    <div className="fw-semibold">
-                                      {attachment.originalFilename}
-                                    </div>
-                                    <div className="small text-muted">
-                                      {attachment.mimeType} ·{" "}
-                                      {formatFileSize(
-                                        attachment.sizeBytes,
+                              {selectedTicketDetail.attachments.map((attachment) => (
+                                <div
+                                  className="list-group-item"
+                                  key={attachment.id}
+                                >
+                                  <div className="d-flex flex-wrap justify-content-between align-items-center gap-3">
+                                    <div className="text-break">
+                                      <div className="d-flex flex-wrap align-items-center gap-2">
+                                        <span className="fw-semibold">
+                                          {attachment.originalFilename}
+                                        </span>
+                                        <span className={`badge ${
+                                          attachment.isRemoved
+                                            ? "text-bg-secondary"
+                                            : "text-bg-success"
+                                        }`}>
+                                          {attachment.isRemoved ? "Removed" : "Active"}
+                                        </span>
+                                      </div>
+                                      <div className="small text-muted">
+                                        {attachment.mimeType} · {formatFileSize(attachment.sizeBytes)} · Uploaded {new Date(
+                                          attachment.createdAt,
+                                        ).toLocaleString()}
+                                      </div>
+                                      {attachment.isRemoved && (
+                                        <div className="small text-muted mt-1">
+                                          Removed {attachment.removedAt
+                                            ? new Date(attachment.removedAt).toLocaleString()
+                                            : ""}
+                                          {attachment.removalReason
+                                            ? ` · Reason: ${attachment.removalReason}`
+                                            : ""}
+                                        </div>
                                       )}
                                     </div>
+                                    {!attachment.isRemoved && (
+                                      <div className="d-flex flex-wrap gap-2">
+                                        <button
+                                          type="button"
+                                          className="btn btn-sm btn-outline-success"
+                                          onClick={() => handleDownloadAttachment(
+                                            attachment.id,
+                                            attachment.originalFilename,
+                                          )}
+                                          disabled={downloadingAttachmentId === attachment.id}
+                                        >
+                                          {downloadingAttachmentId === attachment.id
+                                            ? "Downloading..."
+                                            : "Download"}
+                                        </button>
+                                        <button
+                                          type="button"
+                                          className="btn btn-sm btn-outline-danger"
+                                          onClick={() =>
+                                            handleRequestRemoveAttachment(attachment.id)
+                                          }
+                                          disabled={removingAttachmentId === attachment.id}
+                                        >
+                                          Remove
+                                        </button>
+                                      </div>
+                                    )}
                                   </div>
-                                ),
-                              )}
+
+                                  {removalTargetId === attachment.id &&
+                                    !attachment.isRemoved && (
+                                      <form
+                                        className="border-top mt-3 pt-3"
+                                        onSubmit={handleRemoveAttachment}
+                                      >
+                                        <p className="small mb-2">
+                                          Confirm removal. This file will no longer be available for download or preview.
+                                        </p>
+                                        <label
+                                          htmlFor={`attachment-removal-reason-${attachment.id}`}
+                                          className="form-label fw-semibold"
+                                        >
+                                          Reason for removal <span className="text-danger">*</span>
+                                        </label>
+                                        <textarea
+                                          id={`attachment-removal-reason-${attachment.id}`}
+                                          className="form-control"
+                                          rows={2}
+                                          maxLength={250}
+                                          value={removalReason}
+                                          disabled={removingAttachmentId === attachment.id}
+                                          onChange={(event) =>
+                                            setRemovalReason(event.target.value)
+                                          }
+                                          required
+                                        />
+                                        <div className="form-text">
+                                          {removalReason.length}/250 characters
+                                        </div>
+                                        <div className="d-flex flex-wrap gap-2 mt-2">
+                                          <button
+                                            type="submit"
+                                            className="btn btn-sm btn-danger"
+                                            disabled={
+                                              removalReason.trim().length === 0 ||
+                                              removingAttachmentId === attachment.id
+                                            }
+                                          >
+                                            {removingAttachmentId === attachment.id
+                                              ? "Removing..."
+                                              : "Confirm removal"}
+                                          </button>
+                                          <button
+                                            type="button"
+                                            className="btn btn-sm btn-outline-secondary"
+                                            disabled={removingAttachmentId === attachment.id}
+                                            onClick={() => {
+                                              setRemovalTargetId(null);
+                                              setRemovalReason("");
+                                            }}
+                                          >
+                                            Cancel
+                                          </button>
+                                        </div>
+                                      </form>
+                                    )}
+                                </div>
+                              ))}
                             </div>
                           )}
                         </div>

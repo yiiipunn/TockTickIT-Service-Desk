@@ -1,7 +1,7 @@
 import request from "supertest";
 import { describe, expect, it } from "vitest";
-import { app } from "../../src/app.js";
-import { getPrisma } from "../../src/prisma.js";
+import { app } from "../../src/app";
+import { getPrisma } from "../../src/prisma";
 
 const prisma = getPrisma();
 

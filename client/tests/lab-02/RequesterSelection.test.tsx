@@ -16,10 +16,40 @@ const mockRequesters = [
   },
 ];
 
+function mockSuccessfulRequesterFlow() {
+  vi.spyOn(globalThis, "fetch").mockImplementation(async (input) => {
+    const url = String(input);
+    let body: unknown;
+
+    if (url.endsWith("/api/requesters")) {
+      body = mockRequesters;
+    } else if (url.endsWith("/api/categories") ||
+      url.endsWith("/api/related-systems")) {
+      body = [];
+    } else if (url.includes("/api/tickets")) {
+      body = {
+        items: [],
+        pagination: {
+          page: 1,
+          pageSize: 10,
+          totalItems: 0,
+          totalPages: 0,
+        },
+      };
+    } else {
+      throw new Error(`Unexpected fetch: ${url}`);
+    }
+
+    return new Response(JSON.stringify(body), {
+      status: 200,
+      headers: { "Content-Type": "application/json" },
+    });
+  });
+}
+
 beforeEach(() => {
   vi.restoreAllMocks();
 });
-
 describe("Development Requester Selection", () => {
   it("loads and displays active development requesters", async () => {
     vi.spyOn(globalThis, "fetch").mockResolvedValueOnce(
@@ -38,7 +68,7 @@ describe("Development Requester Selection", () => {
     ).toBeInTheDocument();
 
     expect(
-      await screen.findByText("Select a requester before continuing.")
+      await screen.findByLabelText("Development Requester")
     ).toBeInTheDocument();
 
     expect(screen.getByText(/Narin S\./)).toBeInTheDocument();
@@ -59,7 +89,7 @@ describe("Development Requester Selection", () => {
 
     const select = await screen.findByRole("combobox");
     const continueButton = screen.getByRole("button", {
-      name: "Continue",
+      name: /Continue/i,
     });
 
     expect(continueButton).toBeDisabled();
@@ -70,14 +100,7 @@ describe("Development Requester Selection", () => {
   });
 
   it("shows the selected requester as the current requester", async () => {
-    vi.spyOn(globalThis, "fetch").mockResolvedValueOnce(
-      new Response(JSON.stringify(mockRequesters), {
-        status: 200,
-        headers: {
-          "Content-Type": "application/json",
-        },
-      })
-    );
+    mockSuccessfulRequesterFlow();
 
     render(<App />);
 
@@ -87,27 +110,19 @@ describe("Development Requester Selection", () => {
 
     await userEvent.click(
       screen.getByRole("button", {
-        name: "Continue",
+        name: /Continue/i,
       })
     );
 
-    expect(
-      screen.getByText(/Current requester:/)
-    ).toBeInTheDocument();
+    await screen.findByRole("heading", { name: "My Tickets" });
+
+    expect(screen.getByText("Requester")).toBeInTheDocument();
 
     expect(screen.getByText("Ploy K.")).toBeInTheDocument();
-    expect(screen.getByText("ploy@example.com")).toBeInTheDocument();
   });
 
   it("allows the current requester to be changed", async () => {
-    vi.spyOn(globalThis, "fetch").mockResolvedValueOnce(
-      new Response(JSON.stringify(mockRequesters), {
-        status: 200,
-        headers: {
-          "Content-Type": "application/json",
-        },
-      })
-    );
+    mockSuccessfulRequesterFlow();
 
     render(<App />);
 
@@ -117,23 +132,25 @@ describe("Development Requester Selection", () => {
 
     await userEvent.click(
       screen.getByRole("button", {
-        name: "Continue",
+        name: /Continue/i,
       })
     );
 
+    await screen.findByRole("heading", { name: "My Tickets" });
+
     await userEvent.click(
       screen.getByRole("button", {
-        name: "Change Requester",
+        name: /Change/i,
       })
     );
 
     expect(
-      await screen.findByText("Select a requester before continuing.")
+      await screen.findByLabelText("Development Requester")
     ).toBeInTheDocument();
 
     expect(
       screen.getByRole("button", {
-        name: "Continue",
+        name: /Continue/i,
       })
     ).toBeDisabled();
   });
