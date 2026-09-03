@@ -2,7 +2,7 @@
 
 TokTickIT is an IT service desk web application developed for CPE 334.
 
-For Lab 1, the goal is to build a basic full-stack system where the frontend can check the backend status and load supported IT request categories from a PostgreSQL database.
+Lab 2 extends the Lab 1 foundation with a requester-facing ticketing MVP: temporary development requester selection, ticket creation, My Tickets, Ticket Detail, and attachment management. The requester selector is a Lab 2 testing context, not authentication.
 
 ## Tech Stack
 
@@ -25,8 +25,9 @@ For Lab 1, the goal is to build a basic full-stack system where the frontend can
 - Vitest
 - Supertest
 - React Testing Library
+- Playwright
 
-## Lab 1 Features
+## Implemented Features
 
 The Lab 1 application provides a simple system check that:
 
@@ -42,6 +43,14 @@ The four supported request categories are:
 2. Hardware
 3. Software
 4. Network
+
+Lab 2 adds:
+
+- Development Requester selection and switching
+- Ticket creation with category, related system, priority, summary, description, and optional attachments
+- Requester-scoped ticket search, filters, sorting, and pagination
+- Read-only Ticket Detail with ownership enforcement
+- Attachment upload, download, and soft removal
 
 ---
 
@@ -196,7 +205,7 @@ The frontend runs on:
 http://localhost:5173
 ```
 
-Click **Check System** to check the backend and load the supported request categories.
+For the Lab 2 requester workflow, select a Development Requester, then use **Create Ticket** or **My Tickets**. The requester selection is for local development and testing only.
 
 When the system is available, the application displays:
 
@@ -240,6 +249,18 @@ The frontend tests cover:
 - TokTickIT heading rendering
 - Online state and category list
 - Offline error state
+
+### Browser End-to-End Tests
+
+The Playwright suite starts the API and frontend, seeds the database, and verifies the requester workflow, attachment lifecycle, ownership boundaries, responsive layouts, and visual tokens.
+
+```bash
+cd client
+npx playwright install chromium
+npm run test:e2e
+```
+
+The suite writes transient runtime captures to the ignored `artifacts/lab-02/runtime-screenshots/` directory. The reviewed, committed evidence snapshots remain in `artifacts/lab-02/screenshots/`.
 
 ---
 

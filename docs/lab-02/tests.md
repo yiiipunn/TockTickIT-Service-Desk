@@ -2,8 +2,8 @@
 
 **Project:** TokTickIT Service Desk  
 **Lab:** Lab 2 — Requester Ticketing MVP with UI Foundation  
-**Status:** Planned  
-**Last Updated:** 2026-08-28
+**Status:** Implemented and verified; peer-review/release activities pending
+**Last Updated:** 2026-09-02
 
 ---
 
@@ -90,7 +90,7 @@ Style and responsive tests verify:
 Planned file:
 
 ```text
-client/tests/lab-02/ui-foundation.test.tsx
+client/e2e/requester-ticket-flow.spec.ts
 ```
 
 ### 2.4 End-to-End Tests
@@ -100,7 +100,7 @@ E2E tests verify complete Requester workflows using the running application.
 Planned file:
 
 ```text
-e2e/requester-ticket-flow.spec.ts
+client/e2e/requester-ticket-flow.spec.ts
 ```
 
 ---
@@ -273,10 +273,10 @@ e2e/requester-ticket-flow.spec.ts
 
 | ID | Type | Req / AC | What is Tested | Expected Result | Planned Test File |
 |---|---|---|---|---|---|
-| T-109 | UI Style | FR-39 | Zen Green primary token | Required primary green is defined/used | `ui-foundation.test.tsx` |
-| T-110 | UI Style | FR-39 | Zen Green backgrounds/surfaces | Required foundation tokens present | `ui-foundation.test.tsx` |
-| T-111 | UI Style | FR-43, AC-40 | Error communication | Error includes text, not color alone | `ui-foundation.test.tsx` |
-| T-112 | UI Style | FR-42, AC-39 | Keyboard focus | Interactive controls have visible focus behavior | `ui-foundation.test.tsx` |
+| T-109 | UI Style | FR-39 | Zen Green primary token | Required primary green is defined and rendered | `client/e2e/requester-ticket-flow.spec.ts` |
+| T-110 | UI Style | FR-39 | Zen Green backgrounds/surfaces | Required foundation colors render in the browser | `client/e2e/requester-ticket-flow.spec.ts` |
+| T-111 | UI Style | FR-43, AC-40 | Error communication | Error includes text, not color alone | `client/tests/lab-02/CreateTicket.test.tsx` |
+| T-112 | UI Style | FR-42, AC-39 | Keyboard focus | Visible focus rule is served to the browser | `client/e2e/requester-ticket-flow.spec.ts` |
 | T-113 | Responsive | FR-40, AC-36 | Desktop ≥992 px | Desktop layout remains usable | `requester-ticket-flow.spec.ts` |
 | T-114 | Responsive | FR-40, AC-37 | Tablet 768–991 px | Tablet layout remains usable | `requester-ticket-flow.spec.ts` |
 | T-115 | Responsive | FR-40, AC-38 | Mobile <768 px | Mobile layout stacks appropriately | `requester-ticket-flow.spec.ts` |
@@ -441,9 +441,9 @@ The table below will be updated after implementation.
 | Client Component | `cd client && npm test` | Passed | 6 files, 40 tests; includes `AttachmentSection.test.tsx` and Create Ticket attachment coverage |
 | Server Production Build | `cd server && npm run build` | Passed | TypeScript compilation completed successfully |
 | Client Production Build | `cd client && npm run build` | Passed | TypeScript and Vite production build completed successfully |
-| UI Style | Not run | Not Run | No dedicated automated style suite exists in this Issue |
-| E2E | Not run | Not Run | Reserved for the separate E2E and release-integration Issue |
-| Full Test Suite | Server and client `npm test` commands above | Passed | 118 tests passed across 14 files |
+| UI Style / Responsive | `cd client && npm run test:e2e` | Passed | Browser assertions for Zen Green colors, visible focus rule, desktop/tablet/mobile layouts, required controls, and no horizontal overflow |
+| E2E | `cd client && npm run test:e2e` | Passed | 2 tests; requester flow, attachment lifecycle, and access isolation. Transient captures use ignored `artifacts/lab-02/runtime-screenshots/`; reviewed evidence remains in `artifacts/lab-02/screenshots/`. |
+| Full Test Suite | Server/client `npm test`, builds, and client `npm run test:e2e` | Passed | 120 tests passed across 16 files, plus production builds |
 
 Final values must use the actual project commands and evidence paths.
 
@@ -452,8 +452,8 @@ Final values must use the actual project commands and evidence paths.
 # 17. Final Test Summary
 
 ```text
-Total Tests: 118
-Passed: 118
+Total Tests: 120
+Passed: 120
 Failed: 0
 Skipped: 0
 ```

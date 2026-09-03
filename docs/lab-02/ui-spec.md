@@ -3,8 +3,8 @@
 **Project:** TokTickIT Service Desk  
 **Lab:** Lab 2 — Requester Ticketing MVP with UI Foundation  
 **Theme:** Zen Green  
-**Status:** Draft  
-**Last Updated:** 2026/08/28
+**Status:** Implemented and verified; peer-review/release activities pending
+**Last Updated:** 2026/09/02
 
 ---
 
@@ -1078,7 +1078,29 @@ Exact screenshot filenames may change during implementation, but the final evide
 
 ---
 
-## 16. UI Implementation Notes
+## 16. Verification Record
+
+The requester flow was visually inspected at 1440 px (desktop), 900 px (tablet), and 390 px (mobile) on 2026-09-02.
+
+- Zen Green navigation renders as `#006B3C`; the page background renders as `#F5F7F6`.
+- The Create Ticket form remains usable with no page-level horizontal overflow at all three viewports.
+- The mobile navigation was corrected so requester identity and navigation actions use separate rows rather than overlapping.
+- The active and removed attachment states were inspected. Removed attachments remain identifiable and do not expose a Download control.
+- Browser checks cover the rendered tokens, served visible-focus rule, required controls, no horizontal overflow, and the mobile navigation spacing guard.
+
+Captured evidence:
+
+```text
+artifacts/lab-02/screenshots/
+├── create-ticket/desktop.png
+├── create-ticket/tablet.png
+├── create-ticket/mobile.png
+├── my-tickets/desktop.png
+├── ticket-detail/active-attachment.png
+└── ticket-detail/removed-attachment.png
+```
+
+## 17. UI Implementation Notes
 
 The UI specification defines required behavior and visual conventions rather than requiring one specific frontend component structure.
 
