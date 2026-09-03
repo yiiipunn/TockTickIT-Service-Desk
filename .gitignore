@@ -19,3 +19,4 @@ server/storage/
 # Playwright reports and transient test output
 client/playwright-report/
 client/test-results/
+artifacts/lab-02/runtime-screenshots/

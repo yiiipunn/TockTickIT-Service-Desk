@@ -442,7 +442,7 @@ The table below will be updated after implementation.
 | Server Production Build | `cd server && npm run build` | Passed | TypeScript compilation completed successfully |
 | Client Production Build | `cd client && npm run build` | Passed | TypeScript and Vite production build completed successfully |
 | UI Style / Responsive | `cd client && npm run test:e2e` | Passed | Browser assertions for Zen Green colors, visible focus rule, desktop/tablet/mobile layouts, required controls, and no horizontal overflow |
-| E2E | `cd client && npm run test:e2e` | Passed | 2 tests; requester flow, attachment lifecycle, access isolation, and screenshots in `artifacts/lab-02/screenshots/` |
+| E2E | `cd client && npm run test:e2e` | Passed | 2 tests; requester flow, attachment lifecycle, and access isolation. Transient captures use ignored `artifacts/lab-02/runtime-screenshots/`; reviewed evidence remains in `artifacts/lab-02/screenshots/`. |
 | Full Test Suite | Server/client `npm test`, builds, and client `npm run test:e2e` | Passed | 120 tests passed across 16 files, plus production builds |
 
 Final values must use the actual project commands and evidence paths.

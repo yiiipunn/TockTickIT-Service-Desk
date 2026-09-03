@@ -260,7 +260,7 @@ npx playwright install chromium
 npm run test:e2e
 ```
 
-The test writes reviewed screenshot evidence to `artifacts/lab-02/screenshots/`.
+The suite writes transient runtime captures to the ignored `artifacts/lab-02/runtime-screenshots/` directory. The reviewed, committed evidence snapshots remain in `artifacts/lab-02/screenshots/`.
 
 ---
 

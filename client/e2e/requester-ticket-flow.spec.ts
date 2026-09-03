@@ -6,9 +6,9 @@ import { fileURLToPath } from "node:url";
 const currentDirectory = dirname(fileURLToPath(import.meta.url));
 const screenshotsDirectory = resolve(
   currentDirectory,
-  "../../artifacts/lab-02/screenshots",
+  "../../artifacts/lab-02/runtime-screenshots",
 );
-const apiBaseUrl = "http://127.0.0.1:3000";
+const apiBaseUrl = "http://127.0.0.1:3100";
 const uniqueSuffix = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
 const summary = `E2E network issue ${uniqueSuffix}`;
 
