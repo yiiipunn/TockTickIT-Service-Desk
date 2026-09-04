@@ -1,10 +1,10 @@
 # Lab 2 Peer Review Record
 
 **Project:** TokTickIT Service Desk  
-**Lab:** Lab 2 — Requester Ticketing MVP with UI Foundation  
+**Lab:** Lab 2 — Requester Ticketing MVP with UI Foundation
 **Author:** Phurithip Paisanworajit  67070503437
-**Reviewer:** TBD  
-**Status:** Prior implementation PRs merged; final integration review pending
+**Reviewer:** Sorawit Chaithong 67070503442 (`@DEV4952`)
+**Status:** Integration review pending; no approval or merge recorded
 
 ---
 
@@ -64,7 +64,7 @@ The reviewer checks the Pull Request before it is merged.
 
 ## 4. Pull Request Review Record
 
-This section will be updated as Lab 2 Pull Requests are created and reviewed.
+This section records the available GitHub PR history and the current integration-review state. A merged PR is not treated as proof of peer approval unless a review is recorded.
 
 | PR | Issue | Branch | Reviewer | Review Result | Merge Status |
 |---|---|---|---|---|---|
@@ -134,29 +134,32 @@ The peer reviewer should verify the following where applicable.
 
 Review feedback will be recorded here after each Pull Request review.
 
-### PR: TBD
+### PR: Pending — Issue #20 / Issue #12 E2E, Responsive & Release Integration
 
-**Issue:** TBD  
-**Reviewer:** TBD  
-**Review Date:** TBD
+**Branch:** `feature/lab2-integration` → `lab2-staging`
+**Reviewer:** Sorawit Chaithong 67070503442 (`@DEV4952`)
+**Review Date:** Pending PR creation and reviewer response
 
 #### Comments
 
-- TBD
+- No peer-review comments have been received yet.
+- Integration verification completed before review: server tests (78), client tests (40), browser E2E tests (2), and server/client production builds passed.
+- The browser suite verifies requester flow, attachment lifecycle, requester isolation, and desktop/tablet/mobile layouts.
 
 #### Required Changes
 
-- TBD
+- No required changes have been reported yet.
 
 #### Author Response
 
-- TBD
+- Awaiting peer review. Any requested changes will be recorded here with the corresponding commit and verification result.
 
 #### Final Result
 
 - [ ] Approved
 - [ ] Changes Requested
 - [ ] Re-review Required
+- [x] Pending peer review
 
 ---
 
@@ -166,7 +169,7 @@ If changes are requested, record how each major review comment was addressed.
 
 | Review Comment | Action Taken | Commit / Evidence | Status |
 |---|---|---|---|
-| TBD | TBD | TBD | Pending |
+| No review feedback received yet | Await peer-review response | Automated verification recorded in `docs/lab-02/tests.md` | Pending |
 
 ---
 
@@ -175,10 +178,10 @@ If changes are requested, record how each major review comment was addressed.
 To be completed before the final Lab 2 release.
 
 ```text
-Total Pull Requests Reviewed:
-Approved Pull Requests:
-Pull Requests Requiring Fixes:
-Outstanding Review Issues:
+Total Pull Requests Reviewed: 0 recorded
+Approved Pull Requests: 0 recorded
+Pull Requests Requiring Fixes: 0 recorded
+Outstanding Review Issues: Integration PR review, merge to `lab2-staging`, and final release PR to `main`
 ```
 
 Final condition:
