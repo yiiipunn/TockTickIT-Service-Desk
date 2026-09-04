@@ -1,10 +1,10 @@
 # Lab 2 UI Specification
 
 **Project:** TokTickIT Service Desk  
-**Lab:** Lab 2 — Requester Ticketing MVP with UI Foundation  
+**Lab:** Lab 2 : Requester Ticketing MVP with UI Foundation  
 **Theme:** Zen Green  
 **Status:** Implemented and verified; peer-review/release activities pending
-**Last Updated:** 2026/09/02
+**Last Updated:** 2026-09-02
 
 ---
 

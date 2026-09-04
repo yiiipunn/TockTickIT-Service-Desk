@@ -1,10 +1,10 @@
 # Lab 2 API Specification
 
 **Project:** TokTickIT Service Desk  
-**Lab:** Lab 2 — Requester Ticketing MVP with UI Foundation  
+**Lab:** Lab 2 : Requester Ticketing MVP with UI Foundation  
 **Base Path:** `/api`  
 **Status:** Draft  
-**Last Updated:** 2026-08-28
+**Last Updated:** 2026-09-03
 
 ---
 

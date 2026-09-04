@@ -1,8 +1,8 @@
 # Lab 2 Sprint Engineering Specification
 
 > **Project:** TokTickIT Service Desk  
-> **Lab:** Lab 2 — Requester Ticketing MVP with UI Foundation  
-> **Status:** Draft  
+> **Lab:** Lab 2 : Requester Ticketing MVP with UI Foundation  
+> **Status:** Done  
 > **Last Updated:** 2026-08-28
 
 ---
@@ -516,6 +516,7 @@ Related System
    │
    │ 1
    └─────────────────────< Ticket
+```
    ### 7.4 Constraints and Indexes
 
 The database must enforce appropriate constraints and indexes to maintain data integrity and support common Lab 2 queries.

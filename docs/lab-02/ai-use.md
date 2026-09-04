@@ -1,9 +1,9 @@
 # Lab 2 AI Use Record
 
 **Project:** TokTickIT Service Desk  
-**Lab:** Lab 2 — Requester Ticketing MVP with UI Foundation  
+**Lab:** Lab 2 : Requester Ticketing MVP with UI Foundation  
 **Author:** Phurithip Paisanworajit 67070503437
-**Status:** In Progress
+**Status:** Done
 
 ---
 
