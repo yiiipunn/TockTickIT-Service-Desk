@@ -1,7 +1,7 @@
 # Lab 2 Test Plan
 
 **Project:** TokTickIT Service Desk  
-**Lab:** Lab 2 — Requester Ticketing MVP with UI Foundation  
+**Lab:** Lab 2 : Requester Ticketing MVP with UI Foundation  
 **Status:** Implemented and verified; peer-review/release activities pending
 **Last Updated:** 2026-09-02
 
