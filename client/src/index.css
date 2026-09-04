@@ -1,0 +1,129 @@
+/* Global CSS - Reset and root styling */
+
+:root {
+  --toktickit-primary: #006b3c;
+  --toktickit-secondary: #0b7a46;
+  --toktickit-pale: #eaf6ef;
+  --toktickit-page: #f5f7f6;
+  --bs-success: var(--toktickit-primary);
+  --bs-success-rgb: 0, 107, 60;
+  --bs-success-bg-subtle: var(--toktickit-pale);
+  --bs-success-border-subtle: #b7dec7;
+  --bs-success-text-emphasis: #004d2b;
+}
+
+html,
+body,
+#root {
+  width: 100%;
+  height: 100%;
+  margin: 0;
+  padding: 0;
+}
+
+body {
+  min-width: 320px;
+  background: var(--toktickit-page);
+}
+
+.bg-success {
+  background-color: var(--toktickit-primary) !important;
+}
+
+.text-success {
+  color: var(--toktickit-primary) !important;
+}
+
+.btn-success {
+  --bs-btn-bg: var(--toktickit-primary);
+  --bs-btn-border-color: var(--toktickit-primary);
+  --bs-btn-hover-bg: var(--toktickit-secondary);
+  --bs-btn-hover-border-color: var(--toktickit-secondary);
+  --bs-btn-active-bg: var(--toktickit-secondary);
+  --bs-btn-active-border-color: var(--toktickit-secondary);
+  --bs-btn-focus-shadow-rgb: 11, 122, 70;
+}
+
+:focus-visible {
+  outline: 3px solid #0b7a46;
+  outline-offset: 2px;
+}
+
+#root {
+  display: flex;
+  flex-direction: column;
+}
+
+/* Application shell - full width outer container */
+.app-shell {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  min-height: 100vh;
+}
+
+/* Navbar spans full width */
+.app-navbar {
+  width: 100%;
+}
+
+/* Main content - centered inner container with responsive sizing */
+.app-content {
+  width: 100%;
+  max-width: 1440px;
+  margin: 0 auto;
+  padding: 32px 40px;
+  flex: 1;
+}
+
+/* Responsive padding for smaller screens */
+@media (max-width: 991px) {
+  .app-content {
+    padding: 24px 24px;
+  }
+}
+
+@media (max-width: 767px) {
+  .app-content {
+    padding: 16px 16px;
+  }
+}
+
+@media (max-width: 575.98px) {
+  .requester-navbar {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    gap: 0.5rem 0.75rem;
+    align-items: start;
+  }
+
+  .requester-navbar .navbar-brand {
+    grid-column: 1;
+    grid-row: 1;
+    margin-right: 0 !important;
+  }
+
+  .requester-nav-actions {
+    grid-column: 1 / -1;
+    grid-row: 2;
+  }
+
+  .requester-identity {
+    grid-column: 2;
+    grid-row: 1;
+    margin-left: 0 !important;
+    padding-left: 0 !important;
+  }
+}
+
+/* Remove text-align center that may come from Vite starter */
+.app-content {
+  text-align: left;
+}
+
+/* Ensure Bootstrap container doesn't add extra constraints */
+.app-content .container {
+  width: 100%;
+  max-width: 100%;
+  padding: 0;
+}
