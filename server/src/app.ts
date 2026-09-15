@@ -11,6 +11,8 @@ import {
   SESSION_COOKIE_NAME,
   authenticationContext,
   createSession,
+  digestToken,
+  generateOpaqueToken,
   requireAuthentication,
   requireCsrf,
   requirePasswordChangeComplete,
@@ -19,9 +21,14 @@ import {
   sendApiError,
   sessionCookieClearOptions,
   sessionCookieOptions,
+  sessionExpiry,
 } from "./auth.js";
 import { loginThrottle } from "./login-throttle.js";
-import { verifyPassword } from "./password.js";
+import {
+  hashPassword,
+  validatePasswordChange,
+  verifyPassword,
+} from "./password.js";
 
 export const app = express();
 
@@ -302,6 +309,137 @@ app.get(
         500,
         "INTERNAL_ERROR",
         "Unable to load the current user.",
+      );
+    }
+  },
+);
+
+app.post(
+  "/api/auth/change-password",
+  requireAuthentication,
+  requireCsrf,
+  async (req: Request, res: Response) => {
+    const body = req.body as Record<string, unknown> | null;
+    const allowedFields = new Set([
+      "currentPassword",
+      "newPassword",
+      "confirmPassword",
+    ]);
+
+    if (!body || typeof body !== "object" || Array.isArray(body)) {
+      return sendApiError(
+        res,
+        400,
+        "VALIDATION_ERROR",
+        "The request contains invalid data.",
+      );
+    }
+
+    const currentPassword = typeof body.currentPassword === "string"
+      ? body.currentPassword
+      : "";
+    const newPassword = typeof body.newPassword === "string"
+      ? body.newPassword
+      : "";
+    const confirmPassword = typeof body.confirmPassword === "string"
+      ? body.confirmPassword
+      : "";
+    const fields = validatePasswordChange(
+      currentPassword,
+      newPassword,
+      confirmPassword,
+    );
+    const unknownField = Object.keys(body).find((key) => !allowedFields.has(key));
+    if (unknownField) {
+      fields[unknownField] = "This field is not allowed.";
+    }
+
+    if (Object.keys(fields).length > 0) {
+      return sendApiError(
+        res,
+        400,
+        "VALIDATION_ERROR",
+        "The request contains invalid data.",
+        fields,
+      );
+    }
+
+    try {
+      const prisma = getPrisma();
+      const authentication = authenticationContext(res);
+      const user = await prisma.user.findUnique({
+        where: { id: authentication.user.id },
+      });
+      const currentPasswordMatches = user?.isActive
+        ? await verifyPassword(user.passwordHash, currentPassword)
+        : false;
+
+      if (!user || !currentPasswordMatches) {
+        return sendApiError(
+          res,
+          401,
+          "INVALID_CREDENTIALS",
+          "The current password is incorrect.",
+          { currentPassword: "The current password is incorrect." },
+        );
+      }
+
+      const passwordHash = await hashPassword(newPassword);
+      const sessionToken = generateOpaqueToken();
+      const csrfToken = generateOpaqueToken();
+      const now = new Date();
+      const expiry = sessionExpiry(now);
+
+      const changed = await prisma.$transaction(async (transaction) => {
+        const update = await transaction.user.updateMany({
+          where: {
+            id: user.id,
+            isActive: true,
+            passwordHash: user.passwordHash,
+          },
+          data: { passwordHash, mustChangePassword: false },
+        });
+        if (update.count !== 1) return false;
+
+        await transaction.session.updateMany({
+          where: { userId: user.id, revokedAt: null },
+          data: { revokedAt: now },
+        });
+        await transaction.session.create({
+          data: {
+            userId: user.id,
+            tokenHash: digestToken(sessionToken),
+            csrfTokenHash: digestToken(csrfToken),
+            ...expiry,
+            lastActivityAt: now,
+          },
+        });
+        return true;
+      });
+
+      if (!changed) {
+        res.clearCookie(SESSION_COOKIE_NAME, sessionCookieClearOptions());
+        return sendApiError(
+          res,
+          401,
+          "AUTH_REQUIRED",
+          "Authentication is required.",
+        );
+      }
+
+      res.cookie(SESSION_COOKIE_NAME, sessionToken, sessionCookieOptions());
+      return res.status(200).json({
+        data: {
+          user: safeUser({ ...user, mustChangePassword: false }),
+          csrfToken,
+        },
+      });
+    } catch {
+      return sendApiError(
+        res,
+        500,
+        "INTERNAL_ERROR",
+        "Unable to change your password right now.",
       );
     }
   },

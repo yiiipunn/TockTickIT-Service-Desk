@@ -21,6 +21,7 @@ import {
   removeTicketAttachment,
   logout,
 } from "./api";
+import ChangePasswordScreen from "./ChangePasswordScreen";
 import LoginScreen from "./LoginScreen";
 
 type UiState = "idle" | "loading" | "success" | "error";
@@ -57,19 +58,26 @@ function roleLabel(role: AuthenticatedUser["role"]) {
 
 function AuthenticatedNavbar({
   user,
+  onChangePassword,
   onLogout,
 }: {
   user: AuthenticatedUser;
+  onChangePassword?: () => void;
   onLogout: () => void;
 }) {
   return (
-    <nav className="navbar bg-success shadow-sm px-4 py-3" aria-label="Application navigation">
+    <nav className="navbar flex-wrap gap-2 bg-success shadow-sm px-4 py-3" aria-label="Application navigation">
       <span className="navbar-brand text-white fw-bold mb-0">TokTickIT</span>
-      <div className="ms-auto d-flex align-items-center gap-3 text-white">
+      <div className="ms-auto d-flex flex-wrap justify-content-end align-items-center gap-2 gap-md-3 text-white">
         <div className="text-end identity-copy">
           <div className="fw-semibold text-break">{user.name}</div>
           <span className="badge text-bg-light text-success">{roleLabel(user.role)}</span>
         </div>
+        {onChangePassword && (
+          <button type="button" className="btn btn-link text-white" onClick={onChangePassword}>
+            Change Password
+          </button>
+        )}
         <button type="button" className="btn btn-outline-light" onClick={onLogout}>
           Logout
         </button>
@@ -91,6 +99,7 @@ export default function App() {
   const [authState, setAuthState] = useState<AuthState>("loading");
   const [currentUser, setCurrentUser] = useState<AuthenticatedUser | null>(null);
   const [authFailure, setAuthFailure] = useState("");
+  const [showPasswordChange, setShowPasswordChange] = useState(false);
 
   const [currentRequester, setCurrentRequester] =
     useState<AuthenticatedUser | null>(null);
@@ -208,6 +217,7 @@ export default function App() {
     setCurrentUser(user);
     setAuthState("authenticated");
     setAuthFailure("");
+    setShowPasswordChange(false);
     setCurrentRequester(user.role === "REQUESTER" ? user : null);
     setAppView("tickets");
 
@@ -230,6 +240,7 @@ export default function App() {
     setCurrentUser(null);
     setCurrentRequester(null);
     setAuthState("unauthenticated");
+    setShowPasswordChange(false);
     setAppView("tickets");
 
     resetTicketForm();
@@ -266,6 +277,14 @@ export default function App() {
     setAttachmentSuccess("");
     setRemovalTargetId(null);
     setRemovalReason("");
+  }
+
+  function handleSessionExpired() {
+    setCurrentUser(null);
+    setCurrentRequester(null);
+    setAuthState("unauthenticated");
+    setShowPasswordChange(false);
+    setAuthFailure("Your session expired. Sign in again.");
   }
 
   // -------------------------------------------------------------------------
@@ -675,28 +694,31 @@ export default function App() {
         />
       )}
 
-      {authState === "authenticated" && currentUser?.mustChangePassword && (
+      {authState === "authenticated" && currentUser &&
+        (currentUser.mustChangePassword || showPasswordChange) && (
         <>
           <AuthenticatedNavbar user={currentUser} onLogout={handleLogout} />
-          <main className="app-content">
-            {authFailure && <div className="alert alert-danger" role="alert">{authFailure}</div>}
-            <section className="card shadow-sm mx-auto" style={{ maxWidth: 680 }}>
-              <div className="card-body p-4 p-md-5 text-center">
-                <h1 className="h3">Password change required</h1>
-                <p className="text-muted mb-0">
-                  You must change your initial password before using TokTickIT.
-                  The password-change workflow will be provided in the next issue.
-                </p>
-              </div>
-            </section>
-          </main>
+          {authFailure && <div className="alert alert-danger m-3" role="alert">{authFailure}</div>}
+          <ChangePasswordScreen
+            mandatory={currentUser.mustChangePassword}
+            onPasswordChanged={(user) => void activateAuthenticatedUser(user)}
+            onSessionExpired={handleSessionExpired}
+            onCancel={currentUser.mustChangePassword
+              ? undefined
+              : () => setShowPasswordChange(false)}
+          />
         </>
       )}
 
       {authState === "authenticated" && currentUser &&
-        !currentUser.mustChangePassword && currentUser.role !== "REQUESTER" && (
+        !currentUser.mustChangePassword && !showPasswordChange &&
+        currentUser.role !== "REQUESTER" && (
           <>
-            <AuthenticatedNavbar user={currentUser} onLogout={handleLogout} />
+            <AuthenticatedNavbar
+              user={currentUser}
+              onChangePassword={() => setShowPasswordChange(true)}
+              onLogout={handleLogout}
+            />
             <main className="app-content">
               {authFailure && <div className="alert alert-danger" role="alert">{authFailure}</div>}
               <section className="card shadow-sm">
@@ -711,7 +733,8 @@ export default function App() {
           </>
         )}
 
-      {currentRequester && currentUser && !currentUser.mustChangePassword && (
+      {currentRequester && currentUser && !currentUser.mustChangePassword &&
+        !showPasswordChange && (
         <>
           {/* Requester Application Navbar */}
           <nav
@@ -730,6 +753,14 @@ export default function App() {
             </button>
 
             <div className="requester-nav-actions d-flex flex-wrap align-items-center gap-2 flex-grow-1">
+              <button
+                type="button"
+                className="btn btn-link btn-sm text-white p-0 text-decoration-none d-block mt-1"
+                onClick={() => setShowPasswordChange(true)}
+                disabled={submitState === "submitting"}
+              >
+                Change Password
+              </button>
               <button
                 type="button"
                 className={`btn btn-sm ${

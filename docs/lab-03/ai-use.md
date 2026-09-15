@@ -21,7 +21,7 @@ Record 6–10 important prompts. Summarize long prompts without changing their m
 | 1 | Engineering contract | TBD | TBD | TBD |
 | 2 | Test planning | TBD | TBD | TBD |
 | 3 | Authentication | Implement only the Authentication Foundation: login, database sessions, current User, logout, CSRF, throttling, Login UI, and authenticated shell while deferring later role/ownership features. | Added contract-aligned auth tests and implementation, preserved Lab 2 workflows through an authenticated compatibility layer, and recorded executed verification. | Pending student review of security choices, scope, and test evidence. |
-| 4 | Authorization | TBD | TBD | TBD |
+| 4 | Mandatory password change | Implement only the first-login password-change workflow, including policy validation, session rotation, required routing, UI states, and regression tests. | Added the contract-aligned password-change API/UI and tests while retaining the existing authentication and Lab 2 compatibility boundaries. | Pending student review of password policy, session invalidation, scope, and test evidence. |
 | 5 | Lab 2 migration | Preserve Lab 2 records while evolving requesters into role-based Users and adding seed foundations. | Proposed guarded in-place migration, Argon2id seed hashing, and migration/seed regression tests. | Pending student review of migration SQL and executed evidence. |
 | 6 | IT Staff workflow | TBD | TBD | TBD |
 | 7 | User Management | TBD | TBD | TBD |
@@ -34,7 +34,7 @@ Record 6–10 important prompts. Summarize long prompts without changing their m
 | Area | AI Suggestion | Final Student Decision | Verification |
 | --- | --- | --- | --- |
 | Authentication/session | Use opaque 32-byte session and CSRF values, store only SHA-256 digests, enforce idle/absolute expiry, and revoke on logout. | Pending student review | API/unit tests and migration inspection |
-| Password handling | TBD | TBD | Unit/API tests |
+| Password handling | Enforce the 12–128 character policy, verify the current Argon2id hash, atomically replace the hash and first-login flag, revoke prior sessions, and issue a replacement session. | Pending student review | Unit/API/UI tests and production builds |
 | Role authorization | TBD | TBD | Authorization matrix/tests |
 | Ticket workflow | TBD | TBD | Transition matrix/tests |
 | Lab 2 migration | Rename the requester table in place, preserve IDs/relations, and guard enum/email data before casts. | Pending student review | Migration/regression tests |

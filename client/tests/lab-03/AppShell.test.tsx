@@ -22,6 +22,19 @@ function installFetch(role = "REQUESTER", mustChangePassword = false) {
     if (url.endsWith("/api/auth/logout") && init?.method === "POST") {
       return new Response(null, { status: 204 });
     }
+    if (url.endsWith("/api/auth/change-password") && init?.method === "POST") {
+      return new Response(JSON.stringify({ data: { user: {
+        id: 7,
+        name: "Ari Example",
+        email: "ari@example.com",
+        role,
+        isActive: true,
+        mustChangePassword: false,
+      }, csrfToken: "rotated-shell-csrf" } }), {
+        status: 200,
+        headers: { "Content-Type": "application/json" },
+      });
+    }
     const body = url.includes("/api/tickets")
       ? { items: [], pagination: { page: 1, pageSize: 10, totalItems: 0, totalPages: 0 } }
       : [];
@@ -47,6 +60,7 @@ describe("authenticated application shell", () => {
     expect(screen.getByText("Ari Example")).toBeInTheDocument();
     expect(screen.getByText("Requester")).toBeInTheDocument();
     expect(screen.queryByLabelText("Development Requester")).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Change Password" })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Logout" })).toBeInTheDocument();
   });
 
@@ -54,8 +68,45 @@ describe("authenticated application shell", () => {
     installFetch("REQUESTER", true);
     render(<App />);
     expect(await screen.findByRole("heading", { name: "Password change required" })).toBeInTheDocument();
+    expect(screen.getByLabelText("Current password")).toBeInTheDocument();
+    expect(screen.getByLabelText("New password")).toBeInTheDocument();
+    expect(screen.getByLabelText("Confirm new password")).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Cancel" })).not.toBeInTheDocument();
     expect(screen.queryByRole("heading", { name: "My Tickets" })).not.toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Logout" })).toBeInTheDocument();
+  });
+
+  it("cannot bypass a required change on refresh and enters the requester app only after success", async () => {
+    const fetchMock = installFetch("REQUESTER", true);
+    render(<App />);
+    await screen.findByRole("heading", { name: "Password change required" });
+    expect(fetchMock.mock.calls.some(([input]) => String(input).includes("/api/tickets"))).toBe(false);
+
+    await userEvent.type(screen.getByLabelText("Current password"), "initial-password");
+    await userEvent.type(screen.getByLabelText("New password"), "new-password!");
+    await userEvent.type(screen.getByLabelText("Confirm new password"), "new-password!");
+    await userEvent.click(screen.getByRole("button", { name: "Change Password" }));
+    expect(await screen.findByRole("status")).toHaveTextContent("Password changed successfully");
+    expect(await screen.findByRole("heading", { name: "My Tickets" })).toBeInTheDocument();
+    expect(fetchMock).toHaveBeenCalledWith(
+      "http://localhost:3000/api/auth/change-password",
+      expect.objectContaining({
+        headers: {
+          "Content-Type": "application/json",
+          "X-CSRF-Token": "shell-csrf",
+        },
+      }),
+    );
+  });
+
+  it("allows a normal user to open and cancel voluntary password change", async () => {
+    installFetch("REQUESTER", false);
+    render(<App />);
+    await screen.findByRole("heading", { name: "My Tickets" });
+    await userEvent.click(screen.getByRole("button", { name: "Change Password" }));
+    expect(await screen.findByRole("heading", { name: "Change Password" })).toBeInTheDocument();
+    await userEvent.click(screen.getByRole("button", { name: "Cancel" }));
+    expect(await screen.findByRole("heading", { name: "My Tickets" })).toBeInTheDocument();
   });
 
   it("shows a staff identity without implementing future staff navigation", async () => {
