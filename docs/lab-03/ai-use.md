@@ -22,7 +22,7 @@ Record 6–10 important prompts. Summarize long prompts without changing their m
 | 2 | Test planning | TBD | TBD | TBD |
 | 3 | Authentication | TBD | TBD | TBD |
 | 4 | Authorization | TBD | TBD | TBD |
-| 5 | Lab 2 migration | TBD | TBD | TBD |
+| 5 | Lab 2 migration | Preserve Lab 2 records while evolving requesters into role-based Users and adding seed foundations. | Proposed guarded in-place migration, Argon2id seed hashing, and migration/seed regression tests. | Pending student review of migration SQL and executed evidence. |
 | 6 | IT Staff workflow | TBD | TBD | TBD |
 | 7 | User Management | TBD | TBD | TBD |
 | 8 | Testing/debugging | TBD | TBD | TBD |
@@ -37,7 +37,7 @@ Record 6–10 important prompts. Summarize long prompts without changing their m
 | Password handling | TBD | TBD | Unit/API tests |
 | Role authorization | TBD | TBD | Authorization matrix/tests |
 | Ticket workflow | TBD | TBD | Transition matrix/tests |
-| Lab 2 migration | TBD | TBD | Migration/regression tests |
+| Lab 2 migration | Rename the requester table in place, preserve IDs/relations, and guard enum/email data before casts. | Pending student review | Migration/regression tests |
 | UI/responsive behavior | TBD | TBD | UI spec, E2E screenshots |
 
 ## 4. My Reflection

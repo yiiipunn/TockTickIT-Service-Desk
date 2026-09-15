@@ -37,8 +37,9 @@ describe("GET /api/requesters", () => {
   });
 
   it("does not return inactive development requesters", async () => {
-    const inactiveRequesters = await prisma.developmentRequester.findMany({
+    const inactiveRequesters = await prisma.user.findMany({
       where: {
+        role: "REQUESTER",
         isActive: false,
       },
       select: {

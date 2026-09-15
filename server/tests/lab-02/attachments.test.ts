@@ -40,8 +40,9 @@ describe("Lab 2 - Attachment Management API", () => {
 
   beforeAll(async () => {
     const requesters =
-      await prisma.developmentRequester.findMany({
+      await prisma.user.findMany({
         where: {
+          role: "REQUESTER",
           isActive: true,
         },
         orderBy: {
@@ -100,6 +101,7 @@ describe("Lab 2 - Attachment Management API", () => {
           relatedSystemId,
           summary: `Attachment test ${suffix}`,
           requestedPriority: "MEDIUM",
+          itPriority: "MEDIUM",
           description:
             "Ticket used for Lab 2 attachment management tests.",
           status: "NEW",
