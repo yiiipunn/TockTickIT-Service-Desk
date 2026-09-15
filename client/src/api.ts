@@ -253,6 +253,23 @@ export async function getCurrentUser() {
   return setAuthentication(await response.json() as AuthenticationResponse);
 }
 
+export async function changePassword(
+  currentPassword: string,
+  newPassword: string,
+  confirmPassword: string,
+) {
+  const response = await fetch(`${API_URL}/api/auth/change-password`, {
+    method: "POST",
+    credentials: "include",
+    headers: authenticatedHeaders({ "Content-Type": "application/json" }, true),
+    body: JSON.stringify({ currentPassword, newPassword, confirmPassword }),
+  });
+  if (!response.ok) {
+    await throwApiError(response, "Unable to change your password right now.");
+  }
+  return setAuthentication(await response.json() as AuthenticationResponse);
+}
+
 export async function logout() {
   const response = await fetch(`${API_URL}/api/auth/logout`, {
     method: "POST",

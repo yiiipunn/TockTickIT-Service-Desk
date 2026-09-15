@@ -138,6 +138,22 @@ body {
     var(--toktickit-page);
 }
 
+.password-change-page {
+  width: 100%;
+  display: grid;
+  place-items: start center;
+  flex: 1;
+  padding: 2rem;
+  background:
+    radial-gradient(circle at top right, rgba(11, 122, 70, 0.12), transparent 38%),
+    var(--toktickit-page);
+}
+
+.password-change-card {
+  width: min(100%, 580px);
+  border: 0;
+}
+
 .login-card {
   width: min(100%, 480px);
   border: 0;
@@ -165,6 +181,14 @@ body {
   .login-page {
     align-items: start;
     padding: 1rem;
+  }
+
+  .password-change-page {
+    padding: 1rem;
+  }
+
+  .password-change-actions {
+    flex-direction: column-reverse;
   }
 
   .login-card {
