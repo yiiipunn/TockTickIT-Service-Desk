@@ -2,7 +2,7 @@
 
 ## 1. Test Strategy
 
-Write tests before or with implementation. Cover unit policy, API/integration, direct authorization, migration/Lab 2 regression, UI components/style, responsive/accessibility behavior, and end-to-end workflows. All tests below are unimplemented or unrun, so their status is `Pending`.
+Write tests before or with implementation. Cover unit policy, API/integration, direct authorization, migration/Lab 2 regression, UI components/style, responsive/accessibility behavior, and end-to-end workflows. Issue 2 migration/seed tests are implemented and executed; later-issue tests remain `Pending`.
 
 ## 2. Planned Tests
 
@@ -45,10 +45,10 @@ Write tests before or with implementation. Cover unit policy, API/integration, d
 | AUTHZ-04 | Security/Authorization | FR-23, FR-25 / AC-17, AC-23 | Notes/Admin disclosure | Requester sees no notes; non-Admin sees no User data | `server/tests/lab-03/authorization.api.test.ts` | Pending |
 | AUTHZ-05 | Security/Authorization | BR-07, BR-34 / AC-05 | Origin, CSRF, and safe failures | Invalid security context cannot mutate or leak details | `server/tests/lab-03/security.integration.test.ts` | Pending |
 | AUTHZ-06 | Security/Authorization | BR-06, BR-30 / AC-04, AC-20–AC-21 | Session invalidation matrix | Logout/change/reset/deactivate revoke required sessions | `server/tests/lab-03/security.integration.test.ts` | Pending |
-| REG-01 | Migration/Regression | FR-28 / AC-08 | Requester-to-User migration | IDs, counts, roles, and Ticket requester links remain correct | `server/tests/lab-03/migration.integration.test.ts` | Pending |
-| REG-02 | Migration/Regression | FR-28 / AC-08 | Attachment migration | Metadata, links, state, and stored bytes remain valid | `server/tests/lab-03/migration.integration.test.ts` | Pending |
-| REG-03 | Migration/Regression | FR-28 / AC-08 | Workflow backfill and migration guards | Priority/status backfill works; unsafe source data aborts | `server/tests/lab-03/migration.integration.test.ts` | Pending |
-| REG-04 | Migration/Regression | FR-29 / AC-26 | Seed repeat and distribution | Two runs have no duplicates and meet required data counts | `server/tests/lab-03/seed.integration.test.ts` | Pending |
+| REG-01 | Migration/Regression | FR-28 / AC-08 | Requester-to-User migration | IDs, counts, roles, and Ticket requester links remain correct | `server/tests/lab-03/migration.integration.test.ts` | Passed |
+| REG-02 | Migration/Regression | FR-28 / AC-08 | Attachment migration | Metadata, links, state, and stored bytes remain valid | `server/tests/lab-03/migration.integration.test.ts` | Passed (metadata/links; pre-existing missing test files noted) |
+| REG-03 | Migration/Regression | FR-28 / AC-08 | Workflow backfill and migration guards | Priority/status backfill works; unsafe source data aborts | `server/tests/lab-03/migration.integration.test.ts` | Passed |
+| REG-04 | Migration/Regression | FR-29 / AC-26 | Seed repeat and distribution | Two runs have no duplicates and meet required data counts | `server/tests/lab-03/seed.integration.test.ts` | Passed |
 | REG-05 | Migration/Regression | FR-30 / AC-27 | Lab 1/Lab 2 server regression | Updated authenticated server suite passes unchanged behavior | `server/tests/lab-01/*.test.ts`, `server/tests/lab-02/*.test.ts` | Pending |
 | REG-06 | Migration/Regression | FR-30 / AC-27 | Lab 2 client regression | Requester UI/Attachment suite passes with session identity | `client/tests/lab-02/*.test.tsx` | Pending |
 | UI-01 | UI Component | FR-01–FR-03 / AC-01–AC-04, AC-24 | Login and Change Password modes | Validation, busy, inactive, failure, restriction, success render | `client/tests/lab-03/Authentication.test.tsx` | Pending |
@@ -108,11 +108,11 @@ Traceability status: **27/27 ACs mapped**.
 
 | Area | Command / Evidence | Result |
 | --- | --- | --- |
-| Server tests | `cd server; npm test` | Not Run |
+| Server tests | `cd server; npm test` | Passed (10 files, 89 tests) |
 | Client tests | `cd client; npm test` | Not Run |
-| Server build | `cd server; npm run build` | Not Run |
+| Server build | `cd server; npm run build` | Passed |
 | Client build | `cd client; npm run build` | Not Run |
 | E2E/responsive | `cd client; npm run test:e2e` | Not Run |
 | Visual review | [`ui-spec.md`](./ui-spec.md) checklist and screenshots | Not Run |
 
-Planned tests: **61**. Passed: **0**. Failed: **0**. Pending: **61**.
+Planned tests: **61**. Passed: **4**. Failed: **0**. Pending: **57**.

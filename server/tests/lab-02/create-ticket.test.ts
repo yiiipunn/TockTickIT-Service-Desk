@@ -6,8 +6,9 @@ import { getPrisma } from "../../src/prisma";
 const prisma = getPrisma();
 
 async function getValidTestData() {
-  const requester = await prisma.developmentRequester.findFirst({
+  const requester = await prisma.user.findFirst({
     where: {
+      role: "REQUESTER",
       isActive: true,
     },
   });
@@ -101,8 +102,9 @@ describe("Lab 2 - Create Ticket API", () => {
 
   it("rejects ticket creation for an inactive Development Requester", async () => {
     const inactiveRequester =
-      await prisma.developmentRequester.findFirst({
+      await prisma.user.findFirst({
         where: {
+          role: "REQUESTER",
           isActive: false,
         },
       });

@@ -17,8 +17,9 @@ describe("Lab 2 - Requester Ticket Detail API", () => {
 
   beforeAll(async () => {
     const requesters =
-      await prisma.developmentRequester.findMany({
+      await prisma.user.findMany({
         where: {
+          role: "REQUESTER",
           isActive: true,
         },
         orderBy: {
@@ -76,6 +77,7 @@ describe("Lab 2 - Requester Ticket Detail API", () => {
           relatedSystemId,
           summary: "Requester A detail test ticket",
           requestedPriority: "MEDIUM",
+          itPriority: "MEDIUM",
           description:
             "Ticket used to verify requester-owned ticket detail.",
           status: "NEW",
@@ -93,6 +95,7 @@ describe("Lab 2 - Requester Ticket Detail API", () => {
           relatedSystemId,
           summary: "Requester B detail test ticket",
           requestedPriority: "LOW",
+          itPriority: "LOW",
           description:
             "Ticket used to verify cross-requester access.",
           status: "NEW",

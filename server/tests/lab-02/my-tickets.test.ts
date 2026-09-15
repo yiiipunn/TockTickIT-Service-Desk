@@ -13,8 +13,9 @@ let systemAId: number;
 let systemBId: number;
 
 beforeAll(async () => {
-  const requesters = await prisma.developmentRequester.findMany({
+  const requesters = await prisma.user.findMany({
     where: {
+      role: "REQUESTER",
       isActive: true,
     },
     orderBy: {
@@ -69,6 +70,7 @@ beforeAll(async () => {
         relatedSystemId: systemAId,
         summary: "VPN connection problem",
         requestedPriority: "HIGH",
+        itPriority: "HIGH",
         description: "Cannot connect to VPN",
         status: "NEW",
       },
@@ -79,6 +81,7 @@ beforeAll(async () => {
         relatedSystemId: systemBId,
         summary: "Printer is not working",
         requestedPriority: "LOW",
+        itPriority: "LOW",
         description: "Printer does not respond",
         status: "NEW",
       },
@@ -89,6 +92,7 @@ beforeAll(async () => {
         relatedSystemId: systemBId,
         summary: "Campus Wi-Fi connection issue",
         requestedPriority: "MEDIUM",
+        itPriority: "MEDIUM",
         description: "Wi-Fi disconnects frequently",
         status: "NEW",
       },
@@ -99,6 +103,7 @@ beforeAll(async () => {
         relatedSystemId: systemAId,
         summary: "Other requester private ticket",
         requestedPriority: "HIGH",
+        itPriority: "HIGH",
         description: "This ticket belongs to another requester",
         status: "NEW",
       },

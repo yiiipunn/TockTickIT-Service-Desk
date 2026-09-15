@@ -53,8 +53,9 @@ describe("Lab 2 data model and reference data", () => {
   });
 
   it("contains at least four active development requesters", async () => {
-    const activeRequesters = await prisma.developmentRequester.count({
+    const activeRequesters = await prisma.user.count({
       where: {
+        role: "REQUESTER",
         isActive: true,
       },
     });
@@ -63,8 +64,9 @@ describe("Lab 2 data model and reference data", () => {
   });
 
   it("contains at least one inactive development requester", async () => {
-    const inactiveRequesters = await prisma.developmentRequester.count({
+    const inactiveRequesters = await prisma.user.count({
       where: {
+        role: "REQUESTER",
         isActive: false,
       },
     });
@@ -91,7 +93,9 @@ describe("Lab 2 data model and reference data", () => {
   });
 
   it("does not contain duplicate requester emails", async () => {
-    const requesters = await prisma.developmentRequester.findMany();
+    const requesters = await prisma.user.findMany({
+      where: { role: "REQUESTER" },
+    });
 
     const emails = requesters.map((requester) => requester.email);
     const uniqueEmails = new Set(emails);

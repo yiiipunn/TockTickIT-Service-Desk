@@ -5,6 +5,7 @@ import { randomUUID } from "node:crypto";
 import { promises as fs } from "node:fs";
 import { basename, dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
+import { Priority, TicketStatus } from "@prisma/client";
 import { getPrisma } from "./prisma.js";
 
 export const app = express();
@@ -178,8 +179,9 @@ app.get("/api/requesters", async (_req: Request, res: Response) => {
   try {
     const prisma = getPrisma();
 
-    const requesters = await prisma.developmentRequester.findMany({
+    const requesters = await prisma.user.findMany({
       where: {
+        role: "REQUESTER",
         isActive: true,
       },
       select: {
@@ -251,9 +253,10 @@ app.post("/api/tickets", async (req: Request, res: Response) => {
     }
 
     // Only an active Development Requester can create a ticket.
-    const requester = await prisma.developmentRequester.findFirst({
+    const requester = await prisma.user.findFirst({
       where: {
         id: requesterId,
+        role: "REQUESTER",
         isActive: true,
       },
       select: {
@@ -312,6 +315,8 @@ app.post("/api/tickets", async (req: Request, res: Response) => {
       });
     }
 
+    const ticketPriority = requestedPriority as Priority;
+
     // Validate Description.
     if (
       typeof description !== "string" ||
@@ -367,7 +372,8 @@ app.post("/api/tickets", async (req: Request, res: Response) => {
           categoryId,
           relatedSystemId,
           summary: summary.trim(),
-          requestedPriority,
+          requestedPriority: ticketPriority,
+          itPriority: ticketPriority,
           description: description.trim(),
           status: "NEW",
         },
@@ -433,9 +439,10 @@ app.get("/api/tickets", async (req: Request, res: Response) => {
       });
     }
 
-    const requester = await prisma.developmentRequester.findFirst({
+    const requester = await prisma.user.findFirst({
       where: {
         id: requesterId,
+        role: "REQUESTER",
         isActive: true,
       },
       select: {
@@ -509,7 +516,7 @@ app.get("/api/tickets", async (req: Request, res: Response) => {
     // -----------------------------------------------------------------------
     // Requested Priority filter
     // -----------------------------------------------------------------------
-    let requestedPriority: string | undefined;
+    let requestedPriority: Priority | undefined;
 
     if (requestedPriorityQuery !== undefined) {
       if (typeof requestedPriorityQuery !== "string") {
@@ -526,14 +533,14 @@ app.get("/api/tickets", async (req: Request, res: Response) => {
         });
       }
 
-      requestedPriority = requestedPriorityQuery;
+      requestedPriority = requestedPriorityQuery as Priority;
     }
 
     // -----------------------------------------------------------------------
     // Status filter
     // Lab 2 currently creates tickets with NEW status only.
     // -----------------------------------------------------------------------
-    let status: string | undefined;
+    let status: TicketStatus | undefined;
 
     if (statusQuery !== undefined) {
       if (typeof statusQuery !== "string" || statusQuery !== "NEW") {
@@ -542,7 +549,7 @@ app.get("/api/tickets", async (req: Request, res: Response) => {
         });
       }
 
-      status = statusQuery;
+      status = TicketStatus.NEW;
     }
 
     // -----------------------------------------------------------------------
@@ -755,9 +762,10 @@ app.get("/api/tickets/:id", async (req: Request, res: Response) => {
       });
     }
 
-    const requester = await prisma.developmentRequester.findFirst({
+    const requester = await prisma.user.findFirst({
       where: {
         id: requesterId,
+        role: "REQUESTER",
         isActive: true,
       },
       select: {
@@ -893,9 +901,10 @@ app.post(
         );
       }
 
-      const requester = await prisma.developmentRequester.findFirst({
+      const requester = await prisma.user.findFirst({
         where: {
           id: requesterId,
+          role: "REQUESTER",
           isActive: true,
         },
         select: {
@@ -1072,8 +1081,8 @@ app.get("/api/attachments/:id", async (req: Request, res: Response) => {
       );
     }
 
-    const requester = await prisma.developmentRequester.findFirst({
-      where: { id: requesterId, isActive: true },
+    const requester = await prisma.user.findFirst({
+      where: { id: requesterId, role: "REQUESTER", isActive: true },
       select: { id: true },
     });
 
@@ -1163,8 +1172,8 @@ app.get(
         );
       }
 
-      const requester = await prisma.developmentRequester.findFirst({
-        where: { id: requesterId, isActive: true },
+      const requester = await prisma.user.findFirst({
+        where: { id: requesterId, role: "REQUESTER", isActive: true },
         select: { id: true },
       });
 
@@ -1269,8 +1278,8 @@ app.delete("/api/attachments/:id", async (req: Request, res: Response) => {
       );
     }
 
-    const requester = await prisma.developmentRequester.findFirst({
-      where: { id: requesterId, isActive: true },
+    const requester = await prisma.user.findFirst({
+      where: { id: requesterId, role: "REQUESTER", isActive: true },
       select: { id: true },
     });
 
