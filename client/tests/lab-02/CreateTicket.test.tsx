@@ -50,6 +50,16 @@ function mockFetchForCreateTicket(options: { attachmentError?: string } = {}) {
     async (input: RequestInfo | URL, init?: RequestInit) => {
       const url = String(input);
 
+      if (url.endsWith("/api/auth/me")) {
+        return {
+          ok: true,
+          json: async () => ({ data: { user: {
+            ...requesters[0], role: "REQUESTER", isActive: true,
+            mustChangePassword: false,
+          }, csrfToken: "csrf-token" } }),
+        } as Response;
+      }
+
       if (url.endsWith("/api/requesters")) {
         return {
           ok: true,
@@ -71,7 +81,7 @@ function mockFetchForCreateTicket(options: { attachmentError?: string } = {}) {
         } as Response;
       }
 
-      // My Tickets is loaded after selecting a requester.
+      // My Tickets is loaded after restoring the authenticated requester.
       if (isGetTicketsRequest(url, init)) {
         return {
           ok: true,
@@ -146,21 +156,7 @@ function mockFetchForCreateTicket(options: { attachmentError?: string } = {}) {
 }
 
 async function selectRequesterAndContinue() {
-  const requesterSelect = await screen.findByLabelText(
-    "Development Requester",
-  );
-
-  await userEvent.selectOptions(
-    requesterSelect,
-    "1",
-  );
-
-  await userEvent.click(
-    screen.getByRole("button", {
-      name: /Continue/i,
-    }),
-  );
-
+  await screen.findByRole("heading", { name: "My Tickets" });
   await userEvent.click(
     screen.getByRole("button", {
       name: "Create Ticket",
@@ -213,7 +209,7 @@ afterEach(() => {
 });
 describe("Lab 2 - Create Ticket UI", () => {
   it(
-    "shows the Create Ticket form after selecting a requester",
+    "shows the Create Ticket form for an authenticated requester",
     async () => {
       mockFetchForCreateTicket();
 
@@ -343,7 +339,7 @@ describe("Lab 2 - Create Ticket UI", () => {
   );
 
   it(
-    "sends the selected requester in X-Requester-Id",
+    "keeps the authenticated requester on the Lab 2 compatibility header",
     async () => {
       const fetchMock = vi.fn(
         async (
@@ -351,6 +347,16 @@ describe("Lab 2 - Create Ticket UI", () => {
           init?: RequestInit,
         ) => {
           const url = String(input);
+
+          if (url.endsWith("/api/auth/me")) {
+            return {
+              ok: true,
+              json: async () => ({ data: { user: {
+                ...requesters[0], role: "REQUESTER", isActive: true,
+                mustChangePassword: false,
+              }, csrfToken: "csrf-token" } }),
+            } as Response;
+          }
 
           if (url.endsWith("/api/requesters")) {
             return {
@@ -470,6 +476,16 @@ describe("Lab 2 - Create Ticket UI", () => {
           ) => {
             const url = String(input);
 
+            if (url.endsWith("/api/auth/me")) {
+              return {
+                ok: true,
+                json: async () => ({ data: { user: {
+                  ...requesters[0], role: "REQUESTER", isActive: true,
+                  mustChangePassword: false,
+                }, csrfToken: "csrf-token" } }),
+              } as Response;
+            }
+
             if (url.endsWith("/api/requesters")) {
               return {
                 ok: true,
@@ -587,7 +603,11 @@ describe("Lab 2 - Create Ticket UI", () => {
     expect(uploadCall?.[1]).toEqual(
       expect.objectContaining({
         method: "POST",
-        headers: { "X-Requester-Id": "1" },
+        credentials: "include",
+        headers: expect.objectContaining({
+          "X-CSRF-Token": "csrf-token",
+          "X-Requester-Id": "1",
+        }),
         body: expect.any(FormData),
       }),
     );

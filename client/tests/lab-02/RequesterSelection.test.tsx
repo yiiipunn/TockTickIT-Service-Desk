@@ -1,196 +1,69 @@
-import { beforeEach, describe, expect, it, vi } from "vitest";
-import { render, screen, waitFor } from "@testing-library/react";
+import { afterEach, describe, expect, it, vi } from "vitest";
+import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import App from "../../src/App.js";
 
-const mockRequesters = [
-  {
-    id: 1,
-    name: "Narin S.",
-    email: "narin@example.com",
-  },
-  {
-    id: 2,
-    name: "Ploy K.",
-    email: "ploy@example.com",
-  },
-];
+const authenticatedUser = {
+  id: 1,
+  name: "Narin S.",
+  email: "narin@example.com",
+  role: "REQUESTER",
+  isActive: true,
+  mustChangePassword: false,
+};
 
-function mockSuccessfulRequesterFlow() {
-  vi.spyOn(globalThis, "fetch").mockImplementation(async (input) => {
+function installAuthenticatedRequesterFetch() {
+  const fetchMock = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
     const url = String(input);
-    let body: unknown;
-
-    if (url.endsWith("/api/requesters")) {
-      body = mockRequesters;
-    } else if (url.endsWith("/api/categories") ||
-      url.endsWith("/api/related-systems")) {
-      body = [];
-    } else if (url.includes("/api/tickets")) {
-      body = {
-        items: [],
-        pagination: {
-          page: 1,
-          pageSize: 10,
-          totalItems: 0,
-          totalPages: 0,
-        },
-      };
-    } else {
-      throw new Error(`Unexpected fetch: ${url}`);
+    if (url.endsWith("/api/auth/me")) {
+      return new Response(JSON.stringify({
+        data: { user: authenticatedUser, csrfToken: "csrf-token" },
+      }), { status: 200, headers: { "Content-Type": "application/json" } });
     }
-
+    if (url.endsWith("/api/auth/logout") && init?.method === "POST") {
+      return new Response(null, { status: 204 });
+    }
+    const body = url.includes("/api/tickets")
+      ? { items: [], pagination: { page: 1, pageSize: 10, totalItems: 0, totalPages: 0 } }
+      : [];
     return new Response(JSON.stringify(body), {
       status: 200,
       headers: { "Content-Type": "application/json" },
     });
   });
+  vi.stubGlobal("fetch", fetchMock);
+  return fetchMock;
 }
 
-beforeEach(() => {
+afterEach(() => {
+  vi.unstubAllGlobals();
   vi.restoreAllMocks();
 });
-describe("Development Requester Selection", () => {
-  it("loads and displays active development requesters", async () => {
-    vi.spyOn(globalThis, "fetch").mockResolvedValueOnce(
-      new Response(JSON.stringify(mockRequesters), {
-        status: 200,
-        headers: {
-          "Content-Type": "application/json",
-        },
-      })
-    );
 
+describe("authenticated requester context", () => {
+  it("uses restored server identity and removes requester selection", async () => {
+    installAuthenticatedRequesterFetch();
     render(<App />);
-
-    expect(
-      screen.getByText("Loading development requesters...")
-    ).toBeInTheDocument();
-
-    expect(
-      await screen.findByLabelText("Development Requester")
-    ).toBeInTheDocument();
-
-    expect(screen.getByText(/Narin S\./)).toBeInTheDocument();
-    expect(screen.getByText(/Ploy K\./)).toBeInTheDocument();
-  });
-
-  it("keeps Continue disabled until a requester is selected", async () => {
-    vi.spyOn(globalThis, "fetch").mockResolvedValueOnce(
-      new Response(JSON.stringify(mockRequesters), {
-        status: 200,
-        headers: {
-          "Content-Type": "application/json",
-        },
-      })
-    );
-
-    render(<App />);
-
-    const select = await screen.findByRole("combobox");
-    const continueButton = screen.getByRole("button", {
-      name: /Continue/i,
-    });
-
-    expect(continueButton).toBeDisabled();
-
-    await userEvent.selectOptions(select, "1");
-
-    expect(continueButton).toBeEnabled();
-  });
-
-  it("shows the selected requester as the current requester", async () => {
-    mockSuccessfulRequesterFlow();
-
-    render(<App />);
-
-    const select = await screen.findByRole("combobox");
-
-    await userEvent.selectOptions(select, "2");
-
-    await userEvent.click(
-      screen.getByRole("button", {
-        name: /Continue/i,
-      })
-    );
-
     await screen.findByRole("heading", { name: "My Tickets" });
-
+    expect(screen.getByText("Narin S.")).toBeInTheDocument();
     expect(screen.getByText("Requester")).toBeInTheDocument();
-
-    expect(screen.getByText("Ploy K.")).toBeInTheDocument();
+    expect(screen.queryByLabelText("Development Requester")).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /Continue/i })).not.toBeInTheDocument();
   });
 
-  it("allows the current requester to be changed", async () => {
-    mockSuccessfulRequesterFlow();
-
+  it("logs out instead of changing requester identity", async () => {
+    const fetchMock = installAuthenticatedRequesterFetch();
     render(<App />);
-
-    const select = await screen.findByRole("combobox");
-
-    await userEvent.selectOptions(select, "1");
-
-    await userEvent.click(
-      screen.getByRole("button", {
-        name: /Continue/i,
-      })
-    );
-
     await screen.findByRole("heading", { name: "My Tickets" });
-
-    await userEvent.click(
-      screen.getByRole("button", {
-        name: /Change/i,
-      })
+    await userEvent.click(screen.getByRole("button", { name: "Logout" }));
+    expect(await screen.findByRole("heading", { name: "Sign in to TokTickIT" })).toBeInTheDocument();
+    expect(fetchMock).toHaveBeenCalledWith(
+      "http://localhost:3000/api/auth/logout",
+      expect.objectContaining({
+        method: "POST",
+        credentials: "include",
+        headers: { "X-CSRF-Token": "csrf-token" },
+      }),
     );
-
-    expect(
-      await screen.findByLabelText("Development Requester")
-    ).toBeInTheDocument();
-
-    expect(
-      screen.getByRole("button", {
-        name: /Continue/i,
-      })
-    ).toBeDisabled();
-  });
-
-  it("shows an error and retry option when requesters cannot be loaded", async () => {
-    vi.spyOn(globalThis, "fetch").mockResolvedValueOnce(
-      new Response(null, {
-        status: 500,
-      })
-    );
-
-    render(<App />);
-
-    expect(
-      await screen.findByText("Unable to load development requesters.")
-    ).toBeInTheDocument();
-
-    expect(
-      screen.getByRole("button", {
-        name: "Retry",
-      })
-    ).toBeInTheDocument();
-  });
-
-  it("shows an empty state when no active requesters are available", async () => {
-    vi.spyOn(globalThis, "fetch").mockResolvedValueOnce(
-      new Response(JSON.stringify([]), {
-        status: 200,
-        headers: {
-          "Content-Type": "application/json",
-        },
-      })
-    );
-
-    render(<App />);
-
-    await waitFor(() => {
-      expect(
-        screen.getByText("No active development requesters are available.")
-      ).toBeInTheDocument();
-    });
   });
 });

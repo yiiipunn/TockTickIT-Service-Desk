@@ -149,6 +149,8 @@ const seedTickets: SeedTicket[] = [
   },
 ];
 
+export const LAB3_SEED_USER_EMAILS = seedUsers.map((user) => user.email);
+
 async function ensureSeedUser(user: (typeof seedUsers)[number]) {
   const prisma = getPrisma();
   const existing = await prisma.user.findUnique({ where: { email: user.email } });

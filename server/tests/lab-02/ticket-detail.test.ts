@@ -1,11 +1,14 @@
-import request from "supertest";
 import { beforeAll, describe, expect, it } from "vitest";
 
-import app from "../../src/app.js";
 import { getPrisma } from "../../src/prisma.js";
+import {
+  createAuthenticatedTestClient,
+  type AuthenticatedTestClient,
+} from "../helpers/authenticated-client.js";
 
 describe("Lab 2 - Requester Ticket Detail API", () => {
   const prisma = getPrisma();
+  let api: AuthenticatedTestClient;
 
   let requesterAId: number;
   let requesterBId: number;
@@ -16,6 +19,7 @@ describe("Lab 2 - Requester Ticket Detail API", () => {
   let requesterBTicketId: number;
 
   beforeAll(async () => {
+    api = await createAuthenticatedTestClient();
     const requesters =
       await prisma.user.findMany({
         where: {
@@ -129,7 +133,7 @@ describe("Lab 2 - Requester Ticket Detail API", () => {
   });
 
   it("returns an owned Ticket", async () => {
-    const response = await request(app)
+    const response = await api
       .get(`/api/tickets/${requesterATicketId}`)
       .set(
         "X-Requester-Id",
@@ -155,7 +159,7 @@ describe("Lab 2 - Requester Ticket Detail API", () => {
   });
 
   it("includes Category and Related System", async () => {
-    const response = await request(app)
+    const response = await api
       .get(`/api/tickets/${requesterATicketId}`)
       .set(
         "X-Requester-Id",
@@ -184,7 +188,7 @@ describe("Lab 2 - Requester Ticket Detail API", () => {
   });
 
   it("includes active Attachments", async () => {
-    const response = await request(app)
+    const response = await api
       .get(`/api/tickets/${requesterATicketId}`)
       .set(
         "X-Requester-Id",
@@ -208,7 +212,7 @@ describe("Lab 2 - Requester Ticket Detail API", () => {
   });
 
   it("retains soft-removed Attachment metadata", async () => {
-    const response = await request(app)
+    const response = await api
       .get(`/api/tickets/${requesterATicketId}`)
       .set(
         "X-Requester-Id",
@@ -234,7 +238,7 @@ describe("Lab 2 - Requester Ticket Detail API", () => {
   });
 
   it("rejects missing requester context", async () => {
-    const response = await request(app).get(
+    const response = await api.get(
       `/api/tickets/${requesterATicketId}`,
     );
 
@@ -247,7 +251,7 @@ describe("Lab 2 - Requester Ticket Detail API", () => {
   });
 
   it("rejects invalid requester context", async () => {
-    const response = await request(app)
+    const response = await api
       .get(`/api/tickets/${requesterATicketId}`)
       .set("X-Requester-Id", "invalid");
 
@@ -259,7 +263,7 @@ describe("Lab 2 - Requester Ticket Detail API", () => {
   });
 
   it("returns 404 when the Ticket does not exist", async () => {
-    const response = await request(app)
+    const response = await api
       .get("/api/tickets/999999999")
       .set(
         "X-Requester-Id",
@@ -274,7 +278,7 @@ describe("Lab 2 - Requester Ticket Detail API", () => {
   });
 
   it("returns 404 when accessing another Requester's Ticket", async () => {
-    const response = await request(app)
+    const response = await api
       .get(`/api/tickets/${requesterBTicketId}`)
       .set(
         "X-Requester-Id",

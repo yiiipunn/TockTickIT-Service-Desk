@@ -15,3 +15,14 @@ export function hashPassword(password: string): Promise<string> {
     salt: randomBytes(16),
   });
 }
+
+export async function verifyPassword(
+  passwordHash: string,
+  password: string,
+): Promise<boolean> {
+  try {
+    return await argon2.verify(passwordHash, password);
+  } catch {
+    return false;
+  }
+}

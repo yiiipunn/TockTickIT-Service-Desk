@@ -1,13 +1,17 @@
-import request from "supertest";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
-import app from "../../src/app.js";
 import { getPrisma } from "../../src/prisma.js";
+import {
+  createAuthenticatedTestClient,
+  type AuthenticatedTestClient,
+} from "../helpers/authenticated-client.js";
 
 const prisma = getPrisma();
+let api: AuthenticatedTestClient;
 
 describe("GET /api/requesters", () => {
   beforeAll(async () => {
     await prisma.$connect();
+    api = await createAuthenticatedTestClient();
   });
 
   afterAll(async () => {
@@ -15,7 +19,7 @@ describe("GET /api/requesters", () => {
   });
 
   it("returns HTTP 200 with active development requesters", async () => {
-    const response = await request(app).get("/api/requesters");
+    const response = await api.get("/api/requesters");
 
     expect(response.status).toBe(200);
     expect(Array.isArray(response.body)).toBe(true);
@@ -23,7 +27,7 @@ describe("GET /api/requesters", () => {
   });
 
   it("returns only id, name, and email for each requester", async () => {
-    const response = await request(app).get("/api/requesters");
+    const response = await api.get("/api/requesters");
 
     expect(response.status).toBe(200);
 
@@ -49,7 +53,7 @@ describe("GET /api/requesters", () => {
 
     expect(inactiveRequesters.length).toBeGreaterThanOrEqual(1);
 
-    const response = await request(app).get("/api/requesters");
+    const response = await api.get("/api/requesters");
 
     expect(response.status).toBe(200);
 
@@ -63,7 +67,7 @@ describe("GET /api/requesters", () => {
   });
 
   it("returns requesters sorted by name", async () => {
-    const response = await request(app).get("/api/requesters");
+    const response = await api.get("/api/requesters");
 
     expect(response.status).toBe(200);
 

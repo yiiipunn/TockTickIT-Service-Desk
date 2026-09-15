@@ -94,6 +94,13 @@ function installFetchMock(options?: {
       const parsedUrl = new URL(url);
       const pathname = parsedUrl.pathname;
 
+      if (pathname === "/api/auth/me") {
+        return jsonResponse({ data: { user: {
+          ...requester, role: "REQUESTER", isActive: true,
+          mustChangePassword: false,
+        }, csrfToken: "csrf-token" } });
+      }
+
       if (pathname === "/api/requesters") {
         return jsonResponse([requester]);
       }
@@ -139,25 +146,6 @@ function installFetchMock(options?: {
 }
 
 async function selectRequester() {
-  await screen.findByRole("option", {
-    name: /Narin S\./i,
-  });
-
-  fireEvent.change(
-    screen.getByLabelText("Development Requester"),
-    {
-      target: {
-        value: "1",
-      },
-    },
-  );
-
-  fireEvent.click(
-    screen.getByRole("button", {
-      name: /Continue/i,
-    }),
-  );
-
   await screen.findByRole("heading", {
     name: "My Tickets",
   });
@@ -223,7 +211,7 @@ describe("Requester Ticket Detail", () => {
     ).toBeInTheDocument();
   });
 
-  it("sends the selected requester in the detail request", async () => {
+  it("keeps the authenticated requester on the Lab 2 detail compatibility header", async () => {
     installFetchMock();
 
     render(<App />);
