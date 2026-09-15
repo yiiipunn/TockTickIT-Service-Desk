@@ -20,7 +20,7 @@ Record 6–10 important prompts. Summarize long prompts without changing their m
 | ---: | --- | --- | --- | --- |
 | 1 | Engineering contract | TBD | TBD | TBD |
 | 2 | Test planning | TBD | TBD | TBD |
-| 3 | Authentication | TBD | TBD | TBD |
+| 3 | Authentication | Implement only the Authentication Foundation: login, database sessions, current User, logout, CSRF, throttling, Login UI, and authenticated shell while deferring later role/ownership features. | Added contract-aligned auth tests and implementation, preserved Lab 2 workflows through an authenticated compatibility layer, and recorded executed verification. | Pending student review of security choices, scope, and test evidence. |
 | 4 | Authorization | TBD | TBD | TBD |
 | 5 | Lab 2 migration | Preserve Lab 2 records while evolving requesters into role-based Users and adding seed foundations. | Proposed guarded in-place migration, Argon2id seed hashing, and migration/seed regression tests. | Pending student review of migration SQL and executed evidence. |
 | 6 | IT Staff workflow | TBD | TBD | TBD |
@@ -33,7 +33,7 @@ Record 6–10 important prompts. Summarize long prompts without changing their m
 
 | Area | AI Suggestion | Final Student Decision | Verification |
 | --- | --- | --- | --- |
-| Authentication/session | TBD | TBD | Specification, API tests |
+| Authentication/session | Use opaque 32-byte session and CSRF values, store only SHA-256 digests, enforce idle/absolute expiry, and revoke on logout. | Pending student review | API/unit tests and migration inspection |
 | Password handling | TBD | TBD | Unit/API tests |
 | Role authorization | TBD | TBD | Authorization matrix/tests |
 | Ticket workflow | TBD | TBD | Transition matrix/tests |

@@ -2,6 +2,7 @@ import argon2 from "argon2";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import {
   LAB3_DEVELOPMENT_INITIAL_PASSWORD,
+  LAB3_SEED_USER_EMAILS,
   runSeed,
 } from "../../prisma/seed.js";
 import { ARGON2_OPTIONS } from "../../src/password.js";
@@ -19,7 +20,10 @@ describe("Lab 3 seed data", () => {
     await prisma.$connect();
     await runSeed();
 
-    const firstUsers = await prisma.user.findMany({ orderBy: { id: "asc" } });
+    const firstUsers = await prisma.user.findMany({
+      where: { email: { in: LAB3_SEED_USER_EMAILS } },
+      orderBy: { id: "asc" },
+    });
     const firstTickets = await prisma.ticket.findMany({
       where: { ticketNumber: { startsWith: seedTicketPrefix } },
       orderBy: { id: "asc" },
@@ -59,7 +63,9 @@ describe("Lab 3 seed data", () => {
   });
 
   it("stores only configured Argon2id hashes for seeded passwords", async () => {
-    const users = await prisma.user.findMany();
+    const users = await prisma.user.findMany({
+      where: { email: { in: LAB3_SEED_USER_EMAILS } },
+    });
 
     for (const user of users) {
       expect(user.passwordHash).not.toBe(LAB3_DEVELOPMENT_INITIAL_PASSWORD);
@@ -72,7 +78,10 @@ describe("Lab 3 seed data", () => {
   });
 
   it("is idempotent for Users, password hashes, Tickets, comments, and notes", async () => {
-    const users = await prisma.user.findMany({ orderBy: { id: "asc" } });
+    const users = await prisma.user.findMany({
+      where: { email: { in: LAB3_SEED_USER_EMAILS } },
+      orderBy: { id: "asc" },
+    });
     const tickets = await prisma.ticket.findMany({
       where: { ticketNumber: { startsWith: seedTicketPrefix } },
       orderBy: { id: "asc" },

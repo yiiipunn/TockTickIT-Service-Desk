@@ -127,3 +127,51 @@ body {
   max-width: 100%;
   padding: 0;
 }
+
+.login-page {
+  min-height: 100vh;
+  display: grid;
+  place-items: center;
+  padding: 2rem;
+  background:
+    radial-gradient(circle at top right, rgba(11, 122, 70, 0.16), transparent 38%),
+    var(--toktickit-page);
+}
+
+.login-card {
+  width: min(100%, 480px);
+  border: 0;
+}
+
+.login-mark {
+  display: grid;
+  place-items: center;
+  width: 3.5rem;
+  height: 3.5rem;
+  margin: 0 auto 1rem;
+  border-radius: 50%;
+  background: var(--toktickit-pale);
+  color: var(--toktickit-primary);
+  font-size: 1.5rem;
+  font-weight: 800;
+}
+
+.identity-copy {
+  min-width: 0;
+  max-width: 18rem;
+}
+
+@media (max-width: 575.98px) {
+  .login-page {
+    align-items: start;
+    padding: 1rem;
+  }
+
+  .login-card {
+    margin-top: 1.5rem;
+  }
+
+  .navbar .identity-copy {
+    max-width: 9rem;
+  }
+}

@@ -48,9 +48,28 @@ model User {
   ownedTickets     Ticket[]        @relation("TicketOwner")
   publicComments   PublicComment[]
   internalNotes    InternalNote[]
+  sessions         Session[]
 
   @@index([role])
   @@index([isActive])
+}
+
+model Session {
+  id                Int       @id @default(autoincrement())
+  userId            Int
+  tokenHash         String    @unique
+  csrfTokenHash     String
+  expiresAt         DateTime
+  absoluteExpiresAt DateTime
+  lastActivityAt    DateTime  @default(now())
+  revokedAt         DateTime?
+  createdAt         DateTime  @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([expiresAt])
+  @@index([userId, revokedAt])
 }
 
 model Category {

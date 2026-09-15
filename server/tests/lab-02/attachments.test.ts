@@ -1,4 +1,3 @@
-import request from "supertest";
 import { randomUUID } from "node:crypto";
 import { promises as fs } from "node:fs";
 import { resolve } from "node:path";
@@ -10,8 +9,11 @@ import {
   it,
 } from "vitest";
 
-import app from "../../src/app.js";
 import { getPrisma } from "../../src/prisma.js";
+import {
+  createAuthenticatedTestClient,
+  type AuthenticatedTestClient,
+} from "../helpers/authenticated-client.js";
 
 const PNG_SIGNATURE = Buffer.from([
   0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a,
@@ -23,6 +25,7 @@ const WEBP_FILE = Buffer.from("RIFF\x04\x00\x00\x00WEBP", "binary");
 
 describe("Lab 2 - Attachment Management API", () => {
   const prisma = getPrisma();
+  let api: AuthenticatedTestClient;
 
   let requesterAId: number;
   let requesterBId: number;
@@ -39,6 +42,7 @@ describe("Lab 2 - Attachment Management API", () => {
   const uniquePrefix = `ATTACH-${Date.now()}`;
 
   beforeAll(async () => {
+    api = await createAuthenticatedTestClient();
     const requesters =
       await prisma.user.findMany({
         where: {
@@ -208,7 +212,7 @@ describe("Lab 2 - Attachment Management API", () => {
   });
 
   it("uploads an allowed attachment to an owned Ticket", async () => {
-    const response = await request(app)
+    const response = await api
       .post(`/api/tickets/${uploadTicketId}/attachments`)
       .set("X-Requester-Id", String(requesterAId))
       .attach(
@@ -251,7 +255,7 @@ describe("Lab 2 - Attachment Management API", () => {
   });
 
   it("accepts PDF attachments", async () => {
-    const response = await request(app)
+    const response = await api
       .post(`/api/tickets/${uploadTicketId}/attachments`)
       .set("X-Requester-Id", String(requesterAId))
       .attach(
@@ -274,7 +278,7 @@ describe("Lab 2 - Attachment Management API", () => {
     ["evidence.jpg", "image/jpeg", JPEG_FILE],
     ["evidence.webp", "image/webp", WEBP_FILE],
   ])("accepts %s attachments", async (filename, contentType, file) => {
-    const response = await request(app)
+    const response = await api
       .post(`/api/tickets/${uploadTicketId}/attachments`)
       .set("X-Requester-Id", String(requesterAId))
       .attach("file", file, { filename, contentType });
@@ -284,7 +288,7 @@ describe("Lab 2 - Attachment Management API", () => {
   });
 
   it("downloads the persisted content of an owned active attachment", async () => {
-    const response = await request(app)
+    const response = await api
       .get(`/api/attachments/${uploadedPdfAttachmentId}/download`)
       .set("X-Requester-Id", String(requesterAId));
 
@@ -295,7 +299,7 @@ describe("Lab 2 - Attachment Management API", () => {
   });
 
   it("returns owned active attachment metadata", async () => {
-    const response = await request(app)
+    const response = await api
       .get(`/api/attachments/${uploadedPdfAttachmentId}`)
       .set("X-Requester-Id", String(requesterAId));
 
@@ -310,7 +314,7 @@ describe("Lab 2 - Attachment Management API", () => {
   });
 
   it("rejects an unsupported attachment type", async () => {
-    const response = await request(app)
+    const response = await api
       .post(`/api/tickets/${uploadTicketId}/attachments`)
       .set("X-Requester-Id", String(requesterAId))
       .attach(
@@ -330,7 +334,7 @@ describe("Lab 2 - Attachment Management API", () => {
   });
 
   it("rejects content that does not match its claimed allowed MIME type", async () => {
-    const response = await request(app)
+    const response = await api
       .post(`/api/tickets/${uploadTicketId}/attachments`)
       .set("X-Requester-Id", String(requesterAId))
       .attach("file", Buffer.from("not a png"), {
@@ -349,7 +353,7 @@ describe("Lab 2 - Attachment Management API", () => {
     const file = Buffer.alloc(5 * 1024 * 1024);
     PNG_SIGNATURE.copy(file);
 
-    const response = await request(app)
+    const response = await api
       .post(`/api/tickets/${uploadTicketId}/attachments`)
       .set("X-Requester-Id", String(requesterAId))
       .attach("file", file, {
@@ -362,7 +366,7 @@ describe("Lab 2 - Attachment Management API", () => {
   });
 
   it("rejects an attachment larger than 5 MB", async () => {
-    const response = await request(app)
+    const response = await api
       .post(`/api/tickets/${uploadTicketId}/attachments`)
       .set("X-Requester-Id", String(requesterAId))
       .attach(
@@ -385,7 +389,7 @@ describe("Lab 2 - Attachment Management API", () => {
   });
 
   it("rejects upload when no file is provided", async () => {
-    const response = await request(app)
+    const response = await api
       .post(`/api/tickets/${uploadTicketId}/attachments`)
       .set("X-Requester-Id", String(requesterAId));
 
@@ -397,7 +401,7 @@ describe("Lab 2 - Attachment Management API", () => {
   });
 
   it("rejects a sixth active attachment", async () => {
-    const response = await request(app)
+    const response = await api
       .post(`/api/tickets/${limitTicketId}/attachments`)
       .set("X-Requester-Id", String(requesterAId))
       .attach(
@@ -417,7 +421,7 @@ describe("Lab 2 - Attachment Management API", () => {
   });
 
   it("requires Development Requester context for upload", async () => {
-    const response = await request(app)
+    const response = await api
       .post(`/api/tickets/${uploadTicketId}/attachments`)
       .attach(
         "file",
@@ -436,7 +440,7 @@ describe("Lab 2 - Attachment Management API", () => {
   });
 
   it("does not allow a Requester to upload to another Requester's Ticket", async () => {
-    const response = await request(app)
+    const response = await api
       .post(
         `/api/tickets/${requesterBTicketId}/attachments`,
       )
@@ -469,7 +473,7 @@ describe("Lab 2 - Attachment Management API", () => {
       },
     });
 
-    const response = await request(app)
+    const response = await api
       .delete(
         `/api/attachments/${attachment.id}`,
       )
@@ -506,7 +510,7 @@ describe("Lab 2 - Attachment Management API", () => {
       },
     });
 
-    const removeResponse = await request(app)
+    const removeResponse = await api
       .delete(
         `/api/attachments/${attachment.id}`,
       )
@@ -515,7 +519,7 @@ describe("Lab 2 - Attachment Management API", () => {
 
     expect(removeResponse.status).toBe(200);
 
-    const detailResponse = await request(app)
+    const detailResponse = await api
       .get(`/api/tickets/${removeTicketId}`)
       .set("X-Requester-Id", String(requesterAId));
 
@@ -531,7 +535,7 @@ describe("Lab 2 - Attachment Management API", () => {
       ]),
     );
 
-    const metadataResponse = await request(app)
+    const metadataResponse = await api
       .get(`/api/attachments/${attachment.id}`)
       .set("X-Requester-Id", String(requesterAId));
 
@@ -542,7 +546,7 @@ describe("Lab 2 - Attachment Management API", () => {
       removalReason: "No longer needed",
     });
 
-    const downloadResponse = await request(app)
+    const downloadResponse = await api
       .get(`/api/attachments/${attachment.id}/download`)
       .set("X-Requester-Id", String(requesterAId));
 
@@ -561,7 +565,7 @@ describe("Lab 2 - Attachment Management API", () => {
       },
     });
 
-    const response = await request(app)
+    const response = await api
       .delete(
         `/api/attachments/${attachment.id}`,
       )
@@ -585,9 +589,9 @@ describe("Lab 2 - Attachment Management API", () => {
 
   it.each([
     ["metadata", (attachmentId: number) =>
-      request(app).get(`/api/attachments/${attachmentId}`)],
+      api.get(`/api/attachments/${attachmentId}`)],
     ["download", (attachmentId: number) =>
-      request(app).get(`/api/attachments/${attachmentId}/download`)],
+      api.get(`/api/attachments/${attachmentId}/download`)],
   ])("does not expose another Requester's attachment through %s", async (
     _operation,
     makeRequest,
@@ -614,14 +618,14 @@ describe("Lab 2 - Attachment Management API", () => {
 
   it("atomically enforces the active limit for concurrent uploads", async () => {
     const responses = await Promise.all([
-      request(app)
+      api
         .post(`/api/tickets/${concurrentLimitTicketId}/attachments`)
         .set("X-Requester-Id", String(requesterAId))
         .attach("file", PNG_FILE, {
           filename: "concurrent-a.png",
           contentType: "image/png",
         }),
-      request(app)
+      api
         .post(`/api/tickets/${concurrentLimitTicketId}/attachments`)
         .set("X-Requester-Id", String(requesterAId))
         .attach("file", PNG_FILE, {
@@ -652,7 +656,7 @@ describe("Lab 2 - Attachment Management API", () => {
       },
     });
 
-    const response = await request(app)
+    const response = await api
       .delete(
         `/api/attachments/${attachment.id}`,
       )
@@ -681,7 +685,7 @@ describe("Lab 2 - Attachment Management API", () => {
       },
     });
 
-    const response = await request(app)
+    const response = await api
       .delete(`/api/attachments/${attachment.id}`)
       .set("X-Requester-Id", String(requesterAId))
       .send(body);

@@ -3,11 +3,11 @@ import {
   Category,
   checkSystem,
   createTicket,
-  DevelopmentRequester,
+  AuthenticatedUser,
   downloadTicketAttachment,
+  getCurrentUser,
   getCategories,
   getRelatedSystems,
-  getRequesters,
   getTicketDetail,
   getTickets,
   GetTicketsParams,
@@ -19,10 +19,12 @@ import {
   TicketPagination,
   uploadTicketAttachment,
   removeTicketAttachment,
+  logout,
 } from "./api";
+import LoginScreen from "./LoginScreen";
 
 type UiState = "idle" | "loading" | "success" | "error";
-type RequesterState = "loading" | "success" | "error";
+type AuthState = "loading" | "unauthenticated" | "authenticated" | "error";
 type ReferenceDataState = "idle" | "loading" | "success" | "error";
 type SubmitState = "idle" | "submitting" | "success" | "error";
 type AppView = "tickets" | "create" | "detail";
@@ -47,6 +49,35 @@ function getAttachmentValidationError(file: File) {
   return "";
 }
 
+function roleLabel(role: AuthenticatedUser["role"]) {
+  if (role === "IT_STAFF") return "IT Staff";
+  if (role === "ADMINISTRATOR") return "Administrator";
+  return "Requester";
+}
+
+function AuthenticatedNavbar({
+  user,
+  onLogout,
+}: {
+  user: AuthenticatedUser;
+  onLogout: () => void;
+}) {
+  return (
+    <nav className="navbar bg-success shadow-sm px-4 py-3" aria-label="Application navigation">
+      <span className="navbar-brand text-white fw-bold mb-0">TokTickIT</span>
+      <div className="ms-auto d-flex align-items-center gap-3 text-white">
+        <div className="text-end identity-copy">
+          <div className="fw-semibold text-break">{user.name}</div>
+          <span className="badge text-bg-light text-success">{roleLabel(user.role)}</span>
+        </div>
+        <button type="button" className="btn btn-outline-light" onClick={onLogout}>
+          Logout
+        </button>
+      </div>
+    </nav>
+  );
+}
+
 export default function App() {
   // -------------------------------------------------------------------------
   // Lab 1 - System Status
@@ -55,18 +86,14 @@ export default function App() {
   const [categories, setCategories] = useState<Category[]>([]);
 
   // -------------------------------------------------------------------------
-  // Lab 2 - Development Requester Context
+  // Lab 3 - Authenticated User Context
   // -------------------------------------------------------------------------
-  const [requesterState, setRequesterState] =
-    useState<RequesterState>("loading");
-
-  const [requesters, setRequesters] = useState<DevelopmentRequester[]>([]);
-
-  const [selectedRequesterId, setSelectedRequesterId] =
-    useState<number | null>(null);
+  const [authState, setAuthState] = useState<AuthState>("loading");
+  const [currentUser, setCurrentUser] = useState<AuthenticatedUser | null>(null);
+  const [authFailure, setAuthFailure] = useState("");
 
   const [currentRequester, setCurrentRequester] =
-    useState<DevelopmentRequester | null>(null);
+    useState<AuthenticatedUser | null>(null);
 
   const [appView, setAppView] = useState<AppView>("tickets");
 
@@ -144,7 +171,7 @@ export default function App() {
     useState<number | null>(null);
 
   useEffect(() => {
-    loadRequesters();
+    void restoreAuthentication();
   }, []);
 
   // -------------------------------------------------------------------------
@@ -164,43 +191,45 @@ export default function App() {
   }
 
   // -------------------------------------------------------------------------
-  // Development Requester
+  // Authentication
   // -------------------------------------------------------------------------
-  async function loadRequesters() {
-    setRequesterState("loading");
-
+  async function restoreAuthentication() {
     try {
-      const result = await getRequesters();
-      setRequesters(result);
-      setRequesterState("success");
-    } catch {
-      setRequesters([]);
-      setRequesterState("error");
+      await activateAuthenticatedUser(await getCurrentUser());
+    } catch (error) {
+      setAuthState(error instanceof Error && "status" in error && error.status !== 401 ? "error" : "unauthenticated");
+      setAuthFailure(error instanceof Error && "status" in error && error.status !== 401
+        ? "Unable to restore your session. You can sign in again."
+        : "");
     }
   }
 
-  async function handleContinue() {
-    const requester =
-      requesters.find(
-        (requester) => requester.id === selectedRequesterId,
-      ) ?? null;
-
-    if (!requester) {
-      return;
-    }
-
-    setCurrentRequester(requester);
+  async function activateAuthenticatedUser(user: AuthenticatedUser) {
+    setCurrentUser(user);
+    setAuthState("authenticated");
+    setAuthFailure("");
+    setCurrentRequester(user.role === "REQUESTER" ? user : null);
     setAppView("tickets");
 
-    await Promise.all([
-      loadTicketReferenceData(),
-      loadTickets(requester.id, 1),
-    ]);
+    if (user.role === "REQUESTER" && !user.mustChangePassword) {
+      await Promise.all([
+        loadTicketReferenceData(),
+        loadTickets(user.id, 1),
+      ]);
+    }
   }
 
-  function handleChangeRequester() {
+  async function handleLogout() {
+    setAuthFailure("");
+    try {
+      await logout();
+    } catch {
+      setAuthFailure("Unable to sign out right now. Please try again.");
+      return;
+    }
+    setCurrentUser(null);
     setCurrentRequester(null);
-    setSelectedRequesterId(null);
+    setAuthState("unauthenticated");
     setAppView("tickets");
 
     resetTicketForm();
@@ -631,143 +660,58 @@ export default function App() {
 
   return (
     <div className="app-shell">
-      {!currentRequester && (
-        <>
-          <nav className="navbar bg-success rounded-0 shadow-sm navbar mb-0 px-4 py-3" style={{ borderRadius: 0 }}>
-            <span className="navbar-brand text-white fw-bold mb-0">
-              ◷ TokTickIT
-            </span>
-          </nav>
-
-          <div className="app-content">
-            <div className="small text-success fw-semibold mb-3">
-             ⌂ &nbsp;›&nbsp; Development Requester Selection
-            </div>
-
-            <div
-              className="card shadow-sm mx-auto mb-4"
-              style={{ maxWidth: 760 }}
-            >
-              <div className="card-body p-4 p-md-5">
-                <div className="text-center mb-4">
-                  <div
-                    className="d-inline-flex align-items-center justify-content-center rounded-circle bg-success-subtle text-success mb-3"
-                    style={{ width: 64, height: 64, fontSize: 28 }}
-                    aria-hidden="true"
-                  >
-                    ♙
-                  </div>
-                  <h1 className="h3 mb-2">Select Development Requester</h1>
-                  <p className="text-muted mb-0">
-                    Choose a development requester to simulate the current
-                    requester context for Lab 2.
-                  </p>
-                  <p className="text-muted mb-0">
-                    This is for testing only and is not a login screen.
-                  </p>
-                </div>
-
-                <hr className="my-4" />
-
-                {requesterState === "loading" && (
-                  <div className="text-center text-muted py-4">
-                    Loading development requesters...
-                  </div>
-                )}
-
-                {requesterState === "error" && (
-                  <div className="alert alert-danger mb-0">
-                    <div className="mb-3">
-                      Unable to load development requesters.
-                    </div>
-                    <button className="btn btn-danger" onClick={loadRequesters}>
-                      Retry
-                    </button>
-                  </div>
-                )}
-
-                {requesterState === "success" && requesters.length === 0 && (
-                  <div className="alert alert-warning mb-0">
-                    No active development requesters are available.
-                  </div>
-                )}
-
-                {requesterState === "success" && requesters.length > 0 && (
-                  <>
-                    <div className="mb-3">
-                      <label
-                        htmlFor="development-requester"
-                        className="form-label fw-semibold"
-                      >
-                        Development Requester{" "}
-                        <span className="text-danger">*</span>
-                      </label>
-                      <select
-                        id="development-requester"
-                        className="form-select form-select-lg"
-                        aria-label="Development Requester"
-                        value={selectedRequesterId ?? ""}
-                        onChange={(event) => {
-                          const value = event.target.value;
-                          setSelectedRequesterId(
-                            value === "" ? null : Number(value),
-                          );
-                        }}
-                      >
-                        <option value="">Select a development requester</option>
-                        {requesters.map((requester) => (
-                          <option key={requester.id} value={requester.id}>
-                            {requester.name} - {requester.email}
-                          </option>
-                        ))}
-                      </select>
-                    </div>
-
-                    <div className="alert alert-success d-flex gap-2 align-items-start">
-                      <span aria-hidden="true">ⓘ</span>
-                      <span>Only active development requesters are shown.</span>
-                    </div>
-
-                    <div className="border rounded-3 bg-light p-3 p-md-4 mb-4">
-                      <div className="d-flex gap-3">
-                        <div
-                          className="d-flex align-items-center justify-content-center rounded-circle bg-white border flex-shrink-0"
-                          style={{ width: 44, height: 44 }}
-                          aria-hidden="true"
-                        >
-                          ◇
-                        </div>
-                        <div>
-                          <div className="fw-semibold mb-1">
-                            Authentication coming in Lab 3
-                          </div>
-                          <div className="small text-muted">
-                            In Lab 3, this selection will be replaced with secure
-                            authentication so you can access the system with your
-                            own account.
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-
-                    <div className="d-flex justify-content-end">
-                      <button
-                        className="btn btn-success px-4"
-                        onClick={handleContinue}
-                        disabled={selectedRequesterId === null}
-                      >
-                        Continue →
-                      </button>
-                    </div>
-                  </>
-                )}
-              </div>
-            </div>
+      {authState === "loading" && (
+        <main className="login-page" aria-busy="true">
+          <div className="text-center text-muted" role="status">
+            Restoring your session…
           </div>
+        </main>
+      )}
+
+      {(authState === "unauthenticated" || authState === "error") && (
+        <LoginScreen
+          initialFailure={authFailure}
+          onAuthenticated={(user) => void activateAuthenticatedUser(user)}
+        />
+      )}
+
+      {authState === "authenticated" && currentUser?.mustChangePassword && (
+        <>
+          <AuthenticatedNavbar user={currentUser} onLogout={handleLogout} />
+          <main className="app-content">
+            {authFailure && <div className="alert alert-danger" role="alert">{authFailure}</div>}
+            <section className="card shadow-sm mx-auto" style={{ maxWidth: 680 }}>
+              <div className="card-body p-4 p-md-5 text-center">
+                <h1 className="h3">Password change required</h1>
+                <p className="text-muted mb-0">
+                  You must change your initial password before using TokTickIT.
+                  The password-change workflow will be provided in the next issue.
+                </p>
+              </div>
+            </section>
+          </main>
         </>
       )}
 
-      {currentRequester && (
+      {authState === "authenticated" && currentUser &&
+        !currentUser.mustChangePassword && currentUser.role !== "REQUESTER" && (
+          <>
+            <AuthenticatedNavbar user={currentUser} onLogout={handleLogout} />
+            <main className="app-content">
+              {authFailure && <div className="alert alert-danger" role="alert">{authFailure}</div>}
+              <section className="card shadow-sm">
+                <div className="card-body p-4">
+                  <h1 className="h3">Welcome to TokTickIT</h1>
+                  <p className="text-muted mb-0">
+                    Your authenticated workspace will be enabled in the relevant Lab 3 issue.
+                  </p>
+                </div>
+              </section>
+            </main>
+          </>
+        )}
+
+      {currentRequester && currentUser && !currentUser.mustChangePassword && (
         <>
           {/* Requester Application Navbar */}
           <nav
@@ -813,16 +757,18 @@ export default function App() {
 
             <div className="requester-identity ms-auto ps-md-3">
               <div className="d-flex flex-column align-items-end gap-1">
-                <div className="small text-white-50">Requester</div>
+                <span className="badge text-bg-light text-success">
+                  {roleLabel(currentUser.role)}
+                </span>
                 <div className="small fw-semibold text-white">{currentRequester.name}</div>
               </div>
               <button
                 type="button"
                 className="btn btn-link btn-sm text-white p-0 text-decoration-none d-block mt-1"
-                onClick={handleChangeRequester}
+                onClick={handleLogout}
                 disabled={submitState === "submitting"}
               >
-                Change →
+                Logout
               </button>
             </div>
           </nav>

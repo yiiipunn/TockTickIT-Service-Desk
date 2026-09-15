@@ -7,11 +7,33 @@ import { basename, dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { Priority, TicketStatus } from "@prisma/client";
 import { getPrisma } from "./prisma.js";
+import {
+  SESSION_COOKIE_NAME,
+  authenticationContext,
+  createSession,
+  requireAuthentication,
+  requireCsrf,
+  requirePasswordChangeComplete,
+  rotateCsrfToken,
+  safeUser,
+  sendApiError,
+  sessionCookieClearOptions,
+  sessionCookieOptions,
+} from "./auth.js";
+import { loginThrottle } from "./login-throttle.js";
+import { verifyPassword } from "./password.js";
 
 export const app = express();
 
-app.use(cors());
+app.use(cors({
+  origin: (process.env.CLIENT_ORIGIN?.trim() || "http://localhost:5173")
+    .split(",")
+    .map((origin) => origin.trim()),
+  credentials: true,
+}));
 app.use(express.json());
+
+const DUMMY_PASSWORD_HASH = "$argon2id$v=19$m=19456,p=1,t=2$8NhbztGbBnByHe2w/eRexQ$c95zo22n2FswcZF9t22Lc8+dYy7mB7xkMl6vVR41ysk";
 
 const MAX_ATTACHMENT_SIZE = 5 * 1024 * 1024;
 
@@ -144,6 +166,178 @@ app.get("/api/health", (_req: Request, res: Response) => {
     status: "ok",
     service: "TokTickIT API",
   });
+});
+
+// ---------------------------------------------------------------------------
+// Lab 3 - Authentication Foundation
+// ---------------------------------------------------------------------------
+app.post("/api/auth/login", async (req: Request, res: Response) => {
+  const body = req.body as Record<string, unknown> | null;
+  const fields: Record<string, string> = {};
+  const allowedFields = new Set(["email", "password"]);
+
+  if (!body || typeof body !== "object" || Array.isArray(body)) {
+    return sendApiError(
+      res,
+      400,
+      "VALIDATION_ERROR",
+      "The request contains invalid data.",
+    );
+  }
+
+  const unknownField = Object.keys(body).find((key) => !allowedFields.has(key));
+  const email = typeof body.email === "string" ? body.email.trim().toLowerCase() : "";
+  const password = typeof body.password === "string" ? body.password : "";
+
+  if (
+    !email ||
+    email.length > 254 ||
+    !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)
+  ) {
+    fields.email = "Enter a valid email address.";
+  }
+  if (!password || password.length > 128) {
+    fields.password = "Enter your password.";
+  }
+  if (unknownField) {
+    fields[unknownField] = "This field is not allowed.";
+  }
+  if (Object.keys(fields).length > 0) {
+    return sendApiError(
+      res,
+      400,
+      "VALIDATION_ERROR",
+      "The request contains invalid data.",
+      fields,
+    );
+  }
+
+  const ip = req.ip || req.socket.remoteAddress || "unknown";
+  const existingRetryAfter = loginThrottle.retryAfter(email, ip);
+  if (existingRetryAfter !== null) {
+    res.set("Retry-After", String(existingRetryAfter));
+    return sendApiError(
+      res,
+      429,
+      "LOGIN_THROTTLED",
+      "Too many sign-in attempts. Try again later.",
+    );
+  }
+
+  try {
+    const prisma = getPrisma();
+    const user = await prisma.user.findUnique({ where: { email } });
+    const passwordMatches = await verifyPassword(
+      user?.passwordHash ?? DUMMY_PASSWORD_HASH,
+      password,
+    );
+
+    if (!user || !passwordMatches) {
+      const retryAfter = loginThrottle.recordFailure(email, ip);
+      if (retryAfter !== null) {
+        res.set("Retry-After", String(retryAfter));
+        return sendApiError(
+          res,
+          429,
+          "LOGIN_THROTTLED",
+          "Too many sign-in attempts. Try again later.",
+        );
+      }
+      return sendApiError(
+        res,
+        401,
+        "INVALID_CREDENTIALS",
+        "The email or password is incorrect.",
+      );
+    }
+
+    if (!user.isActive) {
+      const retryAfter = loginThrottle.recordFailure(email, ip);
+      if (retryAfter !== null) {
+        res.set("Retry-After", String(retryAfter));
+        return sendApiError(
+          res,
+          429,
+          "LOGIN_THROTTLED",
+          "Too many sign-in attempts. Try again later.",
+        );
+      }
+      return sendApiError(
+        res,
+        403,
+        "ACCOUNT_INACTIVE",
+        "This account cannot sign in. Contact an administrator.",
+      );
+    }
+
+    loginThrottle.clear(email, ip);
+    const { sessionToken, csrfToken } = await createSession(user.id);
+    res.cookie(SESSION_COOKIE_NAME, sessionToken, sessionCookieOptions());
+    return res.status(200).json({
+      data: { user: safeUser(user), csrfToken },
+    });
+  } catch {
+    return sendApiError(
+      res,
+      500,
+      "INTERNAL_ERROR",
+      "Unable to sign in right now.",
+    );
+  }
+});
+
+app.get(
+  "/api/auth/me",
+  requireAuthentication,
+  async (_req: Request, res: Response) => {
+    try {
+      const authentication = authenticationContext(res);
+      const csrfToken = await rotateCsrfToken(authentication.sessionId);
+      return res.status(200).json({
+        data: { user: authentication.user, csrfToken },
+      });
+    } catch {
+      return sendApiError(
+        res,
+        500,
+        "INTERNAL_ERROR",
+        "Unable to load the current user.",
+      );
+    }
+  },
+);
+
+app.post(
+  "/api/auth/logout",
+  requireAuthentication,
+  requireCsrf,
+  async (_req: Request, res: Response) => {
+    try {
+      const authentication = authenticationContext(res);
+      await getPrisma().session.updateMany({
+        where: { id: authentication.sessionId, revokedAt: null },
+        data: { revokedAt: new Date() },
+      });
+      res.clearCookie(SESSION_COOKIE_NAME, sessionCookieClearOptions());
+      return res.status(204).send();
+    } catch {
+      return sendApiError(
+        res,
+        500,
+        "INTERNAL_ERROR",
+        "Unable to sign out right now.",
+      );
+    }
+  },
+);
+
+app.use("/api", requireAuthentication, requirePasswordChangeComplete);
+app.use("/api", (req: Request, res: Response, next) => {
+  if (["GET", "HEAD", "OPTIONS"].includes(req.method)) {
+    next();
+    return;
+  }
+  requireCsrf(req, res, next);
 });
 
 // ---------------------------------------------------------------------------
@@ -1373,6 +1567,19 @@ app.delete("/api/attachments/:id", async (req: Request, res: Response) => {
       "Unable to remove attachment.",
     );
   }
+});
+
+app.use((error: unknown, _req: Request, res: Response, _next: express.NextFunction) => {
+  if (error instanceof SyntaxError) {
+    sendApiError(
+      res,
+      400,
+      "VALIDATION_ERROR",
+      "The request contains invalid data.",
+    );
+    return;
+  }
+  sendApiError(res, 500, "INTERNAL_ERROR", "Unable to process the request.");
 });
 
 export default app;

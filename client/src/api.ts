@@ -1,6 +1,53 @@
 const API_URL =
   import.meta.env.VITE_API_URL ?? "http://localhost:3000";
 
+export type UserRole = "REQUESTER" | "IT_STAFF" | "ADMINISTRATOR";
+
+export interface AuthenticatedUser {
+  id: number;
+  name: string;
+  email: string;
+  role: UserRole;
+  isActive: boolean;
+  mustChangePassword: boolean;
+}
+
+interface AuthenticationResponse {
+  data: {
+    user: AuthenticatedUser;
+    csrfToken: string;
+  };
+}
+
+export class ApiError extends Error {
+  constructor(
+    message: string,
+    public readonly code: string,
+    public readonly status: number,
+    public readonly fields?: Record<string, string>,
+    public readonly retryAfter?: number,
+  ) {
+    super(message);
+    this.name = "ApiError";
+  }
+}
+
+let authenticationCsrfToken = "";
+
+function setAuthentication(response: AuthenticationResponse) {
+  authenticationCsrfToken = response.data.csrfToken;
+  return response.data.user;
+}
+
+function authenticatedHeaders(headers: Record<string, string> = {}, unsafe = false) {
+  return {
+    ...headers,
+    ...(unsafe && authenticationCsrfToken
+      ? { "X-CSRF-Token": authenticationCsrfToken }
+      : {}),
+  };
+}
+
 export interface Category {
   id: number;
   name: string;
@@ -169,12 +216,61 @@ async function getErrorMessage(
   return fallback;
 }
 
+async function throwApiError(response: Response, fallback: string): Promise<never> {
+  try {
+    const body = await response.json();
+    if (body?.error && typeof body.error === "object") {
+      throw new ApiError(
+        typeof body.error.message === "string" ? body.error.message : fallback,
+        typeof body.error.code === "string" ? body.error.code : "REQUEST_FAILED",
+        response.status,
+        body.error.fields,
+        Number(response.headers.get("Retry-After")) || undefined,
+      );
+    }
+  } catch (error) {
+    if (error instanceof ApiError) throw error;
+  }
+  throw new ApiError(fallback, "REQUEST_FAILED", response.status);
+}
+
+export async function login(email: string, password: string) {
+  const response = await fetch(`${API_URL}/api/auth/login`, {
+    method: "POST",
+    credentials: "include",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ email, password }),
+  });
+  if (!response.ok) await throwApiError(response, "Unable to sign in right now.");
+  return setAuthentication(await response.json() as AuthenticationResponse);
+}
+
+export async function getCurrentUser() {
+  const response = await fetch(`${API_URL}/api/auth/me`, {
+    credentials: "include",
+  });
+  if (!response.ok) await throwApiError(response, "Unable to restore your session.");
+  return setAuthentication(await response.json() as AuthenticationResponse);
+}
+
+export async function logout() {
+  const response = await fetch(`${API_URL}/api/auth/logout`, {
+    method: "POST",
+    credentials: "include",
+    headers: authenticatedHeaders({}, true),
+  });
+  if (!response.ok) await throwApiError(response, "Unable to sign out right now.");
+  authenticationCsrfToken = "";
+}
+
 // ---------------------------------------------------------------------------
 // Lab 1 - System check
 // ---------------------------------------------------------------------------
 
 export async function checkSystem(): Promise<SystemStatus> {
-  const healthResponse = await fetch(`${API_URL}/api/health`);
+  const healthResponse = await fetch(`${API_URL}/api/health`, {
+    credentials: "include",
+  });
 
   if (!healthResponse.ok) {
     throw new Error("Unable to connect to TokTickIT API");
@@ -182,6 +278,7 @@ export async function checkSystem(): Promise<SystemStatus> {
 
   const categoriesResponse = await fetch(
     `${API_URL}/api/categories`,
+    { credentials: "include" },
   );
 
   if (!categoriesResponse.ok) {
@@ -204,7 +301,9 @@ export async function checkSystem(): Promise<SystemStatus> {
 export async function getRequesters(): Promise<
   DevelopmentRequester[]
 > {
-  const response = await fetch(`${API_URL}/api/requesters`);
+  const response = await fetch(`${API_URL}/api/requesters`, {
+    credentials: "include",
+  });
 
   if (!response.ok) {
     throw new Error(
@@ -225,6 +324,7 @@ export async function getRequesters(): Promise<
 export async function getCategories(): Promise<Category[]> {
   const response = await fetch(
     `${API_URL}/api/categories`,
+    { credentials: "include" },
   );
 
   if (!response.ok) {
@@ -248,6 +348,7 @@ export async function getRelatedSystems(): Promise<
 > {
   const response = await fetch(
     `${API_URL}/api/related-systems`,
+    { credentials: "include" },
   );
 
   if (!response.ok) {
@@ -272,10 +373,11 @@ export async function createTicket(
     `${API_URL}/api/tickets`,
     {
       method: "POST",
-      headers: {
+      credentials: "include",
+      headers: authenticatedHeaders({
         "Content-Type": "application/json",
         "X-Requester-Id": String(requesterId),
-      },
+      }, true),
       body: JSON.stringify(input),
     },
   );
@@ -372,9 +474,10 @@ export async function getTickets(
   const response = await fetch(
     `${API_URL}/api/tickets${query ? `?${query}` : ""}`,
     {
-      headers: {
+      credentials: "include",
+      headers: authenticatedHeaders({
         "X-Requester-Id": String(requesterId),
-      },
+      }),
     },
   );
 
@@ -404,9 +507,10 @@ export async function getTicketDetail(
   const response = await fetch(
     `${API_URL}/api/tickets/${ticketId}`,
     {
-      headers: {
+      credentials: "include",
+      headers: authenticatedHeaders({
         "X-Requester-Id": String(requesterId),
-      },
+      }),
     },
   );
 
@@ -441,9 +545,10 @@ export async function uploadTicketAttachment(
     `${API_URL}/api/tickets/${ticketId}/attachments`,
     {
       method: "POST",
-      headers: {
+      credentials: "include",
+      headers: authenticatedHeaders({
         "X-Requester-Id": String(requesterId),
-      },
+      }, true),
       body: formData,
     },
   );
@@ -472,10 +577,11 @@ export async function removeTicketAttachment(
     `${API_URL}/api/attachments/${attachmentId}`,
     {
       method: "DELETE",
-      headers: {
+      credentials: "include",
+      headers: authenticatedHeaders({
         "Content-Type": "application/json",
         "X-Requester-Id": String(requesterId),
-      },
+      }, true),
       body: JSON.stringify({ reason }),
     },
   );
@@ -500,9 +606,10 @@ export async function getAttachmentMetadata(
   const response = await fetch(
     `${API_URL}/api/attachments/${attachmentId}`,
     {
-      headers: {
+      credentials: "include",
+      headers: authenticatedHeaders({
         "X-Requester-Id": String(requesterId),
-      },
+      }),
     },
   );
 
@@ -523,9 +630,10 @@ export async function downloadTicketAttachment(
   const response = await fetch(
     `${API_URL}/api/attachments/${attachmentId}/download`,
     {
-      headers: {
+      credentials: "include",
+      headers: authenticatedHeaders({
         "X-Requester-Id": String(requesterId),
-      },
+      }),
     },
   );
 

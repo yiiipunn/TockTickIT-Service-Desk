@@ -1,9 +1,12 @@
-import request from "supertest";
 import { beforeAll, describe, expect, it } from "vitest";
-import { app } from "../../src/app.js";
 import { getPrisma } from "../../src/prisma.js";
+import {
+  createAuthenticatedTestClient,
+  type AuthenticatedTestClient,
+} from "../helpers/authenticated-client.js";
 
 const prisma = getPrisma();
+let api: AuthenticatedTestClient;
 
 let requesterAId: number;
 let requesterBId: number;
@@ -13,6 +16,7 @@ let systemAId: number;
 let systemBId: number;
 
 beforeAll(async () => {
+  api = await createAuthenticatedTestClient();
   const requesters = await prisma.user.findMany({
     where: {
       role: "REQUESTER",
@@ -113,7 +117,7 @@ beforeAll(async () => {
 
 describe("GET /api/tickets - My Tickets", () => {
   it("returns tickets for the selected requester", async () => {
-    const response = await request(app)
+    const response = await api
       .get("/api/tickets?pageSize=50")
       .set("X-Requester-Id", String(requesterAId));
 
@@ -129,7 +133,7 @@ describe("GET /api/tickets - My Tickets", () => {
   });
 
   it("does not return tickets owned by another requester", async () => {
-    const response = await request(app)
+    const response = await api
       .get("/api/tickets?pageSize=50")
       .set("X-Requester-Id", String(requesterAId));
 
@@ -144,7 +148,7 @@ describe("GET /api/tickets - My Tickets", () => {
   });
 
   it("requires a Development Requester", async () => {
-    const response = await request(app).get("/api/tickets");
+    const response = await api.get("/api/tickets");
 
     expect(response.status).toBe(400);
     expect(response.body.error).toBe(
@@ -153,7 +157,7 @@ describe("GET /api/tickets - My Tickets", () => {
   });
 
   it("rejects an invalid Development Requester", async () => {
-    const response = await request(app)
+    const response = await api
       .get("/api/tickets")
       .set("X-Requester-Id", "invalid");
 
@@ -164,7 +168,7 @@ describe("GET /api/tickets - My Tickets", () => {
   });
 
   it("searches tickets by Summary", async () => {
-    const response = await request(app)
+    const response = await api
       .get("/api/tickets?search=VPN&pageSize=50")
       .set("X-Requester-Id", String(requesterAId));
 
@@ -187,7 +191,7 @@ describe("GET /api/tickets - My Tickets", () => {
   });
 
   it("filters tickets by Category", async () => {
-    const response = await request(app)
+    const response = await api
       .get(`/api/tickets?categoryId=${categoryAId}&pageSize=50`)
       .set("X-Requester-Id", String(requesterAId));
 
@@ -202,7 +206,7 @@ describe("GET /api/tickets - My Tickets", () => {
   });
 
   it("filters tickets by Related System", async () => {
-    const response = await request(app)
+    const response = await api
       .get(
         `/api/tickets?relatedSystemId=${systemBId}&pageSize=50`,
       )
@@ -219,7 +223,7 @@ describe("GET /api/tickets - My Tickets", () => {
   });
 
   it("filters tickets by Requested Priority", async () => {
-    const response = await request(app)
+    const response = await api
       .get("/api/tickets?requestedPriority=HIGH&pageSize=50")
       .set("X-Requester-Id", String(requesterAId));
 
@@ -234,7 +238,7 @@ describe("GET /api/tickets - My Tickets", () => {
   });
 
   it("filters tickets by Status", async () => {
-    const response = await request(app)
+    const response = await api
       .get("/api/tickets?status=NEW&pageSize=50")
       .set("X-Requester-Id", String(requesterAId));
 
@@ -248,7 +252,7 @@ describe("GET /api/tickets - My Tickets", () => {
   });
 
   it("sorts tickets by Ticket Number ascending", async () => {
-    const response = await request(app)
+    const response = await api
       .get(
         "/api/tickets?sortBy=ticketNumber&sortOrder=asc&pageSize=50",
       )
@@ -268,7 +272,7 @@ describe("GET /api/tickets - My Tickets", () => {
   });
 
   it("returns pagination metadata", async () => {
-    const response = await request(app)
+    const response = await api
       .get("/api/tickets?page=1&pageSize=10")
       .set("X-Requester-Id", String(requesterAId));
 
@@ -290,7 +294,7 @@ describe("GET /api/tickets - My Tickets", () => {
   });
 
   it("supports pagination", async () => {
-    const response = await request(app)
+    const response = await api
       .get("/api/tickets?page=1&pageSize=10")
       .set("X-Requester-Id", String(requesterAId));
 
@@ -299,7 +303,7 @@ describe("GET /api/tickets - My Tickets", () => {
   });
 
   it("rejects an invalid Category filter", async () => {
-    const response = await request(app)
+    const response = await api
       .get("/api/tickets?categoryId=abc")
       .set("X-Requester-Id", String(requesterAId));
 
@@ -308,7 +312,7 @@ describe("GET /api/tickets - My Tickets", () => {
   });
 
   it("rejects an invalid Related System filter", async () => {
-    const response = await request(app)
+    const response = await api
       .get("/api/tickets?relatedSystemId=abc")
       .set("X-Requester-Id", String(requesterAId));
 
@@ -319,7 +323,7 @@ describe("GET /api/tickets - My Tickets", () => {
   });
 
   it("rejects an invalid Requested Priority filter", async () => {
-    const response = await request(app)
+    const response = await api
       .get("/api/tickets?requestedPriority=URGENT")
       .set("X-Requester-Id", String(requesterAId));
 
@@ -330,7 +334,7 @@ describe("GET /api/tickets - My Tickets", () => {
   });
 
   it("rejects an invalid Status filter", async () => {
-    const response = await request(app)
+    const response = await api
       .get("/api/tickets?status=CLOSED")
       .set("X-Requester-Id", String(requesterAId));
 
@@ -339,7 +343,7 @@ describe("GET /api/tickets - My Tickets", () => {
   });
 
   it("rejects an invalid sort field", async () => {
-    const response = await request(app)
+    const response = await api
       .get("/api/tickets?sortBy=summary")
       .set("X-Requester-Id", String(requesterAId));
 
@@ -348,7 +352,7 @@ describe("GET /api/tickets - My Tickets", () => {
   });
 
   it("rejects an invalid sort order", async () => {
-    const response = await request(app)
+    const response = await api
       .get("/api/tickets?sortOrder=random")
       .set("X-Requester-Id", String(requesterAId));
 
@@ -357,7 +361,7 @@ describe("GET /api/tickets - My Tickets", () => {
   });
 
   it("rejects an invalid page", async () => {
-    const response = await request(app)
+    const response = await api
       .get("/api/tickets?page=0")
       .set("X-Requester-Id", String(requesterAId));
 
@@ -366,7 +370,7 @@ describe("GET /api/tickets - My Tickets", () => {
   });
 
   it("rejects an unsupported page size", async () => {
-    const response = await request(app)
+    const response = await api
       .get("/api/tickets?pageSize=25")
       .set("X-Requester-Id", String(requesterAId));
 
