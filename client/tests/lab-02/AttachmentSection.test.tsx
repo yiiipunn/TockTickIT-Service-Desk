@@ -194,7 +194,6 @@ describe("Lab 2 - Attachment Section", () => {
         "http://localhost:3000/api/attachments/11/download",
         expect.objectContaining({
           credentials: "include",
-          headers: { "X-Requester-Id": "1" },
         }),
       );
       expect(createObjectUrl).toHaveBeenCalled();

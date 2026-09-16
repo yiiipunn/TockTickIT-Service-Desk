@@ -25,7 +25,7 @@ Record 6–10 important prompts. Summarize long prompts without changing their m
 | 5 | Lab 2 migration | Preserve Lab 2 records while evolving requesters into role-based Users and adding seed foundations. | Proposed guarded in-place migration, Argon2id seed hashing, and migration/seed regression tests. | Pending student review of migration SQL and executed evidence. |
 | 6 | IT Staff workflow | TBD | TBD | TBD |
 | 7 | User Management | TBD | TBD | TBD |
-| 8 | Testing/debugging | TBD | TBD | TBD |
+| 8 | Role authorization | Implement reusable backend role enforcement and migrate Requester Ticket/Attachment ownership from client requester context to authenticated session identity, without implementing later Staff/Admin workflows. | Added role and ownership guards, removed the Requester selector/header trust, migrated Lab 2 compatibility tests, and added direct spoof/cross-owner regression coverage. | Pending student review of the authorization matrix, safe failure behavior, and regression evidence. |
 | 9 | UI/responsive review | Optional | Optional | Optional |
 | 10 | Integration/review fixes | Optional | Optional | Optional |
 
@@ -35,7 +35,7 @@ Record 6–10 important prompts. Summarize long prompts without changing their m
 | --- | --- | --- | --- |
 | Authentication/session | Use opaque 32-byte session and CSRF values, store only SHA-256 digests, enforce idle/absolute expiry, and revoke on logout. | Pending student review | API/unit tests and migration inspection |
 | Password handling | Enforce the 12–128 character policy, verify the current Argon2id hash, atomically replace the hash and first-login flag, revoke prior sessions, and issue a replacement session. | Pending student review | Unit/API/UI tests and production builds |
-| Role authorization | TBD | TBD | Authorization matrix/tests |
+| Role authorization | Use the authenticated session User for role and Requester ownership, return safe `403` role failures, apply ownership in database queries, and make client requester IDs non-authoritative. | Pending student review | Direct authorization, requester regression, and Lab 1/Lab 2 regression tests |
 | Ticket workflow | TBD | TBD | Transition matrix/tests |
 | Lab 2 migration | Rename the requester table in place, preserve IDs/relations, and guard enum/email data before casts. | Pending student review | Migration/regression tests |
 | UI/responsive behavior | TBD | TBD | UI spec, E2E screenshots |

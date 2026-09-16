@@ -339,7 +339,7 @@ describe("Lab 2 - Create Ticket UI", () => {
   );
 
   it(
-    "keeps the authenticated requester on the Lab 2 compatibility header",
+    "keeps the authenticated requester identity in navigation",
     async () => {
       const fetchMock = vi.fn(
         async (
@@ -380,9 +380,7 @@ describe("Lab 2 - Create Ticket UI", () => {
           }
 
           if (isGetTicketsRequest(url, init)) {
-            expect(init?.headers).toMatchObject({
-              "X-Requester-Id": "1",
-            });
+            expect(init?.headers).toBeUndefined();
 
             return {
               ok: true,
@@ -396,7 +394,7 @@ describe("Lab 2 - Create Ticket UI", () => {
           ) {
             expect(init?.headers).toMatchObject({
               "Content-Type": "application/json",
-              "X-Requester-Id": "1",
+              "X-CSRF-Token": "csrf-token",
             });
 
             return {
@@ -606,7 +604,6 @@ describe("Lab 2 - Create Ticket UI", () => {
         credentials: "include",
         headers: expect.objectContaining({
           "X-CSRF-Token": "csrf-token",
-          "X-Requester-Id": "1",
         }),
         body: expect.any(FormData),
       }),

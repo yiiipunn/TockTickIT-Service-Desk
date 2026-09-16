@@ -213,7 +213,7 @@ describe("Lab 2 - My Tickets UI", () => {
   );
 
   it(
-    "keeps the authenticated requester on the Lab 2 compatibility header",
+    "keeps the authenticated requester identity in navigation",
     async () => {
       const fetchMock = mockBaseFetch();
 
@@ -236,11 +236,7 @@ describe("Lab 2 - My Tickets UI", () => {
 
         expect(ticketCall).toBeDefined();
 
-        expect(
-          ticketCall?.[1]?.headers,
-        ).toMatchObject({
-          "X-Requester-Id": "1",
-        });
+        expect(ticketCall?.[1]?.headers).toBeUndefined();
       });
     },
   );
