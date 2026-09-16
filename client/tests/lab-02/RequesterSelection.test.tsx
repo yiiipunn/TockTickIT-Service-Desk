@@ -42,13 +42,19 @@ afterEach(() => {
 
 describe("authenticated requester context", () => {
   it("uses restored server identity and removes requester selection", async () => {
-    installAuthenticatedRequesterFetch();
+    const fetchMock = installAuthenticatedRequesterFetch();
     render(<App />);
     await screen.findByRole("heading", { name: "My Tickets" });
     expect(screen.getByText("Narin S.")).toBeInTheDocument();
     expect(screen.getByText("Requester")).toBeInTheDocument();
     expect(screen.queryByLabelText("Development Requester")).not.toBeInTheDocument();
     expect(screen.queryByRole("button", { name: /Continue/i })).not.toBeInTheDocument();
+    expect(fetchMock.mock.calls.some(([input]) =>
+      String(input).endsWith("/api/requesters"),
+    )).toBe(false);
+    for (const [, init] of fetchMock.mock.calls) {
+      expect(init?.headers ?? {}).not.toHaveProperty("X-Requester-Id");
+    }
   });
 
   it("logs out instead of changing requester identity", async () => {

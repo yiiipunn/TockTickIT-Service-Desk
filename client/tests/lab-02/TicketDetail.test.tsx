@@ -211,7 +211,7 @@ describe("Requester Ticket Detail", () => {
     ).toBeInTheDocument();
   });
 
-  it("keeps the authenticated requester on the Lab 2 detail compatibility header", async () => {
+  it("keeps the authenticated requester identity in detail navigation", async () => {
     installFetchMock();
 
     render(<App />);
@@ -243,11 +243,7 @@ describe("Requester Ticket Detail", () => {
 
     const options = detailCall?.[1] as RequestInit;
 
-    expect(options.headers).toEqual(
-      expect.objectContaining({
-        "X-Requester-Id": "1",
-      }),
-    );
+    expect(options.headers).toBeUndefined();
   });
 
   it("displays active attachments", async () => {

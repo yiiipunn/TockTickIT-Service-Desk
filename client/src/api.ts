@@ -58,12 +58,6 @@ export interface RelatedSystem {
   name: string;
 }
 
-export interface DevelopmentRequester {
-  id: number;
-  name: string;
-  email: string;
-}
-
 export interface SystemStatus {
   online: boolean;
   categories: Category[];
@@ -312,29 +306,6 @@ export async function checkSystem(): Promise<SystemStatus> {
 }
 
 // ---------------------------------------------------------------------------
-// Lab 2 - Development Requesters
-// ---------------------------------------------------------------------------
-
-export async function getRequesters(): Promise<
-  DevelopmentRequester[]
-> {
-  const response = await fetch(`${API_URL}/api/requesters`, {
-    credentials: "include",
-  });
-
-  if (!response.ok) {
-    throw new Error(
-      "Unable to load development requesters",
-    );
-  }
-
-  const requesters: DevelopmentRequester[] =
-    await response.json();
-
-  return requesters;
-}
-
-// ---------------------------------------------------------------------------
 // Lab 2 - Categories
 // ---------------------------------------------------------------------------
 
@@ -383,7 +354,6 @@ export async function getRelatedSystems(): Promise<
 // ---------------------------------------------------------------------------
 
 export async function createTicket(
-  requesterId: number,
   input: CreateTicketInput,
 ): Promise<Ticket> {
   const response = await fetch(
@@ -393,7 +363,6 @@ export async function createTicket(
       credentials: "include",
       headers: authenticatedHeaders({
         "Content-Type": "application/json",
-        "X-Requester-Id": String(requesterId),
       }, true),
       body: JSON.stringify(input),
     },
@@ -418,7 +387,6 @@ export async function createTicket(
 // ---------------------------------------------------------------------------
 
 export async function getTickets(
-  requesterId: number,
   params: GetTicketsParams = {},
 ): Promise<TicketListResponse> {
   const searchParams = new URLSearchParams();
@@ -492,9 +460,6 @@ export async function getTickets(
     `${API_URL}/api/tickets${query ? `?${query}` : ""}`,
     {
       credentials: "include",
-      headers: authenticatedHeaders({
-        "X-Requester-Id": String(requesterId),
-      }),
     },
   );
 
@@ -518,16 +483,12 @@ export async function getTickets(
 // ---------------------------------------------------------------------------
 
 export async function getTicketDetail(
-  requesterId: number,
   ticketId: number,
 ): Promise<TicketDetail> {
   const response = await fetch(
     `${API_URL}/api/tickets/${ticketId}`,
     {
       credentials: "include",
-      headers: authenticatedHeaders({
-        "X-Requester-Id": String(requesterId),
-      }),
     },
   );
 
@@ -551,7 +512,6 @@ export async function getTicketDetail(
 // ---------------------------------------------------------------------------
 
 export async function uploadTicketAttachment(
-  requesterId: number,
   ticketId: number,
   file: File,
 ): Promise<TicketAttachment> {
@@ -563,9 +523,7 @@ export async function uploadTicketAttachment(
     {
       method: "POST",
       credentials: "include",
-      headers: authenticatedHeaders({
-        "X-Requester-Id": String(requesterId),
-      }, true),
+      headers: authenticatedHeaders({}, true),
       body: formData,
     },
   );
@@ -586,7 +544,6 @@ export async function uploadTicketAttachment(
 }
 
 export async function removeTicketAttachment(
-  requesterId: number,
   attachmentId: number,
   reason: string,
 ): Promise<TicketAttachment> {
@@ -597,7 +554,6 @@ export async function removeTicketAttachment(
       credentials: "include",
       headers: authenticatedHeaders({
         "Content-Type": "application/json",
-        "X-Requester-Id": String(requesterId),
       }, true),
       body: JSON.stringify({ reason }),
     },
@@ -617,16 +573,12 @@ export async function removeTicketAttachment(
 }
 
 export async function getAttachmentMetadata(
-  requesterId: number,
   attachmentId: number,
 ): Promise<TicketAttachment> {
   const response = await fetch(
     `${API_URL}/api/attachments/${attachmentId}`,
     {
       credentials: "include",
-      headers: authenticatedHeaders({
-        "X-Requester-Id": String(requesterId),
-      }),
     },
   );
 
@@ -641,16 +593,12 @@ export async function getAttachmentMetadata(
 }
 
 export async function downloadTicketAttachment(
-  requesterId: number,
   attachmentId: number,
 ): Promise<Blob> {
   const response = await fetch(
     `${API_URL}/api/attachments/${attachmentId}/download`,
     {
       credentials: "include",
-      headers: authenticatedHeaders({
-        "X-Requester-Id": String(requesterId),
-      }),
     },
   );
 

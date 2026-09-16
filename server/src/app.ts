@@ -16,6 +16,7 @@ import {
   requireAuthentication,
   requireCsrf,
   requirePasswordChangeComplete,
+  requireRole,
   rotateCsrfToken,
   safeUser,
   sendApiError,
@@ -504,37 +505,6 @@ app.get("/api/categories", async (_req: Request, res: Response) => {
 });
 
 // ---------------------------------------------------------------------------
-// Lab 2 - Development Requester list
-// Only active requesters are returned for the temporary requester selector.
-// ---------------------------------------------------------------------------
-app.get("/api/requesters", async (_req: Request, res: Response) => {
-  try {
-    const prisma = getPrisma();
-
-    const requesters = await prisma.user.findMany({
-      where: {
-        role: "REQUESTER",
-        isActive: true,
-      },
-      select: {
-        id: true,
-        name: true,
-        email: true,
-      },
-      orderBy: {
-        name: "asc",
-      },
-    });
-
-    res.status(200).json(requesters);
-  } catch {
-    res.status(500).json({
-      error: "Unable to load development requesters",
-    });
-  }
-});
-
-// ---------------------------------------------------------------------------
 // Lab 2 - Related System list
 // ---------------------------------------------------------------------------
 app.get("/api/related-systems", async (_req: Request, res: Response) => {
@@ -562,45 +532,13 @@ app.get("/api/related-systems", async (_req: Request, res: Response) => {
 // ---------------------------------------------------------------------------
 // Lab 2 - Create Ticket
 // ---------------------------------------------------------------------------
-app.post("/api/tickets", async (req: Request, res: Response) => {
+app.post("/api/tickets", requireRole("REQUESTER"), async (
+  req: Request,
+  res: Response,
+) => {
   try {
     const prisma = getPrisma();
-
-    // Development Requester context is provided through this temporary header.
-    // This is used for Lab 2 testing only and is not authentication.
-    const requesterHeader = req.header("X-Requester-Id");
-
-    if (!requesterHeader) {
-      return res.status(400).json({
-        error: "Development Requester is required",
-      });
-    }
-
-    const requesterId = Number(requesterHeader);
-
-    if (!Number.isInteger(requesterId) || requesterId <= 0) {
-      return res.status(400).json({
-        error: "Invalid Development Requester",
-      });
-    }
-
-    // Only an active Development Requester can create a ticket.
-    const requester = await prisma.user.findFirst({
-      where: {
-        id: requesterId,
-        role: "REQUESTER",
-        isActive: true,
-      },
-      select: {
-        id: true,
-      },
-    });
-
-    if (!requester) {
-      return res.status(400).json({
-        error: "Invalid or inactive Development Requester",
-      });
-    }
+    const requesterId = authenticationContext(res).user.id;
 
     const {
       categoryId,
@@ -745,48 +683,16 @@ app.post("/api/tickets", async (req: Request, res: Response) => {
 });
 // ---------------------------------------------------------------------------
 // Lab 2 - My Tickets
-// Returns only tickets owned by the selected Development Requester.
+// Returns only tickets owned by the authenticated Requester.
 // Supports search, filtering, sorting, and pagination.
 // ---------------------------------------------------------------------------
-app.get("/api/tickets", async (req: Request, res: Response) => {
+app.get("/api/tickets", requireRole("REQUESTER"), async (
+  req: Request,
+  res: Response,
+) => {
   try {
     const prisma = getPrisma();
-
-    // -----------------------------------------------------------------------
-    // Development Requester context
-    // -----------------------------------------------------------------------
-    const requesterHeader = req.header("X-Requester-Id");
-
-    if (!requesterHeader) {
-      return res.status(400).json({
-        error: "Development Requester is required",
-      });
-    }
-
-    const requesterId = Number(requesterHeader);
-
-    if (!Number.isInteger(requesterId) || requesterId <= 0) {
-      return res.status(400).json({
-        error: "Invalid Development Requester",
-      });
-    }
-
-    const requester = await prisma.user.findFirst({
-      where: {
-        id: requesterId,
-        role: "REQUESTER",
-        isActive: true,
-      },
-      select: {
-        id: true,
-      },
-    });
-
-    if (!requester) {
-      return res.status(400).json({
-        error: "Invalid or inactive Development Requester",
-      });
-    }
+    const requesterId = authenticationContext(res).user.id;
 
     // -----------------------------------------------------------------------
     // Query parameters
@@ -1068,48 +974,16 @@ app.get("/api/tickets", async (req: Request, res: Response) => {
 
 // ---------------------------------------------------------------------------
 // Lab 2 - Requester Ticket Detail
-// Returns one ticket only when it belongs to the selected Development Requester.
+// Returns one ticket only when it belongs to the authenticated Requester.
 // Missing tickets and cross-requester access both return 404.
 // ---------------------------------------------------------------------------
-app.get("/api/tickets/:id", async (req: Request, res: Response) => {
+app.get("/api/tickets/:id", requireRole("REQUESTER"), async (
+  req: Request,
+  res: Response,
+) => {
   try {
     const prisma = getPrisma();
-
-    // -----------------------------------------------------------------------
-    // Development Requester context
-    // -----------------------------------------------------------------------
-    const requesterHeader = req.header("X-Requester-Id");
-
-    if (!requesterHeader) {
-      return res.status(400).json({
-        error: "Development Requester is required",
-      });
-    }
-
-    const requesterId = Number(requesterHeader);
-
-    if (!Number.isInteger(requesterId) || requesterId <= 0) {
-      return res.status(400).json({
-        error: "Invalid Development Requester",
-      });
-    }
-
-    const requester = await prisma.user.findFirst({
-      where: {
-        id: requesterId,
-        role: "REQUESTER",
-        isActive: true,
-      },
-      select: {
-        id: true,
-      },
-    });
-
-    if (!requester) {
-      return res.status(400).json({
-        error: "Invalid or inactive Development Requester",
-      });
-    }
+    const requesterId = authenticationContext(res).user.id;
 
     // -----------------------------------------------------------------------
     // Ticket ID
@@ -1117,9 +991,7 @@ app.get("/api/tickets/:id", async (req: Request, res: Response) => {
     const ticketId = Number(req.params.id);
 
     if (!Number.isInteger(ticketId) || ticketId <= 0) {
-      return res.status(404).json({
-        error: "Ticket not found",
-      });
+      return sendApiError(res, 404, "TICKET_NOT_FOUND", "Ticket not found.");
     }
 
     // -----------------------------------------------------------------------
@@ -1177,9 +1049,7 @@ app.get("/api/tickets/:id", async (req: Request, res: Response) => {
     });
 
     if (!ticket) {
-      return res.status(404).json({
-        error: "Ticket not found",
-      });
+      return sendApiError(res, 404, "TICKET_NOT_FOUND", "Ticket not found.");
     }
 
     return res.status(200).json(ticket);
@@ -1196,6 +1066,7 @@ app.get("/api/tickets/:id", async (req: Request, res: Response) => {
 // ---------------------------------------------------------------------------
 app.post(
   "/api/tickets/:id/attachments",
+  requireRole("REQUESTER"),
   async (req: Request, res: Response) => {
     try {
       await new Promise<void>((resolve, reject) => {
@@ -1211,47 +1082,7 @@ app.post(
 
       const prisma = getPrisma();
 
-      const requesterHeader = req.header("X-Requester-Id");
-
-      if (!requesterHeader) {
-        return sendAttachmentError(
-          res,
-          400,
-          "REQUESTER_REQUIRED",
-          "Development Requester is required.",
-        );
-      }
-
-      const requesterId = Number(requesterHeader);
-
-      if (!Number.isInteger(requesterId) || requesterId <= 0) {
-        return sendAttachmentError(
-          res,
-          400,
-          "INVALID_REQUESTER",
-          "Invalid Development Requester.",
-        );
-      }
-
-      const requester = await prisma.user.findFirst({
-        where: {
-          id: requesterId,
-          role: "REQUESTER",
-          isActive: true,
-        },
-        select: {
-          id: true,
-        },
-      });
-
-      if (!requester) {
-        return sendAttachmentError(
-          res,
-          400,
-          "INVALID_REQUESTER",
-          "Invalid or inactive Development Requester.",
-        );
-      }
+      const requesterId = authenticationContext(res).user.id;
 
       const ticketId = Number(req.params.id);
 
@@ -1391,41 +1222,7 @@ app.post(
 app.get("/api/attachments/:id", async (req: Request, res: Response) => {
   try {
     const prisma = getPrisma();
-    const requesterHeader = req.header("X-Requester-Id");
-
-    if (!requesterHeader) {
-      return sendAttachmentError(
-        res,
-        400,
-        "REQUESTER_REQUIRED",
-        "Development Requester is required.",
-      );
-    }
-
-    const requesterId = Number(requesterHeader);
-
-    if (!Number.isInteger(requesterId) || requesterId <= 0) {
-      return sendAttachmentError(
-        res,
-        400,
-        "INVALID_REQUESTER",
-        "Invalid Development Requester.",
-      );
-    }
-
-    const requester = await prisma.user.findFirst({
-      where: { id: requesterId, role: "REQUESTER", isActive: true },
-      select: { id: true },
-    });
-
-    if (!requester) {
-      return sendAttachmentError(
-        res,
-        400,
-        "INVALID_REQUESTER",
-        "Invalid or inactive Development Requester.",
-      );
-    }
+    const user = authenticationContext(res).user;
 
     const attachmentId = Number(req.params.id);
 
@@ -1441,7 +1238,9 @@ app.get("/api/attachments/:id", async (req: Request, res: Response) => {
     const attachment = await prisma.attachment.findFirst({
       where: {
         id: attachmentId,
-        ticket: { requesterId },
+        ...(user.role === "REQUESTER" && {
+          ticket: { requesterId: user.id },
+        }),
       },
       select: {
         id: true,
@@ -1482,41 +1281,7 @@ app.get(
   async (req: Request, res: Response) => {
     try {
       const prisma = getPrisma();
-      const requesterHeader = req.header("X-Requester-Id");
-
-      if (!requesterHeader) {
-        return sendAttachmentError(
-          res,
-          400,
-          "REQUESTER_REQUIRED",
-          "Development Requester is required.",
-        );
-      }
-
-      const requesterId = Number(requesterHeader);
-
-      if (!Number.isInteger(requesterId) || requesterId <= 0) {
-        return sendAttachmentError(
-          res,
-          400,
-          "INVALID_REQUESTER",
-          "Invalid Development Requester.",
-        );
-      }
-
-      const requester = await prisma.user.findFirst({
-        where: { id: requesterId, role: "REQUESTER", isActive: true },
-        select: { id: true },
-      });
-
-      if (!requester) {
-        return sendAttachmentError(
-          res,
-          400,
-          "INVALID_REQUESTER",
-          "Invalid or inactive Development Requester.",
-        );
-      }
+      const user = authenticationContext(res).user;
 
       const attachmentId = Number(req.params.id);
 
@@ -1533,7 +1298,9 @@ app.get(
         where: {
           id: attachmentId,
           isRemoved: false,
-          ticket: { requesterId },
+          ...(user.role === "REQUESTER" && {
+            ticket: { requesterId: user.id },
+          }),
         },
         select: {
           originalFilename: true,
@@ -1585,44 +1352,13 @@ app.get(
   },
 );
 
-app.delete("/api/attachments/:id", async (req: Request, res: Response) => {
+app.delete("/api/attachments/:id", requireRole("REQUESTER"), async (
+  req: Request,
+  res: Response,
+) => {
   try {
     const prisma = getPrisma();
-    const requesterHeader = req.header("X-Requester-Id");
-
-    if (!requesterHeader) {
-      return sendAttachmentError(
-        res,
-        400,
-        "REQUESTER_REQUIRED",
-        "Development Requester is required.",
-      );
-    }
-
-    const requesterId = Number(requesterHeader);
-
-    if (!Number.isInteger(requesterId) || requesterId <= 0) {
-      return sendAttachmentError(
-        res,
-        400,
-        "INVALID_REQUESTER",
-        "Invalid Development Requester.",
-      );
-    }
-
-    const requester = await prisma.user.findFirst({
-      where: { id: requesterId, role: "REQUESTER", isActive: true },
-      select: { id: true },
-    });
-
-    if (!requester) {
-      return sendAttachmentError(
-        res,
-        400,
-        "INVALID_REQUESTER",
-        "Invalid or inactive Development Requester.",
-      );
-    }
+    const requesterId = authenticationContext(res).user.id;
 
     const attachmentId = Number(req.params.id);
 

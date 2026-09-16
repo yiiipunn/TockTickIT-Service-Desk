@@ -2,7 +2,7 @@
 
 ## 1. Test Strategy
 
-Write tests before or with implementation. Cover unit policy, API/integration, direct authorization, migration/Lab 2 regression, UI components/style, responsive/accessibility behavior, and end-to-end workflows. Issues 2–4 migration, seed, authentication-foundation, and mandatory password-change tests are implemented and executed; later-issue tests remain `Pending`.
+Write tests before or with implementation. Cover unit policy, API/integration, direct authorization, migration/Lab 2 regression, UI components/style, responsive/accessibility behavior, and end-to-end workflows. Issues 2–5 migration, seed, authentication, mandatory password-change, role-boundary, and authenticated Requester regression tests are implemented and executed; later-issue tests remain `Pending`.
 
 ## 2. Planned Tests
 
@@ -18,9 +18,9 @@ Write tests before or with implementation. Cover unit policy, API/integration, d
 | API-02 | API/Integration | BR-01, BR-05 / AC-02 | Invalid, inactive, and throttled login | Safe `401`, `403`, and `429`; no profile leak | `server/tests/lab-03/auth.api.test.ts` | Passed |
 | API-03 | API/Integration | FR-02, BR-08 / AC-03 | Initial-password restriction/change | Normal APIs blocked until valid change issues new session | `server/tests/lab-03/auth.api.test.ts` | Passed |
 | API-04 | API/Integration | FR-03, BR-06 / AC-04 | Logout, expiry, and session replay | Revoked/expired sessions return `401` | `server/tests/lab-03/auth.api.test.ts` | Passed |
-| API-05 | API/Integration | FR-06, BR-10, BR-13 / AC-06 | Authenticated Ticket creation | Session User owns `NEW` unassigned Ticket; priorities copy | `server/tests/lab-03/requester-regression.api.test.ts` | Pending |
-| API-06 | API/Integration | FR-07 / AC-07 | My Tickets and Detail ownership | Queries return only the authenticated Requester's Tickets | `server/tests/lab-03/requester-regression.api.test.ts` | Pending |
-| API-07 | API/Integration | FR-08, BR-25 / AC-07 | Attachment lifecycle and ownership | Lab 2 upload/download/remove rules remain protected | `server/tests/lab-03/requester-regression.api.test.ts` | Pending |
+| API-05 | API/Integration | FR-06, BR-10, BR-13 / AC-06 | Authenticated Ticket creation | Session User owns `NEW` unassigned Ticket; priorities copy | `server/tests/lab-03/requester-regression.api.test.ts` | Passed |
+| API-06 | API/Integration | FR-07 / AC-07 | My Tickets and Detail ownership | Queries return only the authenticated Requester's Tickets | `server/tests/lab-03/requester-regression.api.test.ts` | Passed |
+| API-07 | API/Integration | FR-08, BR-25 / AC-07 | Attachment lifecycle and ownership | Lab 2 upload/download/remove rules remain protected | `server/tests/lab-03/requester-regression.api.test.ts` | Passed |
 | API-08 | API/Integration | FR-10, BR-21 / AC-15 | Resolution indication | Active calls are idempotent; status unchanged; reopen clears | `server/tests/lab-03/requester-regression.api.test.ts` | Pending |
 | API-09 | API/Integration | FR-12, BR-31–BR-32 / AC-10 | Queue defaults and search | Required fields/counts and all search fields are correct | `server/tests/lab-03/staff-queue.api.test.ts` | Pending |
 | API-10 | API/Integration | FR-12, BR-32–BR-33 / AC-10 | Queue filters, sorting, pages, invalid query | Correct deterministic results or `400 INVALID_QUERY` | `server/tests/lab-03/staff-queue.api.test.ts` | Pending |
@@ -39,9 +39,9 @@ Write tests before or with implementation. Cover unit policy, API/integration, d
 | API-23 | API/Integration | FR-20, BR-30 / AC-20 | User editing/deactivation | Fields update; sessions revoked; history preserved | `server/tests/lab-03/users-admin.api.test.ts` | Pending |
 | API-24 | API/Integration | FR-21, BR-26 / AC-21 | Set initial password | Hash/change flag saved; sessions revoked; plaintext absent | `server/tests/lab-03/users-admin.api.test.ts` | Pending |
 | API-25 | Concurrency/Integration | FR-22, BR-28–BR-29 / AC-22 | Administrator safety | Self/last-Admin changes fail atomically | `server/tests/lab-03/users-admin.api.test.ts` | Pending |
-| AUTHZ-01 | Security/Authorization | FR-04 / AC-05 | Missing authentication | Every protected endpoint returns `401` | `server/tests/lab-03/auth.api.test.ts` | Partial (current-User and reference-data endpoints passed; exhaustive future endpoint matrix remains pending) |
-| AUTHZ-02 | Security/Authorization | Authorization matrix / AC-05 | Direct cross-role API calls | Every denied matrix operation returns `403` | `server/tests/lab-03/authorization.api.test.ts` | Pending |
-| AUTHZ-03 | Security/Authorization | BR-10–BR-11 / AC-07, AC-09 | Forged Requester identity | Header/body ID cannot select another Requester | `server/tests/lab-03/authorization.api.test.ts` | Pending |
+| AUTHZ-01 | Security/Authorization | FR-04 / AC-05 | Missing authentication | Every protected endpoint returns `401` | `server/tests/lab-03/auth.api.test.ts` | Partial (current implemented auth/reference/Requester/Attachment APIs passed; future endpoint matrix remains pending) |
+| AUTHZ-02 | Security/Authorization | Authorization matrix / AC-05 | Direct cross-role API calls | Every denied matrix operation returns `403` | `server/tests/lab-03/authorization.api.test.ts` | Partial (implemented Requester and Attachment role boundaries passed; later Staff/Admin operations remain pending) |
+| AUTHZ-03 | Security/Authorization | BR-10–BR-11 / AC-07, AC-09 | Forged Requester identity | Header/body ID cannot select another Requester | `server/tests/lab-03/authorization.api.test.ts` | Passed |
 | AUTHZ-04 | Security/Authorization | FR-23, FR-25 / AC-17, AC-23 | Notes/Admin disclosure | Requester sees no notes; non-Admin sees no User data | `server/tests/lab-03/authorization.api.test.ts` | Pending |
 | AUTHZ-05 | Security/Authorization | BR-07, BR-34 / AC-05 | Origin, CSRF, and safe failures | Invalid security context cannot mutate or leak details | `server/tests/lab-03/auth.api.test.ts` | Partial (logout Origin/CSRF cases passed; later mutation matrices remain pending) |
 | AUTHZ-06 | Security/Authorization | BR-06, BR-30 / AC-04, AC-20–AC-21 | Session invalidation matrix | Logout/change/reset/deactivate revoke required sessions | `server/tests/lab-03/security.integration.test.ts` | Partial (logout and password-change revocation passed in `auth.api.test.ts`; reset/deactivate remain later issues) |
@@ -52,7 +52,7 @@ Write tests before or with implementation. Cover unit policy, API/integration, d
 | REG-05 | Migration/Regression | FR-30 / AC-27 | Lab 1/Lab 2 server regression | Updated authenticated server suite passes unchanged behavior | `server/tests/lab-01/*.test.ts`, `server/tests/lab-02/*.test.ts` | Passed |
 | REG-06 | Migration/Regression | FR-30 / AC-27 | Lab 2 client regression | Requester UI/Attachment suite passes with session identity | `client/tests/lab-02/*.test.tsx` | Passed |
 | UI-01 | UI Component | FR-01–FR-03 / AC-01–AC-04, AC-24 | Login and Change Password modes | Validation, busy, inactive, failure, restriction, success render | `client/tests/lab-03/Authentication.test.tsx` | Passed |
-| UI-02 | UI Component | FR-05 / AC-05 | Role shell and routes | Correct name/role/navigation; forbidden route blocked | `client/tests/lab-03/AppShell.test.tsx` | Partial (identity, role, logout, and restriction boundary passed; role workspaces remain later issues) |
+| UI-02 | UI Component | FR-05 / AC-05 | Role shell and routes | Correct name/role/navigation; forbidden route blocked | `client/tests/lab-03/AppShell.test.tsx` | Partial (identity, role, logout, password restriction, and implemented Requester boundary passed; role workspaces remain later issues) |
 | UI-03 | UI Component | FR-09–FR-11 / AC-09, AC-15–AC-16 | Requester Ticket Detail additions | Comments/indication render; selector, notes, status control absent | `client/tests/lab-03/RequesterTicketDetail.test.tsx` | Pending |
 | UI-04 | UI Component | FR-12 / AC-10, AC-24 | Ticket Queue controls/states | Required queries, counts, results, empty/no-results/failure render | `client/tests/lab-03/StaffTicketQueue.test.tsx` | Pending |
 | UI-05 | UI Component | FR-13–FR-16 / AC-11–AC-14, AC-24 | Staff Ticket controls/conflicts | Read-only/editable fields and valid actions are clear | `client/tests/lab-03/StaffTicketDetail.test.tsx` | Pending |
@@ -108,11 +108,11 @@ Traceability status: **27/27 ACs mapped**.
 
 | Area | Command / Evidence | Result |
 | --- | --- | --- |
-| Server tests | `cd server; npm test` | Passed (14 files, 109 tests) |
+| Server tests | `cd server; npm test` | Passed (16 files, 118 tests) |
 | Client tests | `cd client; npm test` | Passed (8 files, 52 tests) |
 | Server build | `cd server; npm run build` | Passed |
 | Client build | `cd client; npm run build` | Passed |
 | E2E/responsive | `cd client; npm run test:e2e` | Not Run |
 | Visual review | [`ui-spec.md`](./ui-spec.md) checklist and screenshots | Not Run |
 
-Planned tests: **61**. Passed: **14**. Partial: **4**. Failed: **0**. Pending: **43**.
+Planned tests: **61**. Passed: **18**. Partial: **5**. Failed: **0**. Pending: **38**.

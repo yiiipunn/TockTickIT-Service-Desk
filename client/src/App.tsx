@@ -101,9 +101,6 @@ export default function App() {
   const [authFailure, setAuthFailure] = useState("");
   const [showPasswordChange, setShowPasswordChange] = useState(false);
 
-  const [currentRequester, setCurrentRequester] =
-    useState<AuthenticatedUser | null>(null);
-
   const [appView, setAppView] = useState<AppView>("tickets");
 
   // -------------------------------------------------------------------------
@@ -218,13 +215,12 @@ export default function App() {
     setAuthState("authenticated");
     setAuthFailure("");
     setShowPasswordChange(false);
-    setCurrentRequester(user.role === "REQUESTER" ? user : null);
     setAppView("tickets");
 
     if (user.role === "REQUESTER" && !user.mustChangePassword) {
       await Promise.all([
         loadTicketReferenceData(),
-        loadTickets(user.id, 1),
+        loadTickets(1),
       ]);
     }
   }
@@ -238,7 +234,6 @@ export default function App() {
       return;
     }
     setCurrentUser(null);
-    setCurrentRequester(null);
     setAuthState("unauthenticated");
     setShowPasswordChange(false);
     setAppView("tickets");
@@ -281,7 +276,6 @@ export default function App() {
 
   function handleSessionExpired() {
     setCurrentUser(null);
-    setCurrentRequester(null);
     setAuthState("unauthenticated");
     setShowPasswordChange(false);
     setAuthFailure("Your session expired. Sign in again.");
@@ -316,7 +310,7 @@ export default function App() {
     event.preventDefault();
 
     if (
-      !currentRequester ||
+      currentUser?.role !== "REQUESTER" ||
       categoryId === null ||
       relatedSystemId === null ||
       summary.trim().length === 0 ||
@@ -333,7 +327,7 @@ export default function App() {
     setSubmitError("");
 
     try {
-      const ticket = await createTicket(currentRequester.id, {
+      const ticket = await createTicket({
         categoryId,
         relatedSystemId,
         summary,
@@ -345,7 +339,7 @@ export default function App() {
 
       for (const file of pendingAttachments) {
         try {
-          await uploadTicketAttachment(currentRequester.id, ticket.id, file);
+          await uploadTicketAttachment(ticket.id, file);
         } catch (error) {
           const message = error instanceof Error
             ? error.message
@@ -354,7 +348,7 @@ export default function App() {
         }
       }
 
-      await loadTickets(currentRequester.id, 1);
+      await loadTickets(1);
       setCreatedTicket(ticket);
       setAttachmentUploadFailures(uploadFailures);
       setSubmitState("success");
@@ -396,12 +390,12 @@ export default function App() {
   // -------------------------------------------------------------------------
   // My Tickets
   // -------------------------------------------------------------------------
-  async function loadTickets(requesterId: number, page = 1) {
+  async function loadTickets(page = 1) {
     setTicketsState("loading");
     setTicketsError("");
 
     try {
-      const result = await getTickets(requesterId, {
+      const result = await getTickets({
         search: ticketSearch,
         categoryId: ticketCategoryFilter ?? undefined,
         relatedSystemId: ticketSystemFilter ?? undefined,
@@ -431,8 +425,8 @@ export default function App() {
   function handleTicketSearch(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
 
-    if (currentRequester) {
-      void loadTickets(currentRequester.id, 1);
+    if (currentUser?.role === "REQUESTER") {
+      void loadTickets(1);
     }
   }
 
@@ -451,7 +445,7 @@ export default function App() {
   // Requester Ticket Detail
   // -------------------------------------------------------------------------
   async function handleViewTicket(ticketId: number) {
-    if (!currentRequester) {
+    if (currentUser?.role !== "REQUESTER") {
       return;
     }
 
@@ -467,10 +461,7 @@ export default function App() {
     setRemovalReason("");
 
     try {
-      const result = await getTicketDetail(
-        currentRequester.id,
-        ticketId,
-      );
+      const result = await getTicketDetail(ticketId);
 
       setSelectedTicketDetail(result);
       setTicketDetailState("success");
@@ -499,14 +490,14 @@ export default function App() {
   }
 
   async function refreshTicketDetail(ticketId: number) {
-    if (!currentRequester) return;
-    const result = await getTicketDetail(currentRequester.id, ticketId);
+    if (currentUser?.role !== "REQUESTER") return;
+    const result = await getTicketDetail(ticketId);
     setSelectedTicketDetail(result);
   }
 
   async function handleUploadAttachment(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    if (!currentRequester || !selectedTicketDetail || !attachmentFile ||
+    if (currentUser?.role !== "REQUESTER" || !selectedTicketDetail || !attachmentFile ||
         attachmentState === "submitting") return;
 
     setAttachmentState("submitting");
@@ -514,11 +505,7 @@ export default function App() {
     setAttachmentSuccess("");
 
     try {
-      await uploadTicketAttachment(
-        currentRequester.id,
-        selectedTicketDetail.id,
-        attachmentFile,
-      );
+      await uploadTicketAttachment(selectedTicketDetail.id, attachmentFile);
       await refreshTicketDetail(selectedTicketDetail.id);
       setAttachmentFile(null);
       setAttachmentState("success");
@@ -565,7 +552,7 @@ export default function App() {
   async function handleRemoveAttachment(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
 
-    if (!currentRequester || !selectedTicketDetail || removalTargetId === null) {
+    if (currentUser?.role !== "REQUESTER" || !selectedTicketDetail || removalTargetId === null) {
       return;
     }
 
@@ -580,11 +567,7 @@ export default function App() {
     setAttachmentError("");
 
     try {
-      await removeTicketAttachment(
-        currentRequester.id,
-        removalTargetId,
-        trimmedReason,
-      );
+      await removeTicketAttachment(removalTargetId, trimmedReason);
       await refreshTicketDetail(selectedTicketDetail.id);
       setRemovalTargetId(null);
       setRemovalReason("");
@@ -603,16 +586,13 @@ export default function App() {
     attachmentId: number,
     originalFilename: string,
   ) {
-    if (!currentRequester) return;
+    if (currentUser?.role !== "REQUESTER") return;
 
     setDownloadingAttachmentId(attachmentId);
     setAttachmentError("");
 
     try {
-      const blob = await downloadTicketAttachment(
-        currentRequester.id,
-        attachmentId,
-      );
+      const blob = await downloadTicketAttachment(attachmentId);
       const objectUrl = URL.createObjectURL(blob);
       const link = document.createElement("a");
       link.href = objectUrl;
@@ -721,19 +701,11 @@ export default function App() {
             />
             <main className="app-content">
               {authFailure && <div className="alert alert-danger" role="alert">{authFailure}</div>}
-              <section className="card shadow-sm">
-                <div className="card-body p-4">
-                  <h1 className="h3">Welcome to TokTickIT</h1>
-                  <p className="text-muted mb-0">
-                    Your authenticated workspace will be enabled in the relevant Lab 3 issue.
-                  </p>
-                </div>
-              </section>
             </main>
           </>
         )}
 
-      {currentRequester && currentUser && !currentUser.mustChangePassword &&
+      {currentUser?.role === "REQUESTER" && !currentUser.mustChangePassword &&
         !showPasswordChange && (
         <>
           {/* Requester Application Navbar */}
@@ -791,7 +763,7 @@ export default function App() {
                 <span className="badge text-bg-light text-success">
                   {roleLabel(currentUser.role)}
                 </span>
-                <div className="small fw-semibold text-white">{currentRequester.name}</div>
+                <div className="small fw-semibold text-white">{currentUser.name}</div>
               </div>
               <button
                 type="button"
@@ -833,10 +805,7 @@ export default function App() {
                         type="button"
                         className="btn btn-sm btn-link text-success p-0"
                         onClick={() =>
-                          loadTickets(
-                            currentRequester.id,
-                            ticketPagination.page,
-                          )
+                          loadTickets(ticketPagination.page)
                         }
                         disabled={ticketsState === "loading"}
                       >
@@ -1048,10 +1017,7 @@ export default function App() {
                       <button
                         className="btn btn-danger"
                         onClick={() =>
-                          loadTickets(
-                            currentRequester.id,
-                            ticketPagination.page,
-                          )
+                          loadTickets(ticketPagination.page)
                         }
                       >
                         Retry
@@ -1257,10 +1223,7 @@ export default function App() {
                             className="btn btn-sm btn-outline-success"
                             disabled={ticketPagination.page <= 1}
                             onClick={() =>
-                              loadTickets(
-                                currentRequester.id,
-                                ticketPagination.page - 1,
-                              )
+                              loadTickets(ticketPagination.page - 1)
                             }
                           >
                             Previous
@@ -1279,10 +1242,7 @@ export default function App() {
                                 ticketPagination.totalPages
                             }
                             onClick={() =>
-                              loadTickets(
-                                currentRequester.id,
-                                ticketPagination.page + 1,
-                              )
+                              loadTickets(ticketPagination.page + 1)
                             }
                           >
                             Next

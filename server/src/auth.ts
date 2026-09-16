@@ -198,6 +198,22 @@ export function requirePasswordChangeComplete(
   next();
 }
 
+export function requireRole(...allowedRoles: UserRole[]) {
+  const allowed = new Set<UserRole>(allowedRoles);
+  return (_req: Request, res: Response, next: NextFunction) => {
+    if (!allowed.has(authenticationContext(res).user.role)) {
+      sendApiError(
+        res,
+        403,
+        "FORBIDDEN",
+        "You do not have permission to perform this operation.",
+      );
+      return;
+    }
+    next();
+  };
+}
+
 function allowedOrigins() {
   return (process.env.CLIENT_ORIGIN?.trim() || "http://localhost:5173")
     .split(",")
