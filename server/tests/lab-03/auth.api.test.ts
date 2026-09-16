@@ -220,12 +220,14 @@ describe("Authentication Foundation API", () => {
     await expect(verifyPassword(stored.passwordHash, password)).resolves.toBe(true);
   });
 
-  it("changes the password atomically, clears the restriction, and rotates all sessions", async () => {
+  it("persists a completed required password change through logout and a fresh login", async () => {
     const firstLogin = await login(restrictedEmail);
     const secondLogin = await login(restrictedEmail);
     const firstCookie = cookieFrom(firstLogin);
     const secondCookie = cookieFrom(secondLogin);
     const newPassword = "TokTickIT-New!";
+
+    expect(firstLogin.body.data.user.mustChangePassword).toBe(true);
 
     const response = await request(app)
       .post("/api/auth/change-password")
@@ -263,7 +265,26 @@ describe("Authentication Foundation API", () => {
     expect(categories.status).toBe(200);
 
     expect((await login(restrictedEmail, password)).status).toBe(401);
-    expect((await login(restrictedEmail, newPassword)).status).toBe(200);
+
+    const logout = await request(app)
+      .post("/api/auth/logout")
+      .set("Cookie", replacementCookie)
+      .set("Origin", origin)
+      .set("X-CSRF-Token", current.body.data.csrfToken);
+    expect(logout.status).toBe(204);
+    expect((await request(app).get("/api/auth/me").set("Cookie", replacementCookie)).status).toBe(401);
+
+    const freshLogin = await login(restrictedEmail, newPassword);
+    const freshCookie = cookieFrom(freshLogin);
+    expect(freshLogin.status).toBe(200);
+    expect(freshLogin.body.data.user.mustChangePassword).toBe(false);
+
+    const refreshedCurrentUser = await request(app)
+      .get("/api/auth/me")
+      .set("Cookie", freshCookie);
+    expect(refreshedCurrentUser.status).toBe(200);
+    expect(refreshedCurrentUser.body.data.user.mustChangePassword).toBe(false);
+    expect((await request(app).get("/api/categories").set("Cookie", freshCookie)).status).toBe(200);
   });
 
   it("protects password changes with authentication, Origin, and CSRF", async () => {
