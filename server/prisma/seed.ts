@@ -1,6 +1,6 @@
 import { resolve } from "node:path";
 import { fileURLToPath } from "node:url";
-import { Priority, TicketStatus, UserRole } from "@prisma/client";
+import { Prisma, PrismaClient, Priority, TicketStatus, UserRole } from "@prisma/client";
 import { getPrisma } from "../src/prisma.js";
 import { hashPassword } from "../src/password.js";
 
@@ -151,8 +151,12 @@ const seedTickets: SeedTicket[] = [
 
 export const LAB3_SEED_USER_EMAILS = seedUsers.map((user) => user.email);
 
-async function ensureSeedUser(user: (typeof seedUsers)[number]) {
-  const prisma = getPrisma();
+type SeedDatabase = PrismaClient | Prisma.TransactionClient;
+
+async function ensureSeedUser(
+  prisma: SeedDatabase,
+  user: (typeof seedUsers)[number],
+) {
   const existing = await prisma.user.findUnique({ where: { email: user.email } });
 
   if (existing) {
@@ -171,8 +175,7 @@ async function ensureSeedUser(user: (typeof seedUsers)[number]) {
   });
 }
 
-export async function runSeed() {
-  const prisma = getPrisma();
+export async function runSeed(prisma: SeedDatabase = getPrisma()) {
 
   for (const name of categories) {
     await prisma.category.upsert({ where: { name }, update: {}, create: { name } });
@@ -184,7 +187,7 @@ export async function runSeed() {
 
   const users = new Map<string, Awaited<ReturnType<typeof ensureSeedUser>>>();
   for (const user of seedUsers) {
-    users.set(user.email, await ensureSeedUser(user));
+    users.set(user.email, await ensureSeedUser(prisma, user));
   }
 
   const categoryRows = await prisma.category.findMany();

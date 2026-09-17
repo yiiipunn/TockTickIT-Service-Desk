@@ -3,7 +3,11 @@ import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import App from "../../src/App";
 
-function installFetch(role = "REQUESTER", mustChangePassword = false) {
+function installFetch(
+  role = "REQUESTER",
+  mustChangePassword = false,
+  staffItems: Array<Record<string, unknown>> = [],
+) {
   const fetchMock = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
     const url = String(input);
     if (url.endsWith("/api/auth/me")) {
@@ -31,6 +35,16 @@ function installFetch(role = "REQUESTER", mustChangePassword = false) {
         isActive: true,
         mustChangePassword: false,
       }, csrfToken: "rotated-shell-csrf" } }), {
+        status: 200,
+        headers: { "Content-Type": "application/json" },
+      });
+    }
+    if (url.includes("/api/staff/tickets")) {
+      return new Response(JSON.stringify({
+        items: staffItems,
+        pagination: { page: 1, pageSize: 20, totalItems: staffItems.length, totalPages: staffItems.length ? 1 : 0 },
+        counts: { matching: staffItems.length, matchingUnassigned: staffItems.filter((ticket) => ticket.owner === null).length },
+      }), {
         status: 200,
         headers: { "Content-Type": "application/json" },
       });
@@ -109,12 +123,33 @@ describe("authenticated application shell", () => {
     expect(await screen.findByRole("heading", { name: "My Tickets" })).toBeInTheDocument();
   });
 
-  it("shows a staff identity without implementing future staff navigation", async () => {
+  it("shows the staff queue navigation without implementing future staff operations", async () => {
     installFetch("IT_STAFF");
     render(<App />);
     expect(await screen.findByText("IT Staff")).toBeInTheDocument();
     expect(screen.getByText("Ari Example")).toBeInTheDocument();
-    expect(screen.queryByText("Ticket Queue")).not.toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "Ticket Queue" })).toBeInTheDocument();
+    expect(screen.queryByText("Claim Ticket")).not.toBeInTheDocument();
+  });
+
+  it("opens the approved Issue 7 Ticket Detail handoff from a queue item", async () => {
+    installFetch("IT_STAFF", false, [{
+      id: 25,
+      ticketNumber: "TKT-000025",
+      summary: "Cannot connect to Wi-Fi",
+      requester: { id: 3, name: "Narin S.", email: "narin@example.com" },
+      status: "OPEN",
+      requestedPriority: "MEDIUM",
+      itPriority: "HIGH",
+      owner: null,
+      updatedAt: "2026-09-11T03:15:00.000Z",
+    }]);
+    render(<App />);
+    await screen.findByRole("heading", { name: "Ticket Queue" });
+    await userEvent.click(screen.getAllByRole("button", { name: "Open Ticket" })[0]);
+    expect(await screen.findByRole("heading", { name: "Ticket Detail" })).toBeInTheDocument();
+    expect(screen.getByText(/available in Issue 7/i)).toBeInTheDocument();
+    expect(screen.queryByText("Claim Ticket")).not.toBeInTheDocument();
   });
 
   it("logs out with CSRF and returns to login", async () => {
