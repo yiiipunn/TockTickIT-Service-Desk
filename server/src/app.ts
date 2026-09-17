@@ -622,6 +622,14 @@ app.get("/api/staff/eligible-owners", requireRole("IT_STAFF", "ADMINISTRATOR"), 
   }
 });
 
+const communicationEntrySelect = {
+  id: true,
+  ticketId: true,
+  content: true,
+  createdAt: true,
+  author: { select: { id: true, name: true, role: true } },
+} as const satisfies Prisma.PublicCommentSelect;
+
 const staffTicketDetailSelect = {
   id: true,
   ticketNumber: true,
@@ -652,6 +660,14 @@ const staffTicketDetailSelect = {
       updatedAt: true,
     },
     orderBy: { createdAt: "asc" as const },
+  },
+  publicComments: {
+    select: communicationEntrySelect,
+    orderBy: [{ createdAt: "asc" as const }, { id: "asc" as const }],
+  },
+  internalNotes: {
+    select: communicationEntrySelect,
+    orderBy: [{ createdAt: "asc" as const }, { id: "asc" as const }],
   },
 } as const satisfies Prisma.TicketSelect;
 
@@ -871,6 +887,105 @@ app.patch("/api/staff/tickets/:ticketId/status", requireRole("IT_STAFF", "ADMINI
     return res.status(200).json({ data: staffTicketDetailData(ticket) });
   } catch {
     return sendApiError(res, 500, "INTERNAL_ERROR", "Unable to update the Ticket status right now.");
+  }
+});
+
+function validCommunicationContent(body: unknown) {
+  if (!body || typeof body !== "object" || Array.isArray(body) ||
+      Object.keys(body).length !== 1 || !Object.hasOwn(body, "content")) return null;
+  const content = (body as { content: unknown }).content;
+  if (typeof content !== "string") return null;
+  const trimmed = content.trim();
+  return trimmed.length >= 1 && trimmed.length <= 2000 ? trimmed : null;
+}
+
+function communicationValidationError(res: Response) {
+  return sendApiError(res, 400, "VALIDATION_ERROR", "The request contains invalid data.", {
+    content: "Enter 1 to 2000 characters of plain text and no other fields.",
+  });
+}
+
+async function accessiblePublicTicket(ticketId: number, res: Response) {
+  const user = authenticationContext(res).user;
+  return getPrisma().ticket.findFirst({
+    where: user.role === "REQUESTER" ? { id: ticketId, requesterId: user.id } : { id: ticketId },
+    select: { id: true },
+  });
+}
+
+app.get("/api/tickets/:ticketId/public-comments", async (req: Request, res: Response) => {
+  const ticketId = staffTicketId(req.params.ticketId);
+  if (ticketId === null) return sendApiError(res, 404, "TICKET_NOT_FOUND", "The Ticket is not available.");
+  try {
+    if (!await accessiblePublicTicket(ticketId, res)) {
+      return sendApiError(res, 404, "TICKET_NOT_FOUND", "The Ticket is not available.");
+    }
+    const items = await getPrisma().publicComment.findMany({
+      where: { ticketId }, select: communicationEntrySelect,
+      orderBy: [{ createdAt: "asc" }, { id: "asc" }],
+    });
+    return res.status(200).json({ items });
+  } catch {
+    return sendApiError(res, 500, "INTERNAL_ERROR", "Unable to load Public Comments right now.");
+  }
+});
+
+app.post("/api/tickets/:ticketId/public-comments", async (req: Request, res: Response) => {
+  const ticketId = staffTicketId(req.params.ticketId);
+  if (ticketId === null) return sendApiError(res, 404, "TICKET_NOT_FOUND", "The Ticket is not available.");
+  try {
+    if (!await accessiblePublicTicket(ticketId, res)) {
+      return sendApiError(res, 404, "TICKET_NOT_FOUND", "The Ticket is not available.");
+    }
+    const content = validCommunicationContent(req.body);
+    if (content === null) return communicationValidationError(res);
+    const data = await getPrisma().publicComment.create({
+      data: { ticketId, authorId: authenticationContext(res).user.id, content },
+      select: communicationEntrySelect,
+    });
+    return res.status(201).json({ data });
+  } catch {
+    return sendApiError(res, 500, "INTERNAL_ERROR", "Unable to post the Public Comment right now.");
+  }
+});
+
+app.get("/api/staff/tickets/:ticketId/internal-notes", requireRole("IT_STAFF", "ADMINISTRATOR"), async (
+  req: Request,
+  res: Response,
+) => {
+  const ticketId = staffTicketId(req.params.ticketId);
+  if (ticketId === null) return sendApiError(res, 404, "TICKET_NOT_FOUND", "The Ticket is not available.");
+  try {
+    const ticket = await getPrisma().ticket.findUnique({ where: { id: ticketId }, select: { id: true } });
+    if (!ticket) return sendApiError(res, 404, "TICKET_NOT_FOUND", "The Ticket is not available.");
+    const items = await getPrisma().internalNote.findMany({
+      where: { ticketId }, select: communicationEntrySelect,
+      orderBy: [{ createdAt: "asc" }, { id: "asc" }],
+    });
+    return res.status(200).json({ items });
+  } catch {
+    return sendApiError(res, 500, "INTERNAL_ERROR", "Unable to load Internal Notes right now.");
+  }
+});
+
+app.post("/api/staff/tickets/:ticketId/internal-notes", requireRole("IT_STAFF", "ADMINISTRATOR"), async (
+  req: Request,
+  res: Response,
+) => {
+  const ticketId = staffTicketId(req.params.ticketId);
+  if (ticketId === null) return sendApiError(res, 404, "TICKET_NOT_FOUND", "The Ticket is not available.");
+  try {
+    const ticket = await getPrisma().ticket.findUnique({ where: { id: ticketId }, select: { id: true } });
+    if (!ticket) return sendApiError(res, 404, "TICKET_NOT_FOUND", "The Ticket is not available.");
+    const content = validCommunicationContent(req.body);
+    if (content === null) return communicationValidationError(res);
+    const data = await getPrisma().internalNote.create({
+      data: { ticketId, authorId: authenticationContext(res).user.id, content },
+      select: communicationEntrySelect,
+    });
+    return res.status(201).json({ data });
+  } catch {
+    return sendApiError(res, 500, "INTERNAL_ERROR", "Unable to add the Internal Note right now.");
   }
 });
 

@@ -3,6 +3,14 @@ const API_URL =
 
 export type UserRole = "REQUESTER" | "IT_STAFF" | "ADMINISTRATOR";
 
+export interface CommunicationEntry {
+  id: number;
+  ticketId: number;
+  content: string;
+  author: { id: number; name: string; role: UserRole };
+  createdAt: string;
+}
+
 export interface AuthenticatedUser {
   id: number;
   name: string;
@@ -177,6 +185,8 @@ export interface StaffTicketDetail extends StaffQueueTicket {
   requesterResolutionIndicatedAt: string | null;
   createdAt: string;
   attachments: TicketAttachment[];
+  publicComments: CommunicationEntry[];
+  internalNotes: CommunicationEntry[];
   allowedTransitions: TicketStatus[];
 }
 
@@ -637,6 +647,48 @@ export async function updateStaffTicketStatus(
   });
   if (!response.ok) await throwApiError(response, "Unable to update the Ticket status right now.");
   const body = await response.json() as { data: StaffTicketDetail };
+  return body.data;
+}
+
+export async function getPublicComments(ticketId: number): Promise<CommunicationEntry[]> {
+  const response = await fetch(`${API_URL}/api/tickets/${ticketId}/public-comments`, {
+    credentials: "include",
+  });
+  if (!response.ok) await throwApiError(response, "Unable to load Public Comments right now.");
+  const body = await response.json() as { items: CommunicationEntry[] };
+  return body.items;
+}
+
+export async function postPublicComment(ticketId: number, content: string): Promise<CommunicationEntry> {
+  const response = await fetch(`${API_URL}/api/tickets/${ticketId}/public-comments`, {
+    method: "POST",
+    credentials: "include",
+    headers: authenticatedHeaders({ "Content-Type": "application/json" }, true),
+    body: JSON.stringify({ content }),
+  });
+  if (!response.ok) await throwApiError(response, "Unable to post the Public Comment right now.");
+  const body = await response.json() as { data: CommunicationEntry };
+  return body.data;
+}
+
+export async function getInternalNotes(ticketId: number): Promise<CommunicationEntry[]> {
+  const response = await fetch(`${API_URL}/api/staff/tickets/${ticketId}/internal-notes`, {
+    credentials: "include",
+  });
+  if (!response.ok) await throwApiError(response, "Unable to load Internal Notes right now.");
+  const body = await response.json() as { items: CommunicationEntry[] };
+  return body.items;
+}
+
+export async function postInternalNote(ticketId: number, content: string): Promise<CommunicationEntry> {
+  const response = await fetch(`${API_URL}/api/staff/tickets/${ticketId}/internal-notes`, {
+    method: "POST",
+    credentials: "include",
+    headers: authenticatedHeaders({ "Content-Type": "application/json" }, true),
+    body: JSON.stringify({ content }),
+  });
+  if (!response.ok) await throwApiError(response, "Unable to add the Internal Note right now.");
+  const body = await response.json() as { data: CommunicationEntry };
   return body.data;
 }
 

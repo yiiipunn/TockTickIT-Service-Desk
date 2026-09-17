@@ -13,6 +13,7 @@ import {
   updateStaffTicketPriority,
   updateStaffTicketStatus,
 } from "./api";
+import TicketCommunication from "./TicketCommunication";
 
 type DetailState = "loading" | "success" | "error";
 type Action = "claim" | "assignment" | "priority" | "status";
@@ -266,6 +267,10 @@ export default function StaffTicketDetail({
           <h2 id="staff-attachments-heading" className="h5">Attachments</h2>
           {ticket.attachments.length === 0 ? <p className="text-muted mb-0">No attachments were added to this Ticket.</p> : <ul className="list-group">{ticket.attachments.map((attachment) => <li className="list-group-item text-break" key={attachment.id}>{attachment.originalFilename} {attachment.isRemoved && <span className="badge text-bg-secondary">Removed</span>}</li>)}</ul>}
         </section>
+        {canOperate && <>
+          <TicketCommunication ticketId={ticket.id} kind="public" initialEntries={ticket.publicComments} />
+          <TicketCommunication ticketId={ticket.id} kind="internal" initialEntries={ticket.internalNotes} />
+        </>}
       </div>
     </div>
   </section>;

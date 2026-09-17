@@ -102,8 +102,9 @@ describe("Lab 3 seed data", () => {
       const firstCounts = {
         users: firstUsers.length,
         tickets: firstTickets.length,
-        comments: await transaction.publicComment.count(),
-        notes: await transaction.internalNote.count(),
+        // Seed idempotence concerns seed Tickets, not temporary API fixtures in parallel files.
+        comments: await transaction.publicComment.count({ where: { ticket: { ticketNumber: { startsWith: seedTicketPrefix } } } }),
+        notes: await transaction.internalNote.count({ where: { ticket: { ticketNumber: { startsWith: seedTicketPrefix } } } }),
       };
 
       await runSeed(transaction);
@@ -124,8 +125,8 @@ describe("Lab 3 seed data", () => {
       expect({
         users: users.length,
         tickets: tickets.length,
-        comments: await transaction.publicComment.count(),
-        notes: await transaction.internalNote.count(),
+        comments: await transaction.publicComment.count({ where: { ticket: { ticketNumber: { startsWith: seedTicketPrefix } } } }),
+        notes: await transaction.internalNote.count({ where: { ticket: { ticketNumber: { startsWith: seedTicketPrefix } } } }),
       }).toEqual(firstCounts);
     });
   });

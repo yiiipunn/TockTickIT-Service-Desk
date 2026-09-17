@@ -166,6 +166,8 @@ describe("authenticated application shell", () => {
       requesterResolutionIndicatedAt: null,
       createdAt: "2026-09-11T03:00:00.000Z",
       attachments: [],
+      publicComments: [],
+      internalNotes: [],
       allowedTransitions: ["WAITING_FOR_REQUESTER", "CANCELLED"],
     });
     render(<App />);
