@@ -135,6 +135,50 @@ export interface GetTicketsParams {
 }
 
 // ---------------------------------------------------------------------------
+// Lab 3 - IT Staff Ticket Queue
+// ---------------------------------------------------------------------------
+
+export interface StaffQueueTicket {
+  id: number;
+  ticketNumber: string;
+  summary: string;
+  requester: {
+    id: number;
+    name: string;
+    email: string;
+  };
+  status: string;
+  requestedPriority: RequestedPriority;
+  itPriority: RequestedPriority;
+  owner: {
+    id: number;
+    name: string;
+  } | null;
+  updatedAt: string;
+}
+
+export interface StaffQueueResponse {
+  items: StaffQueueTicket[];
+  pagination: TicketPagination;
+  counts: {
+    matching: number;
+    matchingUnassigned: number;
+  };
+}
+
+export interface GetStaffQueueParams {
+  search?: string;
+  status?: string;
+  requestedPriority?: RequestedPriority;
+  itPriority?: RequestedPriority;
+  owner?: "me" | "unassigned" | number;
+  sortBy?: "updatedAt" | "createdAt" | "ticketNumber" | "status" | "requestedPriority" | "itPriority";
+  sortOrder?: "asc" | "desc";
+  page?: number;
+  pageSize?: 10 | 20 | 50;
+}
+
+// ---------------------------------------------------------------------------
 // Lab 2 - Requester Ticket Detail types
 // ---------------------------------------------------------------------------
 
@@ -476,6 +520,26 @@ export async function getTickets(
     await response.json();
 
   return result;
+}
+
+export async function getStaffTickets(
+  params: GetStaffQueueParams = {},
+): Promise<StaffQueueResponse> {
+  const searchParams = new URLSearchParams();
+  for (const [key, value] of Object.entries(params)) {
+    if (value !== undefined && value !== "") {
+      searchParams.set(key, String(value));
+    }
+  }
+  const query = searchParams.toString();
+  const response = await fetch(
+    `${API_URL}/api/staff/tickets${query ? `?${query}` : ""}`,
+    { credentials: "include" },
+  );
+  if (!response.ok) {
+    await throwApiError(response, "Unable to load the Ticket Queue right now.");
+  }
+  return response.json() as Promise<StaffQueueResponse>;
 }
 
 // ---------------------------------------------------------------------------

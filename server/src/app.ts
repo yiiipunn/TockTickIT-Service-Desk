@@ -5,7 +5,7 @@ import { randomUUID } from "node:crypto";
 import { promises as fs } from "node:fs";
 import { basename, dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
-import { Priority, TicketStatus } from "@prisma/client";
+import { Prisma, Priority, TicketStatus } from "@prisma/client";
 import { getPrisma } from "./prisma.js";
 import {
   SESSION_COOKIE_NAME,
@@ -30,6 +30,10 @@ import {
   validatePasswordChange,
   verifyPassword,
 } from "./password.js";
+import {
+  StaffQueueQueryError,
+  parseStaffQueueQuery,
+} from "./staff-queue.js";
 
 export const app = express();
 
@@ -477,6 +481,113 @@ app.use("/api", (req: Request, res: Response, next) => {
     return;
   }
   requireCsrf(req, res, next);
+});
+
+// ---------------------------------------------------------------------------
+// Lab 3 - IT Staff Ticket Queue
+// ---------------------------------------------------------------------------
+app.get("/api/staff/tickets", requireRole("IT_STAFF", "ADMINISTRATOR"), async (
+  req: Request,
+  res: Response,
+) => {
+  try {
+    const query = parseStaffQueueQuery(req.query);
+    const prisma = getPrisma();
+    const currentUserId = authenticationContext(res).user.id;
+
+    if (typeof query.owner === "number") {
+      const eligibleOwner = await prisma.user.findFirst({
+        where: {
+          id: query.owner,
+          isActive: true,
+          role: { in: ["IT_STAFF", "ADMINISTRATOR"] },
+        },
+        select: { id: true },
+      });
+      if (!eligibleOwner) {
+        return sendApiError(
+          res,
+          400,
+          "INVALID_QUERY",
+          "The queue query is invalid.",
+        );
+      }
+    }
+
+    const where: Prisma.TicketWhereInput = {
+      ...(query.status !== undefined && { status: query.status }),
+      ...(query.requestedPriority !== undefined && {
+        requestedPriority: query.requestedPriority,
+      }),
+      ...(query.itPriority !== undefined && { itPriority: query.itPriority }),
+      ...(query.owner === "me" && { ownerId: currentUserId }),
+      ...(query.owner === "unassigned" && { ownerId: null }),
+      ...(typeof query.owner === "number" && { ownerId: query.owner }),
+      ...(query.search && {
+        OR: [
+          { ticketNumber: { contains: query.search, mode: "insensitive" } },
+          { summary: { contains: query.search, mode: "insensitive" } },
+          {
+            requester: {
+              is: {
+                OR: [
+                  { name: { contains: query.search, mode: "insensitive" } },
+                  { email: { contains: query.search, mode: "insensitive" } },
+                ],
+              },
+            },
+          },
+        ],
+      }),
+    };
+    const skip = (query.page - 1) * query.pageSize;
+
+    const [items, totalItems, matchingUnassigned] = await prisma.$transaction([
+      prisma.ticket.findMany({
+        where,
+        select: {
+          id: true,
+          ticketNumber: true,
+          summary: true,
+          status: true,
+          requestedPriority: true,
+          itPriority: true,
+          updatedAt: true,
+          requester: { select: { id: true, name: true, email: true } },
+          owner: { select: { id: true, name: true } },
+        },
+        orderBy: [
+          { [query.sortBy]: query.sortOrder },
+          { id: "desc" },
+        ],
+        skip,
+        take: query.pageSize,
+      }),
+      prisma.ticket.count({ where }),
+      prisma.ticket.count({ where: { ...where, ownerId: null } }),
+    ]);
+
+    return res.status(200).json({
+      items,
+      pagination: {
+        page: query.page,
+        pageSize: query.pageSize,
+        totalItems,
+        totalPages: totalItems === 0 ? 0 : Math.ceil(totalItems / query.pageSize),
+      },
+      counts: { matching: totalItems, matchingUnassigned },
+    });
+  } catch (error) {
+    if (error instanceof StaffQueueQueryError) {
+      return sendApiError(res, 400, "INVALID_QUERY", "The queue query is invalid.");
+    }
+    return sendApiError(
+      res,
+      500,
+      "INTERNAL_ERROR",
+      "Unable to load the Ticket Queue right now.",
+    );
+  }
 });
 
 // ---------------------------------------------------------------------------

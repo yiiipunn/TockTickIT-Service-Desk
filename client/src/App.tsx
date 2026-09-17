@@ -17,18 +17,20 @@ import {
   TicketDetail,
   TicketListItem,
   TicketPagination,
+  StaffQueueTicket,
   uploadTicketAttachment,
   removeTicketAttachment,
   logout,
 } from "./api";
 import ChangePasswordScreen from "./ChangePasswordScreen";
 import LoginScreen from "./LoginScreen";
+import StaffTicketQueue from "./StaffTicketQueue";
 
 type UiState = "idle" | "loading" | "success" | "error";
 type AuthState = "loading" | "unauthenticated" | "authenticated" | "error";
 type ReferenceDataState = "idle" | "loading" | "success" | "error";
 type SubmitState = "idle" | "submitting" | "success" | "error";
-type AppView = "tickets" | "create" | "detail";
+type AppView = "tickets" | "create" | "detail" | "queue" | "staff-detail";
 
 const MAX_ATTACHMENT_SIZE = 5 * 1024 * 1024;
 const ALLOWED_ATTACHMENT_TYPES = new Set([
@@ -60,14 +62,28 @@ function AuthenticatedNavbar({
   user,
   onChangePassword,
   onLogout,
+  onTicketQueue,
+  ticketQueueActive = false,
 }: {
   user: AuthenticatedUser;
   onChangePassword?: () => void;
   onLogout: () => void;
+  onTicketQueue?: () => void;
+  ticketQueueActive?: boolean;
 }) {
   return (
     <nav className="navbar flex-wrap gap-2 bg-success shadow-sm px-4 py-3" aria-label="Application navigation">
       <span className="navbar-brand text-white fw-bold mb-0">TokTickIT</span>
+      {onTicketQueue && (
+        <button
+          type="button"
+          className="btn btn-link text-white text-decoration-none"
+          onClick={onTicketQueue}
+          aria-current={ticketQueueActive ? "page" : undefined}
+        >
+          Ticket Queue
+        </button>
+      )}
       <div className="ms-auto d-flex flex-wrap justify-content-end align-items-center gap-2 gap-md-3 text-white">
         <div className="text-end identity-copy">
           <div className="fw-semibold text-break">{user.name}</div>
@@ -102,6 +118,7 @@ export default function App() {
   const [showPasswordChange, setShowPasswordChange] = useState(false);
 
   const [appView, setAppView] = useState<AppView>("tickets");
+  const [selectedStaffTicket, setSelectedStaffTicket] = useState<StaffQueueTicket | null>(null);
 
   // -------------------------------------------------------------------------
   // Lab 2 - Create Ticket Reference Data
@@ -215,7 +232,8 @@ export default function App() {
     setAuthState("authenticated");
     setAuthFailure("");
     setShowPasswordChange(false);
-    setAppView("tickets");
+    setAppView(user.role === "REQUESTER" ? "tickets" : "queue");
+    setSelectedStaffTicket(null);
 
     if (user.role === "REQUESTER" && !user.mustChangePassword) {
       await Promise.all([
@@ -237,6 +255,7 @@ export default function App() {
     setAuthState("unauthenticated");
     setShowPasswordChange(false);
     setAppView("tickets");
+    setSelectedStaffTicket(null);
 
     resetTicketForm();
 
@@ -279,6 +298,12 @@ export default function App() {
     setAuthState("unauthenticated");
     setShowPasswordChange(false);
     setAuthFailure("Your session expired. Sign in again.");
+    setSelectedStaffTicket(null);
+  }
+
+  function handleOpenStaffTicket(ticket: StaffQueueTicket) {
+    setSelectedStaffTicket(ticket);
+    setAppView("staff-detail");
   }
 
   // -------------------------------------------------------------------------
@@ -698,9 +723,24 @@ export default function App() {
               user={currentUser}
               onChangePassword={() => setShowPasswordChange(true)}
               onLogout={handleLogout}
+              onTicketQueue={() => {
+                setSelectedStaffTicket(null);
+                setAppView("queue");
+              }}
+              ticketQueueActive={appView === "queue" || appView === "staff-detail"}
             />
             <main className="app-content">
               {authFailure && <div className="alert alert-danger" role="alert">{authFailure}</div>}
+              {appView === "staff-detail" && selectedStaffTicket ? (
+                <section className="card shadow-sm border-0" aria-labelledby="staff-ticket-handoff-heading">
+                  <div className="card-body p-4 p-md-5">
+                    <button className="btn btn-outline-success mb-4" type="button" onClick={() => setAppView("queue")}>Back to Ticket Queue</button>
+                    <p className="text-success fw-semibold mb-1">Ticket {selectedStaffTicket.ticketNumber}</p>
+                    <h1 id="staff-ticket-handoff-heading" className="h2">Ticket Detail</h1>
+                    <p className="mb-0">Operational Ticket Detail actions will be available in Issue 7.</p>
+                  </div>
+                </section>
+              ) : <StaffTicketQueue onOpenTicket={handleOpenStaffTicket} />}
             </main>
           </>
         )}
