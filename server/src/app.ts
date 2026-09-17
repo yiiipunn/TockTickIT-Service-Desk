@@ -590,6 +590,172 @@ app.get("/api/staff/tickets", requireRole("IT_STAFF", "ADMINISTRATOR"), async (
   }
 });
 
+app.get("/api/staff/eligible-owners", requireRole("IT_STAFF", "ADMINISTRATOR"), async (
+  _req: Request,
+  res: Response,
+) => {
+  try {
+    const items = await getPrisma().user.findMany({
+      where: {
+        isActive: true,
+        role: { in: ["IT_STAFF", "ADMINISTRATOR"] },
+      },
+      select: { id: true, name: true, email: true, role: true },
+      orderBy: [{ name: "asc" }, { id: "asc" }],
+    });
+    return res.status(200).json({ items });
+  } catch {
+    return sendApiError(res, 500, "INTERNAL_ERROR", "Unable to load eligible owners right now.");
+  }
+});
+
+const staffTicketDetailSelect = {
+  id: true,
+  ticketNumber: true,
+  summary: true,
+  description: true,
+  requestedPriority: true,
+  itPriority: true,
+  status: true,
+  ownerAssignedAt: true,
+  requesterResolutionIndicatedAt: true,
+  createdAt: true,
+  updatedAt: true,
+  requester: { select: { id: true, name: true, email: true } },
+  owner: { select: { id: true, name: true } },
+  category: { select: { id: true, name: true } },
+  relatedSystem: { select: { id: true, name: true } },
+  attachments: {
+    select: {
+      id: true,
+      ticketId: true,
+      originalFilename: true,
+      mimeType: true,
+      sizeBytes: true,
+      isRemoved: true,
+      removedAt: true,
+      removalReason: true,
+      createdAt: true,
+      updatedAt: true,
+    },
+    orderBy: { createdAt: "asc" as const },
+  },
+};
+
+function staffTicketId(value: string) {
+  const ticketId = Number(value);
+  return Number.isInteger(ticketId) && ticketId > 0 ? ticketId : null;
+}
+
+app.get("/api/staff/tickets/:ticketId", requireRole("IT_STAFF", "ADMINISTRATOR"), async (
+  req: Request,
+  res: Response,
+) => {
+  const ticketId = staffTicketId(req.params.ticketId);
+  if (ticketId === null) {
+    return sendApiError(res, 404, "TICKET_NOT_FOUND", "The Ticket is not available.");
+  }
+  try {
+    const ticket = await getPrisma().ticket.findUnique({
+      where: { id: ticketId },
+      select: staffTicketDetailSelect,
+    });
+    if (!ticket) {
+      return sendApiError(res, 404, "TICKET_NOT_FOUND", "The Ticket is not available.");
+    }
+    return res.status(200).json({ data: ticket });
+  } catch {
+    return sendApiError(res, 500, "INTERNAL_ERROR", "Unable to load the Ticket right now.");
+  }
+});
+
+app.post("/api/staff/tickets/:ticketId/claim", requireRole("IT_STAFF", "ADMINISTRATOR"), async (
+  req: Request,
+  res: Response,
+) => {
+  const ticketId = staffTicketId(req.params.ticketId);
+  if (ticketId === null || !req.body || typeof req.body !== "object" || Array.isArray(req.body) || Object.keys(req.body).length !== 0) {
+    return sendApiError(res, 400, "VALIDATION_ERROR", "The request contains invalid data.");
+  }
+  try {
+    const prisma = getPrisma();
+    const now = new Date();
+    const ownerId = authenticationContext(res).user.id;
+    const claimed = await prisma.ticket.updateMany({
+      where: { id: ticketId, ownerId: null },
+      data: { ownerId, ownerAssignedAt: now },
+    });
+    if (claimed.count !== 1) {
+      const exists = await prisma.ticket.findUnique({ where: { id: ticketId }, select: { id: true } });
+      if (!exists) return sendApiError(res, 404, "TICKET_NOT_FOUND", "The Ticket is not available.");
+      return sendApiError(res, 409, "OWNER_CONFLICT", "This Ticket is already assigned.");
+    }
+    const ticket = await prisma.ticket.findUniqueOrThrow({
+      where: { id: ticketId },
+      select: staffTicketDetailSelect,
+    });
+    return res.status(200).json({ data: ticket });
+  } catch {
+    return sendApiError(res, 500, "INTERNAL_ERROR", "Unable to claim the Ticket right now.");
+  }
+});
+
+app.patch("/api/staff/tickets/:ticketId/owner", requireRole("IT_STAFF", "ADMINISTRATOR"), async (
+  req: Request,
+  res: Response,
+) => {
+  const ticketId = staffTicketId(req.params.ticketId);
+  const body = req.body as Record<string, unknown> | null;
+  const fields: Record<string, string> = {};
+
+  if (!body || typeof body !== "object" || Array.isArray(body)) {
+    return sendApiError(res, 400, "VALIDATION_ERROR", "The request contains invalid data.");
+  }
+  const unknownField = Object.keys(body).find((key) => key !== "ownerId");
+  const ownerId = body.ownerId;
+  if (ticketId === null) {
+    return sendApiError(res, 404, "TICKET_NOT_FOUND", "The Ticket is not available.");
+  }
+  if (unknownField) fields[unknownField] = "This field is not allowed.";
+  if (ownerId !== null && (!Number.isInteger(ownerId) || (ownerId as number) <= 0)) {
+    fields.ownerId = "Select an eligible owner.";
+  }
+  if (Object.keys(fields).length > 0) {
+    return sendApiError(res, 400, "VALIDATION_ERROR", "The request contains invalid data.", fields);
+  }
+
+  try {
+    const prisma = getPrisma();
+    const ticket = await prisma.ticket.findUnique({ where: { id: ticketId }, select: { id: true } });
+    if (!ticket) return sendApiError(res, 404, "TICKET_NOT_FOUND", "The Ticket is not available.");
+
+    if (ownerId !== null) {
+      const owner = await prisma.user.findUnique({
+        where: { id: ownerId as number },
+        select: { id: true, isActive: true, role: true },
+      });
+      if (!owner) return sendApiError(res, 404, "USER_NOT_FOUND", "The selected User is not available.");
+      if (!owner.isActive || !["IT_STAFF", "ADMINISTRATOR"].includes(owner.role)) {
+        return sendApiError(res, 400, "VALIDATION_ERROR", "The request contains invalid data.", {
+          ownerId: "Select an active IT Staff or Administrator.",
+        });
+      }
+    }
+
+    const updated = await prisma.ticket.update({
+      where: { id: ticketId },
+      data: {
+        ownerId: ownerId as number | null,
+        ownerAssignedAt: ownerId === null ? null : new Date(),
+      },
+      select: staffTicketDetailSelect,
+    });
+    return res.status(200).json({ data: updated });
+  } catch {
+    return sendApiError(res, 500, "INTERNAL_ERROR", "Unable to update the Ticket assignment right now.");
+  }
+});
+
 // ---------------------------------------------------------------------------
 // Category list
 // ---------------------------------------------------------------------------

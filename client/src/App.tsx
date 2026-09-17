@@ -25,6 +25,7 @@ import {
 import ChangePasswordScreen from "./ChangePasswordScreen";
 import LoginScreen from "./LoginScreen";
 import StaffTicketQueue from "./StaffTicketQueue";
+import StaffTicketDetail from "./StaffTicketDetail";
 
 type UiState = "idle" | "loading" | "success" | "error";
 type AuthState = "loading" | "unauthenticated" | "authenticated" | "error";
@@ -732,14 +733,11 @@ export default function App() {
             <main className="app-content">
               {authFailure && <div className="alert alert-danger" role="alert">{authFailure}</div>}
               {appView === "staff-detail" && selectedStaffTicket ? (
-                <section className="card shadow-sm border-0" aria-labelledby="staff-ticket-handoff-heading">
-                  <div className="card-body p-4 p-md-5">
-                    <button className="btn btn-outline-success mb-4" type="button" onClick={() => setAppView("queue")}>Back to Ticket Queue</button>
-                    <p className="text-success fw-semibold mb-1">Ticket {selectedStaffTicket.ticketNumber}</p>
-                    <h1 id="staff-ticket-handoff-heading" className="h2">Ticket Detail</h1>
-                    <p className="mb-0">Operational Ticket Detail actions will be available in Issue 7.</p>
-                  </div>
-                </section>
+                <StaffTicketDetail
+                  ticketId={selectedStaffTicket.id}
+                  currentUser={currentUser}
+                  onBack={() => setAppView("queue")}
+                />
               ) : <StaffTicketQueue onOpenTicket={handleOpenStaffTicket} />}
             </main>
           </>
