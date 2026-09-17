@@ -10,7 +10,7 @@ Write tests before or with implementation. Cover unit policy, API/integration, d
 | --- | --- | --- | --- | --- | --- | --- |
 | UNIT-01 | Unit | BR-03–BR-04 / AC-03 | Password policy and Argon2id hashing | Boundaries validate; salted hashes verify safely | `server/tests/lab-03/password.unit.test.ts` | Passed |
 | UNIT-02 | Unit | BR-06–BR-07 / AC-04 | Session and CSRF token helpers | Random raw tokens are never stored; digest checks work | `server/tests/lab-03/session.unit.test.ts` | Passed |
-| UNIT-03 | Unit | BR-18–BR-21 / AC-14–AC-15 | Status transition policy | Only listed transitions and prerequisites pass | `server/tests/lab-03/ticket-workflow.unit.test.ts` | Pending |
+| UNIT-03 | Unit | BR-18–BR-21 / AC-14–AC-15 | Status transition policy | Only listed transitions and prerequisites pass | `server/tests/lab-03/ticket-workflow.unit.test.ts` | Passed |
 | UNIT-04 | Unit | BR-31–BR-33 / AC-10 | Queue query parser | Defaults/allowed values pass; invalid values fail | `server/tests/lab-03/queue-query.unit.test.ts` | Passed |
 | UNIT-05 | Unit | BR-02, BR-23, BR-27 / AC-16, AC-19 | User and entry validation | Trim, format, role, and length rules are exact | `server/tests/lab-03/validation.unit.test.ts` | Pending |
 | UNIT-06 | Unit | BR-05 / AC-02 | Login throttle window | Fifth failure blocks temporarily; success/expiry clears | `server/tests/lab-03/login-throttle.unit.test.ts` | Passed |
@@ -27,9 +27,9 @@ Write tests before or with implementation. Cover unit policy, API/integration, d
 | API-11 | API/Integration | FR-13 / AC-11 | Operational Ticket Detail | All permitted Ticket, Attachment, comment/note data returned | `server/tests/lab-03/staff-ticket-detail.api.test.ts` | Pending |
 | API-12 | API/Integration | FR-14, BR-15–BR-17 / AC-12 | Eligible owners and assignment | Claim/assign/reassign/unassign accept eligible Users only | `server/tests/lab-03/staff-ticket-detail.api.test.ts` | Pending |
 | API-13 | Concurrency/Integration | BR-16 / AC-12 | Concurrent claim | One claim succeeds; one gets `409`; one owner remains | `server/tests/lab-03/staff-ticket-detail.api.test.ts` | Pending |
-| API-14 | API/Integration | FR-15, BR-14 / AC-13 | IT Priority update | Valid values save; Requested Priority never changes | `server/tests/lab-03/staff-ticket-detail.api.test.ts` | Pending |
-| API-15 | API/Integration | FR-16, BR-18–BR-20 / AC-14 | Permitted transitions | Every listed transition succeeds when prerequisites hold | `server/tests/lab-03/staff-ticket-detail.api.test.ts` | Pending |
-| API-16 | API/Integration | BR-18–BR-20 / AC-14 | Invalid/stale/unconfirmed transitions | Request fails without mutation | `server/tests/lab-03/staff-ticket-detail.api.test.ts` | Pending |
+| API-14 | API/Integration | FR-15, BR-14 / AC-13 | IT Priority update | Valid values save; Requested Priority never changes | `server/tests/lab-03/staff-priority-status.api.test.ts` | Passed |
+| API-15 | API/Integration | FR-16, BR-18–BR-20 / AC-14 | Permitted transitions | Every listed transition succeeds when prerequisites hold | `server/tests/lab-03/staff-priority-status.api.test.ts` | Passed |
+| API-16 | API/Integration | BR-18–BR-20 / AC-14 | Invalid/stale/unconfirmed transitions | Request fails without mutation | `server/tests/lab-03/staff-priority-status.api.test.ts` | Passed |
 | API-17 | API/Integration | FR-09, FR-17, BR-22 / AC-16 | Public Comment create/list | Permitted roles append/list with backend author/time | `server/tests/lab-03/comments-notes.api.test.ts` | Pending |
 | API-18 | API/Integration | BR-23, BR-34 / AC-16 | Public Comment validation/safety | Boundaries enforced; markup remains plain text | `server/tests/lab-03/comments-notes.api.test.ts` | Pending |
 | API-19 | API/Integration | FR-17, BR-22–BR-23 / AC-17 | Internal Note create/list | Staff/Admin append/list; no edit/delete route | `server/tests/lab-03/comments-notes.api.test.ts` | Pending |
@@ -55,7 +55,7 @@ Write tests before or with implementation. Cover unit policy, API/integration, d
 | UI-02 | UI Component | FR-05 / AC-05 | Role shell and routes | Correct name/role/navigation; forbidden route blocked | `client/tests/lab-03/AppShell.test.tsx` | Partial (identity, role, logout, password restriction, Requester boundary, and Staff Queue navigation/handoff passed; later role workspaces remain pending) |
 | UI-03 | UI Component | FR-09–FR-11 / AC-09, AC-15–AC-16 | Requester Ticket Detail additions | Comments/indication render; selector, notes, status control absent | `client/tests/lab-03/RequesterTicketDetail.test.tsx` | Pending |
 | UI-04 | UI Component | FR-12 / AC-10, AC-24 | Ticket Queue controls/states | Required queries, counts, results, empty/no-results/failure render | `client/tests/lab-03/StaffTicketQueue.test.tsx` | Passed |
-| UI-05 | UI Component | FR-13–FR-16 / AC-11–AC-14, AC-24 | Staff Ticket controls/conflicts | Read-only/editable fields and valid actions are clear | `client/tests/lab-03/StaffTicketDetail.test.tsx` | Pending |
+| UI-05 | UI Component | FR-13–FR-16 / AC-11–AC-14, AC-24 | Staff Ticket controls/conflicts | Read-only/editable fields and valid actions are clear | `client/tests/lab-03/StaffTicketDetail.test.tsx` | Partial (Claim, assignment, IT Priority, and status controls passed; remaining Issue 7 test-plan coverage is pending) |
 | UI-06 | UI Component | FR-17, FR-24–FR-25 / AC-16–AC-17 | Public/private communication | Distinct labels/composers and safe validation states render | `client/tests/lab-03/StaffTicketDetail.test.tsx` | Pending |
 | UI-07 | UI Component | FR-18–FR-23 / AC-18–AC-23, AC-24 | User Management modes | Minimal list/create/edit/reset and safety feedback render | `client/tests/lab-03/UserManagement.test.tsx` | Pending |
 | UI-08 | UI Component | FR-26 / AC-24 | Shared feedback states | Loading, validation, success, empty, forbidden, conflict, failure differ | `client/tests/lab-03/FeedbackStates.test.tsx` | Pending |
@@ -108,11 +108,11 @@ Traceability status: **27/27 ACs mapped**.
 
 | Area | Command / Evidence | Result |
 | --- | --- | --- |
-| Server tests | `cd server; npm test` | Passed (18 files, 146 tests). Migration and seed checks use isolated fixtures, so prior manual development password changes do not affect results. |
-| Client tests | `cd client; npm test` | Passed (9 files, 59 tests) |
+| Server tests | `cd server; npm test` | Passed three consecutive full runs (22 files, 161 tests each) after correcting a parallel test fixture race. Focused Issue 7: 4 files, 15 tests; Lab 3: 14 files, 85 tests. Priority/status tests reuse seeded reference rows and clean up their own Users, sessions, and Ticket. |
+| Client tests | `cd client; npm test` | Passed (10 files, 75 tests). Focused Staff Detail: 1 file, 16 tests; Lab 3: 4 files, 39 tests. |
 | Server build | `cd server; npm run build` | Passed |
 | Client build | `cd client; npm run build` | Passed |
 | E2E/responsive | `cd client; npm run test:e2e` | Not Run |
 | Visual review | [`ui-spec.md`](./ui-spec.md) checklist and screenshots | Not Run |
 
-Planned tests: **61**. Passed: **22**. Partial: **5**. Failed: **0**. Pending: **34**. Full-suite environment evidence is recorded above; the two failures are existing persisted development-data assumptions, not failed planned Issue 6 tests.
+Planned tests: **61**. Passed: **26**. Partial: **6**. Failed: **0**. Pending: **29**. Full server and client regressions passed with zero failures.

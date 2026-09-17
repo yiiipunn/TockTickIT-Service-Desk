@@ -166,6 +166,7 @@ describe("authenticated application shell", () => {
       requesterResolutionIndicatedAt: null,
       createdAt: "2026-09-11T03:00:00.000Z",
       attachments: [],
+      allowedTransitions: ["WAITING_FOR_REQUESTER", "CANCELLED"],
     });
     render(<App />);
     await screen.findByRole("heading", { name: "Ticket Queue" });

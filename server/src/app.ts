@@ -1,4 +1,4 @@
-import express, { Request, Response } from "express";
+import express, { NextFunction, Request, Response } from "express";
 import cors from "cors";
 import multer from "multer";
 import { randomUUID } from "node:crypto";
@@ -34,6 +34,11 @@ import {
   StaffQueueQueryError,
   parseStaffQueueQuery,
 } from "./staff-queue.js";
+import {
+  allowedStatusTransitions,
+  isListedTransition,
+  requiresActiveOwner,
+} from "./ticket-workflow.js";
 
 export const app = express();
 
@@ -44,6 +49,14 @@ app.use(cors({
   credentials: true,
 }));
 app.use(express.json());
+app.use((error: unknown, _req: Request, res: Response, next: NextFunction) => {
+  if (error && typeof error === "object" && "type" in error &&
+      error.type === "entity.parse.failed") {
+    sendApiError(res, 400, "VALIDATION_ERROR", "The request contains invalid JSON.");
+    return;
+  }
+  next(error);
+});
 
 const DUMMY_PASSWORD_HASH = "$argon2id$v=19$m=19456,p=1,t=2$8NhbztGbBnByHe2w/eRexQ$c95zo22n2FswcZF9t22Lc8+dYy7mB7xkMl6vVR41ysk";
 
@@ -622,7 +635,7 @@ const staffTicketDetailSelect = {
   createdAt: true,
   updatedAt: true,
   requester: { select: { id: true, name: true, email: true } },
-  owner: { select: { id: true, name: true } },
+  owner: { select: { id: true, name: true, isActive: true, role: true } },
   category: { select: { id: true, name: true } },
   relatedSystem: { select: { id: true, name: true } },
   attachments: {
@@ -640,7 +653,22 @@ const staffTicketDetailSelect = {
     },
     orderBy: { createdAt: "asc" as const },
   },
-};
+} as const satisfies Prisma.TicketSelect;
+
+type StaffTicketDetailRecord = Prisma.TicketGetPayload<{
+  select: typeof staffTicketDetailSelect;
+}>;
+
+function staffTicketDetailData(ticket: StaffTicketDetailRecord) {
+  const { owner, ...data } = ticket;
+  const activeOwner = owner !== null && owner.isActive &&
+    (owner.role === "IT_STAFF" || owner.role === "ADMINISTRATOR");
+  return {
+    ...data,
+    owner: owner ? { id: owner.id, name: owner.name } : null,
+    allowedTransitions: allowedStatusTransitions(ticket.status, activeOwner),
+  };
+}
 
 function staffTicketId(value: string) {
   const ticketId = Number(value);
@@ -663,7 +691,7 @@ app.get("/api/staff/tickets/:ticketId", requireRole("IT_STAFF", "ADMINISTRATOR")
     if (!ticket) {
       return sendApiError(res, 404, "TICKET_NOT_FOUND", "The Ticket is not available.");
     }
-    return res.status(200).json({ data: ticket });
+    return res.status(200).json({ data: staffTicketDetailData(ticket) });
   } catch {
     return sendApiError(res, 500, "INTERNAL_ERROR", "Unable to load the Ticket right now.");
   }
@@ -694,7 +722,7 @@ app.post("/api/staff/tickets/:ticketId/claim", requireRole("IT_STAFF", "ADMINIST
       where: { id: ticketId },
       select: staffTicketDetailSelect,
     });
-    return res.status(200).json({ data: ticket });
+    return res.status(200).json({ data: staffTicketDetailData(ticket) });
   } catch {
     return sendApiError(res, 500, "INTERNAL_ERROR", "Unable to claim the Ticket right now.");
   }
@@ -750,9 +778,99 @@ app.patch("/api/staff/tickets/:ticketId/owner", requireRole("IT_STAFF", "ADMINIS
       },
       select: staffTicketDetailSelect,
     });
-    return res.status(200).json({ data: updated });
+    return res.status(200).json({ data: staffTicketDetailData(updated) });
   } catch {
     return sendApiError(res, 500, "INTERNAL_ERROR", "Unable to update the Ticket assignment right now.");
+  }
+});
+
+app.patch("/api/staff/tickets/:ticketId/it-priority", requireRole("IT_STAFF", "ADMINISTRATOR"), async (
+  req: Request,
+  res: Response,
+) => {
+  const ticketId = staffTicketId(req.params.ticketId);
+  if (ticketId === null) {
+    return sendApiError(res, 404, "TICKET_NOT_FOUND", "The Ticket is not available.");
+  }
+  const body = req.body as Record<string, unknown> | undefined;
+  if (!body || typeof body !== "object" || Array.isArray(body) ||
+      Object.keys(body).length !== 1 || !Object.hasOwn(body, "itPriority") ||
+      !Object.values(Priority).includes(body.itPriority as Priority)) {
+    return sendApiError(res, 400, "VALIDATION_ERROR", "The request contains invalid data.", {
+      itPriority: "Select LOW, MEDIUM, or HIGH.",
+    });
+  }
+
+  try {
+    const prisma = getPrisma();
+    const exists = await prisma.ticket.findUnique({ where: { id: ticketId }, select: { id: true } });
+    if (!exists) return sendApiError(res, 404, "TICKET_NOT_FOUND", "The Ticket is not available.");
+    const ticket = await prisma.ticket.update({
+      where: { id: ticketId },
+      data: { itPriority: body.itPriority as Priority },
+      select: staffTicketDetailSelect,
+    });
+    return res.status(200).json({ data: staffTicketDetailData(ticket) });
+  } catch {
+    return sendApiError(res, 500, "INTERNAL_ERROR", "Unable to update IT Priority right now.");
+  }
+});
+
+app.patch("/api/staff/tickets/:ticketId/status", requireRole("IT_STAFF", "ADMINISTRATOR"), async (
+  req: Request,
+  res: Response,
+) => {
+  const ticketId = staffTicketId(req.params.ticketId);
+  if (ticketId === null) {
+    return sendApiError(res, 404, "TICKET_NOT_FOUND", "The Ticket is not available.");
+  }
+  const body = req.body as Record<string, unknown> | undefined;
+  if (!body || typeof body !== "object" || Array.isArray(body) ||
+      Object.keys(body).some((key) => !["currentStatus", "status", "confirmed"].includes(key)) ||
+      !Object.values(TicketStatus).includes(body.currentStatus as TicketStatus) ||
+      !Object.values(TicketStatus).includes(body.status as TicketStatus) ||
+      (body.confirmed !== undefined && typeof body.confirmed !== "boolean")) {
+    return sendApiError(res, 400, "VALIDATION_ERROR", "The request contains invalid data.");
+  }
+  const currentStatus = body.currentStatus as TicketStatus;
+  const status = body.status as TicketStatus;
+
+  try {
+    const prisma = getPrisma();
+    const existing = await prisma.ticket.findUnique({
+      where: { id: ticketId },
+      select: { id: true, status: true },
+    });
+    if (!existing) return sendApiError(res, 404, "TICKET_NOT_FOUND", "The Ticket is not available.");
+    if (existing.status !== currentStatus || !isListedTransition(currentStatus, status)) {
+      return sendApiError(res, 409, "STATUS_CONFLICT", "The Ticket status has changed or the transition is not permitted.");
+    }
+    if ((status === "CLOSED" || status === "CANCELLED") && body.confirmed !== true) {
+      return sendApiError(res, 400, "VALIDATION_ERROR", "Confirmation is required for this status change.", {
+        confirmed: "Confirm this status change.",
+      });
+    }
+
+    const updated = await prisma.ticket.updateMany({
+      where: {
+        id: ticketId,
+        status: currentStatus,
+        ...(requiresActiveOwner(status) && {
+          owner: { is: { isActive: true, role: { in: ["IT_STAFF", "ADMINISTRATOR"] } } },
+        }),
+      },
+      data: {
+        status,
+        ...(status === "REOPENED" && { requesterResolutionIndicatedAt: null }),
+      },
+    });
+    if (updated.count !== 1) {
+      return sendApiError(res, 409, "STATUS_CONFLICT", "The Ticket status has changed or the transition is not permitted.");
+    }
+    const ticket = await prisma.ticket.findUniqueOrThrow({ where: { id: ticketId }, select: staffTicketDetailSelect });
+    return res.status(200).json({ data: staffTicketDetailData(ticket) });
+  } catch {
+    return sendApiError(res, 500, "INTERNAL_ERROR", "Unable to update the Ticket status right now.");
   }
 });
 

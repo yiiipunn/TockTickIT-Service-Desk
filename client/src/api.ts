@@ -64,6 +64,8 @@ export interface SystemStatus {
 }
 
 export type RequestedPriority = "LOW" | "MEDIUM" | "HIGH";
+export type TicketStatus = "NEW" | "OPEN" | "IN_PROGRESS" | "WAITING_FOR_REQUESTER" |
+  "RESOLVED" | "CLOSED" | "REOPENED" | "CANCELLED";
 
 export interface CreateTicketInput {
   categoryId: number;
@@ -167,6 +169,7 @@ export interface StaffQueueResponse {
 }
 
 export interface StaffTicketDetail extends StaffQueueTicket {
+  status: TicketStatus;
   description: string;
   category: Category;
   relatedSystem: RelatedSystem;
@@ -174,6 +177,7 @@ export interface StaffTicketDetail extends StaffQueueTicket {
   requesterResolutionIndicatedAt: string | null;
   createdAt: string;
   attachments: TicketAttachment[];
+  allowedTransitions: TicketStatus[];
 }
 
 export interface EligibleOwner {
@@ -600,6 +604,38 @@ export async function assignStaffTicket(
     body: JSON.stringify({ ownerId }),
   });
   if (!response.ok) await throwApiError(response, "Unable to update the Ticket assignment right now.");
+  const body = await response.json() as { data: StaffTicketDetail };
+  return body.data;
+}
+
+export async function updateStaffTicketPriority(
+  ticketId: number,
+  itPriority: RequestedPriority,
+): Promise<StaffTicketDetail> {
+  const response = await fetch(`${API_URL}/api/staff/tickets/${ticketId}/it-priority`, {
+    method: "PATCH",
+    credentials: "include",
+    headers: authenticatedHeaders({ "Content-Type": "application/json" }, true),
+    body: JSON.stringify({ itPriority }),
+  });
+  if (!response.ok) await throwApiError(response, "Unable to update IT Priority right now.");
+  const body = await response.json() as { data: StaffTicketDetail };
+  return body.data;
+}
+
+export async function updateStaffTicketStatus(
+  ticketId: number,
+  currentStatus: TicketStatus,
+  status: TicketStatus,
+  confirmed = false,
+): Promise<StaffTicketDetail> {
+  const response = await fetch(`${API_URL}/api/staff/tickets/${ticketId}/status`, {
+    method: "PATCH",
+    credentials: "include",
+    headers: authenticatedHeaders({ "Content-Type": "application/json" }, true),
+    body: JSON.stringify({ currentStatus, status, confirmed }),
+  });
+  if (!response.ok) await throwApiError(response, "Unable to update the Ticket status right now.");
   const body = await response.json() as { data: StaffTicketDetail };
   return body.data;
 }

@@ -27,7 +27,7 @@ Record 6–10 important prompts. Summarize long prompts without changing their m
 | 7 | User Management | TBD | TBD | TBD |
 | 8 | Role authorization | Implement reusable backend role enforcement and migrate Requester Ticket/Attachment ownership from client requester context to authenticated session identity, without implementing later Staff/Admin workflows. | Added role and ownership guards, removed the Requester selector/header trust, migrated Lab 2 compatibility tests, and added direct spoof/cross-owner regression coverage. | Pending student review of the authorization matrix, safe failure behavior, and regression evidence. |
 | 9 | UI/responsive review | Optional | Optional | Optional |
-| 10 | Integration/review fixes | Optional | Optional | Optional |
+| 10 | Issue 7 audit repair | Audit found the approved IT Priority and Ticket Status operations missing from the merged Staff Ticket Detail; complete only those operations before Issue 8. | Added contract-aligned priority and atomic status APIs and UI, then corrected a parallel test fixture race by reusing seeded reference rows. | Pending student review of the transition rules, UI confirmation, and test evidence. |
 
 ## 3. Key Decisions Reviewed
 
