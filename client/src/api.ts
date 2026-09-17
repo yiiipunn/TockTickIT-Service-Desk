@@ -166,6 +166,23 @@ export interface StaffQueueResponse {
   };
 }
 
+export interface StaffTicketDetail extends StaffQueueTicket {
+  description: string;
+  category: Category;
+  relatedSystem: RelatedSystem;
+  ownerAssignedAt: string | null;
+  requesterResolutionIndicatedAt: string | null;
+  createdAt: string;
+  attachments: TicketAttachment[];
+}
+
+export interface EligibleOwner {
+  id: number;
+  name: string;
+  email: string;
+  role: "IT_STAFF" | "ADMINISTRATOR";
+}
+
 export interface GetStaffQueueParams {
   search?: string;
   status?: string;
@@ -540,6 +557,51 @@ export async function getStaffTickets(
     await throwApiError(response, "Unable to load the Ticket Queue right now.");
   }
   return response.json() as Promise<StaffQueueResponse>;
+}
+
+export async function getStaffTicketDetail(ticketId: number): Promise<StaffTicketDetail> {
+  const response = await fetch(`${API_URL}/api/staff/tickets/${ticketId}`, {
+    credentials: "include",
+  });
+  if (!response.ok) await throwApiError(response, "Unable to load the Ticket right now.");
+  const body = await response.json() as { data: StaffTicketDetail };
+  return body.data;
+}
+
+export async function claimStaffTicket(ticketId: number): Promise<StaffTicketDetail> {
+  const response = await fetch(`${API_URL}/api/staff/tickets/${ticketId}/claim`, {
+    method: "POST",
+    credentials: "include",
+    headers: authenticatedHeaders({ "Content-Type": "application/json" }, true),
+    body: JSON.stringify({}),
+  });
+  if (!response.ok) await throwApiError(response, "Unable to claim the Ticket right now.");
+  const body = await response.json() as { data: StaffTicketDetail };
+  return body.data;
+}
+
+export async function getEligibleOwners(): Promise<EligibleOwner[]> {
+  const response = await fetch(`${API_URL}/api/staff/eligible-owners`, {
+    credentials: "include",
+  });
+  if (!response.ok) await throwApiError(response, "Unable to load eligible owners right now.");
+  const body = await response.json() as { items: EligibleOwner[] };
+  return body.items;
+}
+
+export async function assignStaffTicket(
+  ticketId: number,
+  ownerId: number | null,
+): Promise<StaffTicketDetail> {
+  const response = await fetch(`${API_URL}/api/staff/tickets/${ticketId}/owner`, {
+    method: "PATCH",
+    credentials: "include",
+    headers: authenticatedHeaders({ "Content-Type": "application/json" }, true),
+    body: JSON.stringify({ ownerId }),
+  });
+  if (!response.ok) await throwApiError(response, "Unable to update the Ticket assignment right now.");
+  const body = await response.json() as { data: StaffTicketDetail };
+  return body.data;
 }
 
 // ---------------------------------------------------------------------------

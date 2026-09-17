@@ -7,6 +7,7 @@ function installFetch(
   role = "REQUESTER",
   mustChangePassword = false,
   staffItems: Array<Record<string, unknown>> = [],
+  staffDetail?: Record<string, unknown>,
 ) {
   const fetchMock = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
     const url = String(input);
@@ -35,6 +36,18 @@ function installFetch(
         isActive: true,
         mustChangePassword: false,
       }, csrfToken: "rotated-shell-csrf" } }), {
+        status: 200,
+        headers: { "Content-Type": "application/json" },
+      });
+    }
+    if (url.match(/\/api\/staff\/tickets\/\d+$/)) {
+      return new Response(JSON.stringify({ data: staffDetail }), {
+        status: 200,
+        headers: { "Content-Type": "application/json" },
+      });
+    }
+    if (url.endsWith("/api/staff/eligible-owners")) {
+      return new Response(JSON.stringify({ items: [] }), {
         status: 200,
         headers: { "Content-Type": "application/json" },
       });
@@ -132,8 +145,8 @@ describe("authenticated application shell", () => {
     expect(screen.queryByText("Claim Ticket")).not.toBeInTheDocument();
   });
 
-  it("opens the approved Issue 7 Ticket Detail handoff from a queue item", async () => {
-    installFetch("IT_STAFF", false, [{
+  it("opens Ticket Detail with Claim available for an unassigned Ticket", async () => {
+    const queueTicket = {
       id: 25,
       ticketNumber: "TKT-000025",
       summary: "Cannot connect to Wi-Fi",
@@ -143,13 +156,22 @@ describe("authenticated application shell", () => {
       itPriority: "HIGH",
       owner: null,
       updatedAt: "2026-09-11T03:15:00.000Z",
-    }]);
+    };
+    installFetch("IT_STAFF", false, [queueTicket], {
+      ...queueTicket,
+      description: "The connection fails after login.",
+      category: { id: 1, name: "Network" },
+      relatedSystem: { id: 1, name: "Wi-Fi" },
+      ownerAssignedAt: null,
+      requesterResolutionIndicatedAt: null,
+      createdAt: "2026-09-11T03:00:00.000Z",
+      attachments: [],
+    });
     render(<App />);
     await screen.findByRole("heading", { name: "Ticket Queue" });
     await userEvent.click(screen.getAllByRole("button", { name: "Open Ticket" })[0]);
-    expect(await screen.findByRole("heading", { name: "Ticket Detail" })).toBeInTheDocument();
-    expect(screen.getByText(/available in Issue 7/i)).toBeInTheDocument();
-    expect(screen.queryByText("Claim Ticket")).not.toBeInTheDocument();
+    expect(await screen.findByRole("heading", { name: "Cannot connect to Wi-Fi" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Claim Ticket" })).toBeInTheDocument();
   });
 
   it("logs out with CSRF and returns to login", async () => {
