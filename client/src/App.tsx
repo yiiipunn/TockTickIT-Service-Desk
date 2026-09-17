@@ -26,6 +26,7 @@ import ChangePasswordScreen from "./ChangePasswordScreen";
 import LoginScreen from "./LoginScreen";
 import StaffTicketQueue from "./StaffTicketQueue";
 import StaffTicketDetail from "./StaffTicketDetail";
+import TicketCommunication from "./TicketCommunication";
 
 type UiState = "idle" | "loading" | "success" | "error";
 type AuthState = "loading" | "unauthenticated" | "authenticated" | "error";
@@ -1971,6 +1972,8 @@ export default function App() {
                             </div>
                           )}
                         </div>
+
+                        <TicketCommunication ticketId={selectedTicketDetail.id} kind="public" headingLevel={3} />
 
                         <div className="row g-3 border-top pt-3">
                           <div className="col-md-6">
