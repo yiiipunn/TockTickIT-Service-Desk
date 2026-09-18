@@ -220,15 +220,15 @@ See [`api-spec.md`](./api-spec.md) for exact endpoints, payloads, validation, an
 
 ## 10. Definition of Done
 
-- [ ] Contract documents remain consistent and precede implementation.
-- [ ] Migration and seed preserve/produce all required data.
-- [ ] Authentication, session, CSRF, role, and ownership rules are implemented server-side.
-- [ ] Requester, Staff, and Administrator workflows satisfy AC-01–AC-27.
-- [ ] Development Requester selection and client-supplied identity are removed.
-- [ ] All planned tests and production builds pass with no required skips.
-- [ ] AC traceability and final test evidence are updated.
-- [ ] Desktop, tablet, and mobile screenshots pass the visual checklist.
-- [ ] No real secrets or plaintext credentials are committed.
+- [x] Contract documents remain consistent and precede implementation.
+- [x] Migration and seed preserve/produce the documented Users, Tickets, comments, and notes; repeat-seed verification passes.
+- [x] Authentication, session, CSRF, role, and ownership rules are implemented server-side.
+- [ ] Requester, Staff, and Administrator workflows satisfy AC-01–AC-27. Requester resolution indication (FR-10 / AC-15) remains open.
+- [x] Development Requester selection and client-supplied identity are removed.
+- [ ] All planned tests and production builds pass with no required skips. The executed suites/build pass; the open resolution, shared-feedback, and accessibility coverage remain required.
+- [x] AC traceability and current test evidence are updated in [`tests.md`](./tests.md).
+- [ ] Desktop, tablet, and mobile screenshots pass the full visual checklist. Current PNG evidence is recorded in [`ui-spec.md`](./ui-spec.md); additional screen, 320 px, zoom, and accessibility inspection is open.
+- [x] No real secrets are committed. The development-only initial password is intentionally fictional and documented in [`development-credentials.md`](./development-credentials.md).
 
 ## 11. Assumptions and Decisions
 

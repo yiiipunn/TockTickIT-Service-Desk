@@ -90,6 +90,11 @@ body {
 }
 
 @media (max-width: 575.98px) {
+  .navbar[aria-label="Application navigation"] {
+    padding-left: 1rem !important;
+    padding-right: 1rem !important;
+  }
+
   .requester-navbar {
     display: grid;
     grid-template-columns: minmax(0, 1fr) auto;

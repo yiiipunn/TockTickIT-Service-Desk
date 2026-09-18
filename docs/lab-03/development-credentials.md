@@ -1,12 +1,18 @@
 # Lab 3 Local Development Credentials
 
-All seeded accounts use the fictional initial password `TokTickIT-Lab3!` and require a password change on first login.
-Existing Lab 2 Development Requesters migrated to Users receive the same local initial password and change requirement.
+On a freshly seeded local database, every account below uses the fictional initial password `TokTickIT-Lab3!` and requires a password change on first login. After that change, the current password is specific to the account and is not recorded in this document.
 
-| Role | Active emails | Inactive email |
-| --- | --- | --- |
-| Requester | `narin@example.com`, `ploy@example.com`, `beam@example.com`, `mew@example.com` | `inactive@example.com` |
-| IT Staff | `ari.staff@example.com`, `mali.staff@example.com`, `kiet.staff@example.com` | `somchai.retired@example.com` |
-| Administrator | `anong.admin@example.com` | None |
+| Role | Name | Email | Initial password | Status |
+| --- | --- | --- | --- | --- |
+| Requester | Narin S. | `narin@example.com` | `TokTickIT-Lab3!` | Active |
+| Requester | Ploy K. | `ploy@example.com` | `TokTickIT-Lab3!` | Active |
+| Requester | Beam T. | `beam@example.com` | `TokTickIT-Lab3!` | Active |
+| Requester | Mew A. | `mew@example.com` | `TokTickIT-Lab3!` | Active |
+| Requester | Inactive User | `inactive@example.com` | `TokTickIT-Lab3!` | Inactive |
+| IT Staff | Ari Staff | `ari.staff@example.com` | `TokTickIT-Lab3!` | Active |
+| IT Staff | Mali Staff | `mali.staff@example.com` | `TokTickIT-Lab3!` | Active |
+| IT Staff | Kiet Staff | `kiet.staff@example.com` | `TokTickIT-Lab3!` | Active |
+| IT Staff | Somchai Retired | `somchai.retired@example.com` | `TokTickIT-Lab3!` | Inactive |
+| Administrator | Anong Administrator | `anong.admin@example.com` | `TokTickIT-Lab3!` | Active |
 
 These accounts are development-only and contain no real personal or sensitive data.
