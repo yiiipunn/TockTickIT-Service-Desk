@@ -5,7 +5,7 @@ import { randomUUID } from "node:crypto";
 import { promises as fs } from "node:fs";
 import { basename, dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
-import { Prisma, Priority, TicketStatus } from "@prisma/client";
+import { Prisma, Priority, TicketStatus, UserRole } from "@prisma/client";
 import { getPrisma } from "./prisma.js";
 import {
   SESSION_COOKIE_NAME,
@@ -986,6 +986,262 @@ app.post("/api/staff/tickets/:ticketId/internal-notes", requireRole("IT_STAFF", 
     return res.status(201).json({ data });
   } catch {
     return sendApiError(res, 500, "INTERNAL_ERROR", "Unable to add the Internal Note right now.");
+  }
+});
+
+// ---------------------------------------------------------------------------
+// Lab 3 - Administrator User Management
+// ---------------------------------------------------------------------------
+const adminUserSelect = {
+  id: true,
+  name: true,
+  email: true,
+  role: true,
+  isActive: true,
+  mustChangePassword: true,
+  createdAt: true,
+  updatedAt: true,
+} as const satisfies Prisma.UserSelect;
+
+const userRoles = new Set<UserRole>(["REQUESTER", "IT_STAFF", "ADMINISTRATOR"]);
+
+function administratorUserId(value: string) {
+  const userId = Number(value);
+  return Number.isInteger(userId) && userId > 0 ? userId : null;
+}
+
+function normalizedEmail(value: unknown) {
+  if (typeof value !== "string") return null;
+  const email = value.trim().toLowerCase();
+  return email.length <= 254 && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email) ? email : null;
+}
+
+function trimmedUserName(value: unknown) {
+  if (typeof value !== "string") return null;
+  const name = value.trim();
+  return name.length >= 1 && name.length <= 100 ? name : null;
+}
+
+function initialPasswordError(value: unknown) {
+  if (typeof value !== "string" || value.length < 12 || value.length > 128 || /^\s+$/.test(value)) {
+    return "Password must contain 12 to 128 characters and cannot contain only whitespace.";
+  }
+  return null;
+}
+
+function userValidationError(res: Response, fields: Record<string, string>) {
+  return sendApiError(res, 400, "VALIDATION_ERROR", "The request contains invalid data.", fields);
+}
+
+export function adminSafetyConflict(
+  target: { id: number; role: UserRole; isActive: boolean },
+  actorId: number,
+  nextRole: UserRole,
+  nextActive: boolean,
+  activeAdministratorCount: number,
+) {
+  if (target.id === actorId && target.isActive && !nextActive) return "SELF_DEACTIVATION" as const;
+  if (target.isActive && target.role === "ADMINISTRATOR" &&
+      (!nextActive || nextRole !== "ADMINISTRATOR") && activeAdministratorCount <= 1) {
+    return "LAST_ACTIVE_ADMIN" as const;
+  }
+  return null;
+}
+
+function strictObject(body: unknown, allowed: readonly string[]) {
+  if (!body || typeof body !== "object" || Array.isArray(body)) return null;
+  const object = body as Record<string, unknown>;
+  const unknown = Object.keys(object).find((key) => !allowed.includes(key));
+  return unknown ? { object, unknown } : { object, unknown: null };
+}
+
+function parseCreateUser(body: unknown) {
+  const parsed = strictObject(body, ["name", "email", "role", "isActive", "initialPassword"]);
+  const fields: Record<string, string> = {};
+  if (!parsed) return { fields: { body: "Send a valid User object." } };
+  if (parsed.unknown) fields[parsed.unknown] = "This field is not allowed.";
+  const name = trimmedUserName(parsed.object.name);
+  const email = normalizedEmail(parsed.object.email);
+  const role = typeof parsed.object.role === "string" && userRoles.has(parsed.object.role as UserRole)
+    ? parsed.object.role as UserRole : null;
+  const isActive = parsed.object.isActive;
+  const passwordError = initialPasswordError(parsed.object.initialPassword);
+  if (!name) fields.name = "Enter a name from 1 to 100 characters.";
+  if (!email) fields.email = "Enter a valid email address.";
+  if (!role) fields.role = "Select one valid role.";
+  if (typeof isActive !== "boolean") fields.isActive = "Select whether the account is active.";
+  if (passwordError) fields.initialPassword = passwordError;
+  return Object.keys(fields).length ? { fields } : {
+    fields,
+    data: { name: name!, email: email!, role: role!, isActive: isActive as boolean, initialPassword: parsed.object.initialPassword as string },
+  };
+}
+
+function parseEditUser(body: unknown) {
+  const parsed = strictObject(body, ["name", "email", "role", "isActive"]);
+  const fields: Record<string, string> = {};
+  if (!parsed) return { fields: { body: "Send a valid User object." } };
+  if (parsed.unknown) fields[parsed.unknown] = "This field is not allowed.";
+  if (Object.keys(parsed.object).length === 0) fields.body = "Provide at least one editable field.";
+  const data: { name?: string; email?: string; role?: UserRole; isActive?: boolean } = {};
+  if ("name" in parsed.object) {
+    const name = trimmedUserName(parsed.object.name);
+    if (!name) fields.name = "Enter a name from 1 to 100 characters.";
+    else data.name = name;
+  }
+  if ("email" in parsed.object) {
+    const email = normalizedEmail(parsed.object.email);
+    if (!email) fields.email = "Enter a valid email address.";
+    else data.email = email;
+  }
+  if ("role" in parsed.object) {
+    if (typeof parsed.object.role !== "string" || !userRoles.has(parsed.object.role as UserRole)) fields.role = "Select one valid role.";
+    else data.role = parsed.object.role as UserRole;
+  }
+  if ("isActive" in parsed.object) {
+    if (typeof parsed.object.isActive !== "boolean") fields.isActive = "Select whether the account is active.";
+    else data.isActive = parsed.object.isActive;
+  }
+  return Object.keys(fields).length ? { fields } : { fields, data };
+}
+
+async function emailAlreadyUsed(email: string, exceptUserId?: number) {
+  return getPrisma().user.findFirst({
+    where: { email: { equals: email, mode: "insensitive" }, ...(exceptUserId ? { id: { not: exceptUserId } } : {}) },
+    select: { id: true },
+  });
+}
+
+app.get("/api/admin/users", requireRole("ADMINISTRATOR"), async (req: Request, res: Response) => {
+  const allowedQuery = new Set(["search", "role"]);
+  const unknown = Object.keys(req.query).find((key) => !allowedQuery.has(key));
+  const search = req.query.search;
+  const role = req.query.role;
+  if (unknown || (search !== undefined && (typeof search !== "string" || search.length > 120)) ||
+      (role !== undefined && (typeof role !== "string" || !userRoles.has(role as UserRole)))) {
+    return sendApiError(res, 400, "INVALID_QUERY", "The query contains invalid data.");
+  }
+  try {
+    const needle = typeof search === "string" ? search.trim() : "";
+    const items = await getPrisma().user.findMany({
+      where: {
+        ...(role ? { role: role as UserRole } : {}),
+        ...(needle ? { OR: [
+          { name: { contains: needle, mode: "insensitive" } },
+          { email: { contains: needle, mode: "insensitive" } },
+        ] } : {}),
+      },
+      select: adminUserSelect,
+      orderBy: [{ name: "asc" }, { id: "asc" }],
+    });
+    return res.status(200).json({ items });
+  } catch {
+    return sendApiError(res, 500, "INTERNAL_ERROR", "Unable to load Users right now.");
+  }
+});
+
+app.post("/api/admin/users", requireRole("ADMINISTRATOR"), async (req: Request, res: Response) => {
+  const parsed = parseCreateUser(req.body);
+  if (Object.keys(parsed.fields).length || !parsed.data) return userValidationError(res, parsed.fields);
+  try {
+    if (await emailAlreadyUsed(parsed.data.email)) {
+      return sendApiError(res, 409, "DUPLICATE_EMAIL", "An account already uses that email address.");
+    }
+    const data = await getPrisma().user.create({
+      data: {
+        name: parsed.data.name,
+        email: parsed.data.email,
+        role: parsed.data.role,
+        isActive: parsed.data.isActive,
+        passwordHash: await hashPassword(parsed.data.initialPassword),
+        mustChangePassword: true,
+      },
+      select: adminUserSelect,
+    });
+    return res.status(201).json({ data });
+  } catch (error) {
+    if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2002") {
+      return sendApiError(res, 409, "DUPLICATE_EMAIL", "An account already uses that email address.");
+    }
+    return sendApiError(res, 500, "INTERNAL_ERROR", "Unable to create the User right now.");
+  }
+});
+
+app.patch("/api/admin/users/:userId", requireRole("ADMINISTRATOR"), async (req: Request, res: Response) => {
+  const userId = administratorUserId(req.params.userId);
+  if (userId === null) return sendApiError(res, 404, "USER_NOT_FOUND", "The User is not available.");
+  const parsed = parseEditUser(req.body);
+  if (Object.keys(parsed.fields).length || !parsed.data) return userValidationError(res, parsed.fields);
+  try {
+    const data = await getPrisma().$transaction(async (transaction) => {
+      const target = await transaction.user.findUnique({ where: { id: userId } });
+      if (!target) return { error: "missing" as const };
+      const nextRole = parsed.data.role ?? target.role;
+      const nextActive = parsed.data.isActive ?? target.isActive;
+      if (parsed.data.email) {
+        const duplicate = await transaction.user.findFirst({
+          where: { email: { equals: parsed.data.email, mode: "insensitive" }, id: { not: target.id } },
+          select: { id: true },
+        });
+        if (duplicate) return { error: "duplicate" as const };
+      }
+      const removesAdministrator = target.isActive && target.role === "ADMINISTRATOR" &&
+        (!nextActive || nextRole !== "ADMINISTRATOR");
+      const activeAdministrators = removesAdministrator
+        ? await transaction.user.count({ where: { role: "ADMINISTRATOR", isActive: true } })
+        : 0;
+      const safety = adminSafetyConflict(target, authenticationContext(res).user.id, nextRole, nextActive, activeAdministrators);
+      if (safety === "SELF_DEACTIVATION") return { error: "self" as const };
+      if (safety === "LAST_ACTIVE_ADMIN") return { error: "lastAdmin" as const };
+      const updated = await transaction.user.update({ where: { id: target.id }, data: parsed.data, select: adminUserSelect });
+      if (!nextActive) {
+        await transaction.session.updateMany({ where: { userId: target.id, revokedAt: null }, data: { revokedAt: new Date() } });
+      }
+      if (!nextActive || nextRole === "REQUESTER") {
+        await transaction.ticket.updateMany({ where: { ownerId: target.id }, data: { ownerId: null, ownerAssignedAt: null } });
+      }
+      return { data: updated };
+    }, { isolationLevel: Prisma.TransactionIsolationLevel.Serializable });
+    if ("error" in data) {
+      if (data.error === "missing") return sendApiError(res, 404, "USER_NOT_FOUND", "The User is not available.");
+      if (data.error === "self") return sendApiError(res, 409, "SELF_DEACTIVATION", "Administrators cannot deactivate their own account.");
+      if (data.error === "duplicate") return sendApiError(res, 409, "DUPLICATE_EMAIL", "An account already uses that email address.");
+      return sendApiError(res, 409, "LAST_ACTIVE_ADMIN", "At least one active Administrator must remain.");
+    }
+    return res.status(200).json({ data: data.data });
+  } catch (error) {
+    if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2002") {
+      return sendApiError(res, 409, "DUPLICATE_EMAIL", "An account already uses that email address.");
+    }
+    return sendApiError(res, 500, "INTERNAL_ERROR", "Unable to update the User right now.");
+  }
+});
+
+app.post("/api/admin/users/:userId/initial-password", requireRole("ADMINISTRATOR"), async (req: Request, res: Response) => {
+  const userId = administratorUserId(req.params.userId);
+  if (userId === null) return sendApiError(res, 404, "USER_NOT_FOUND", "The User is not available.");
+  const parsed = strictObject(req.body, ["initialPassword"]);
+  const fields: Record<string, string> = {};
+  if (!parsed) fields.body = "Send a valid User object.";
+  else {
+    if (parsed.unknown) fields[parsed.unknown] = "This field is not allowed.";
+    const passwordError = initialPasswordError(parsed.object.initialPassword);
+    if (passwordError) fields.initialPassword = passwordError;
+  }
+  if (Object.keys(fields).length) return userValidationError(res, fields);
+  try {
+    const user = await getPrisma().user.findUnique({ where: { id: userId }, select: { id: true } });
+    if (!user) return sendApiError(res, 404, "USER_NOT_FOUND", "The User is not available.");
+    await getPrisma().$transaction(async (transaction) => {
+      await transaction.user.update({
+        where: { id: userId },
+        data: { passwordHash: await hashPassword((parsed!.object.initialPassword as string)), mustChangePassword: true },
+      });
+      await transaction.session.updateMany({ where: { userId, revokedAt: null }, data: { revokedAt: new Date() } });
+    });
+    return res.status(200).json({ data: { userId, mustChangePassword: true } });
+  } catch {
+    return sendApiError(res, 500, "INTERNAL_ERROR", "Unable to set the initial password right now.");
   }
 });
 

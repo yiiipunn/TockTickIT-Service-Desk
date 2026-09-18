@@ -38,14 +38,14 @@ afterEach(() => {
 describe("IT Staff Ticket Queue", () => {
   it("shows a named loading state while the queue is loading", () => {
     vi.stubGlobal("fetch", vi.fn(() => new Promise<Response>(() => {})));
-    render(<StaffTicketQueue onOpenTicket={vi.fn()} />);
+    render(<StaffTicketQueue onOpenTicket={vi.fn()} role="IT_STAFF" />);
     expect(screen.getByRole("status")).toHaveTextContent("Loading Ticket Queue");
   });
 
   it("renders approved controls, compact result data, counts, and ticket navigation", async () => {
     vi.stubGlobal("fetch", vi.fn(async () => response(queue())));
     const onOpenTicket = vi.fn();
-    render(<StaffTicketQueue onOpenTicket={onOpenTicket} />);
+    render(<StaffTicketQueue onOpenTicket={onOpenTicket} role="IT_STAFF" />);
 
     expect(await screen.findByRole("heading", { name: "Ticket Queue" })).toBeInTheDocument();
     expect(screen.getByLabelText("Search")).toBeInTheDocument();
@@ -67,7 +67,7 @@ describe("IT Staff Ticket Queue", () => {
       .mockResolvedValueOnce(response(queue([], 0)))
       .mockResolvedValueOnce(response(queue([], 0)));
     vi.stubGlobal("fetch", fetchMock);
-    render(<StaffTicketQueue onOpenTicket={vi.fn()} />);
+    render(<StaffTicketQueue onOpenTicket={vi.fn()} role="IT_STAFF" />);
 
     expect(await screen.findByRole("heading", { name: "The Ticket Queue is empty" })).toBeInTheDocument();
     await userEvent.type(screen.getByLabelText("Search"), "not found");
@@ -90,7 +90,7 @@ describe("IT Staff Ticket Queue", () => {
       .mockResolvedValueOnce(response(firstPage))
       .mockResolvedValueOnce(response(nextPage));
     vi.stubGlobal("fetch", fetchMock);
-    render(<StaffTicketQueue onOpenTicket={vi.fn()} />);
+    render(<StaffTicketQueue onOpenTicket={vi.fn()} role="IT_STAFF" />);
 
     await screen.findByRole("heading", { name: "Ticket Queue" });
     await userEvent.type(screen.getByLabelText("Search"), "Wi-Fi");
@@ -109,7 +109,7 @@ describe("IT Staff Ticket Queue", () => {
     [500, { error: { code: "INTERNAL_ERROR", message: "database detail" } }, "Unable to load the Ticket Queue right now."],
   ])("shows a safe failure state for HTTP %i", async (status, body, expected) => {
     vi.stubGlobal("fetch", vi.fn(async () => response(body, status)));
-    render(<StaffTicketQueue onOpenTicket={vi.fn()} />);
+    render(<StaffTicketQueue onOpenTicket={vi.fn()} role="IT_STAFF" />);
     expect(await screen.findByRole("alert")).toHaveTextContent(expected);
     expect(screen.getByRole("button", { name: "Retry" })).toBeInTheDocument();
   });

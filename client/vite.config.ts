@@ -9,5 +9,7 @@ export default defineConfig({
     globals: true,
     setupFiles: "./tests/setup.ts",
     include: ["tests/**/*.test.tsx"],
+    // React integration files share the constrained local test runner.
+    fileParallelism: false,
   },
 });

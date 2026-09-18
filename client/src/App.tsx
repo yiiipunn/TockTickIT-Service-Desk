@@ -27,12 +27,13 @@ import LoginScreen from "./LoginScreen";
 import StaffTicketQueue from "./StaffTicketQueue";
 import StaffTicketDetail from "./StaffTicketDetail";
 import TicketCommunication from "./TicketCommunication";
+import UserManagement from "./UserManagement";
 
 type UiState = "idle" | "loading" | "success" | "error";
 type AuthState = "loading" | "unauthenticated" | "authenticated" | "error";
 type ReferenceDataState = "idle" | "loading" | "success" | "error";
 type SubmitState = "idle" | "submitting" | "success" | "error";
-type AppView = "tickets" | "create" | "detail" | "queue" | "staff-detail";
+type AppView = "tickets" | "create" | "detail" | "queue" | "staff-detail" | "users";
 
 const MAX_ATTACHMENT_SIZE = 5 * 1024 * 1024;
 const ALLOWED_ATTACHMENT_TYPES = new Set([
@@ -65,21 +66,35 @@ function AuthenticatedNavbar({
   onChangePassword,
   onLogout,
   onTicketQueue,
+  onUserManagement,
   ticketQueueActive = false,
+  userManagementActive = false,
 }: {
   user: AuthenticatedUser;
   onChangePassword?: () => void;
   onLogout: () => void;
   onTicketQueue?: () => void;
+  onUserManagement?: () => void;
   ticketQueueActive?: boolean;
+  userManagementActive?: boolean;
 }) {
   return (
     <nav className="navbar flex-wrap gap-2 bg-success shadow-sm px-4 py-3" aria-label="Application navigation">
       <span className="navbar-brand text-white fw-bold mb-0">TokTickIT</span>
+      {onUserManagement && (
+        <button
+          type="button"
+          className={`btn btn-link text-white ${userManagementActive ? "text-decoration-underline fw-semibold" : "text-decoration-none"}`}
+          onClick={onUserManagement}
+          aria-current={userManagementActive ? "page" : undefined}
+        >
+          User Management
+        </button>
+      )}
       {onTicketQueue && (
         <button
           type="button"
-          className="btn btn-link text-white text-decoration-none"
+          className={`btn btn-link text-white ${ticketQueueActive ? "text-decoration-underline fw-semibold" : "text-decoration-none"}`}
           onClick={onTicketQueue}
           aria-current={ticketQueueActive ? "page" : undefined}
         >
@@ -234,7 +249,7 @@ export default function App() {
     setAuthState("authenticated");
     setAuthFailure("");
     setShowPasswordChange(false);
-    setAppView(user.role === "REQUESTER" ? "tickets" : "queue");
+    setAppView(user.role === "REQUESTER" ? "tickets" : user.role === "ADMINISTRATOR" ? "users" : "queue");
     setSelectedStaffTicket(null);
 
     if (user.role === "REQUESTER" && !user.mustChangePassword) {
@@ -729,17 +744,24 @@ export default function App() {
                 setSelectedStaffTicket(null);
                 setAppView("queue");
               }}
+              onUserManagement={currentUser.role === "ADMINISTRATOR" ? () => {
+                setSelectedStaffTicket(null);
+                setAppView("users");
+              } : undefined}
               ticketQueueActive={appView === "queue" || appView === "staff-detail"}
+              userManagementActive={appView === "users"}
             />
             <main className="app-content">
               {authFailure && <div className="alert alert-danger" role="alert">{authFailure}</div>}
-              {appView === "staff-detail" && selectedStaffTicket ? (
+              {currentUser.role === "ADMINISTRATOR" && appView === "users" ? (
+                <UserManagement currentUser={currentUser} />
+              ) : appView === "staff-detail" && selectedStaffTicket ? (
                 <StaffTicketDetail
                   ticketId={selectedStaffTicket.id}
                   currentUser={currentUser}
                   onBack={() => setAppView("queue")}
                 />
-              ) : <StaffTicketQueue onOpenTicket={handleOpenStaffTicket} />}
+              ) : <StaffTicketQueue onOpenTicket={handleOpenStaffTicket} role={currentUser.role} />}
             </main>
           </>
         )}
