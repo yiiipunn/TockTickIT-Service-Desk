@@ -62,6 +62,8 @@ Mandatory mode cannot be skipped. Voluntary mode also provides Cancel/back.
 
 Do not show Internal Notes, owner controls, IT Priority editing, or formal status controls.
 
+> **Implementation status:** Public Comments and the restricted Requester view are implemented and tested. The `Problem Appears Resolved` control and its indication state remain open until the approved resolution-indication API and coverage exist.
+
 ### IT Staff Ticket Queue
 
 | Item | Specification |
@@ -152,31 +154,40 @@ This avoids a wide mega-grid while retaining required information.
 
 ## 6. Accessibility
 
-- [ ] Semantic headings, landmarks, links, buttons, and table headers.
-- [ ] Programmatic labels, required state, help, and validation associations.
+- [ ] Semantic headings, landmarks, links, buttons, and table headers across every screen.
+- [ ] Programmatic labels, required state, help, and validation associations across every workflow.
 - [ ] Keyboard access for every workflow and visible focus for every control.
 - [ ] Dialog focus trap, Escape handling, and focus return.
 - [ ] Status/error announcements without excessive focus movement.
 - [ ] WCAG 2.1 AA contrast and no color-only meaning.
 - [ ] Approximately 44×44 px mobile touch targets where practical.
-- [ ] Plain-text rendering for comments and notes.
+- [x] Plain-text rendering for comments and notes is covered by component tests.
 
 ## 7. Visual Inspection Checklist
 
-Complete after implementation; all items are currently pending.
+Checked items have automated component or browser evidence. Unchecked items require additional manual visual or accessibility verification and must remain open until that evidence exists.
 
 - [ ] Zen Green tokens, spacing, cards, typography, forms, and focus match Lab 2.
-- [ ] Current User/role and role-specific navigation are correct.
-- [ ] Development Requester controls are absent.
-- [ ] Login and Change Password states are clear.
-- [ ] Status, priority, role, account, and owner badges include text.
-- [ ] Queue remains readable without a mega-grid.
-- [ ] Editable and read-only Ticket data are distinct.
-- [ ] Public Comments and Internal Notes cannot be confused.
-- [ ] User Management contains only required controls.
-- [ ] Feedback states are distinct and safe.
+- [x] Current User/role and role-specific navigation are correct.
+- [x] Development Requester controls are absent.
+- [x] Login and Change Password states are clear.
+- [x] Status, priority, role, account, and owner badges include text.
+- [x] Queue remains readable without a mega-grid.
+- [x] Editable and read-only Ticket data are distinct.
+- [x] Public Comments and Internal Notes cannot be confused.
+- [x] User Management contains only required controls.
+- [x] Feature-level feedback states are distinct and safe.
 - [ ] Keyboard/focus/dialog behavior works.
 - [ ] Labels, announcements, contrast, and headings are accessible.
 - [ ] Desktop, tablet, mobile, 320 px, and 200% zoom have no clipping/overflow.
 - [ ] Long content wraps safely.
-- [ ] Screenshots exist under `artifacts/lab-03/screenshots/` for authentication, queue, Staff Detail, and User Management at all three viewports.
+- [ ] Screenshots exist for authentication, Ticket Queue, Staff Ticket Detail, and User Management at all three viewports.
+
+### Current Screenshot Evidence
+
+| Screen | Desktop | Tablet | Mobile |
+| --- | --- | --- | --- |
+| Authentication | [`login.png`](../../artifacts/lab-03/screenshots/authentication/login.png) | Open | Open |
+| Ticket Queue | [`desktop.png`](../../artifacts/lab-03/screenshots/staff-queue/desktop.png) | Open | Open |
+| Staff Ticket Detail | [`desktop.png`](../../artifacts/lab-03/screenshots/staff-ticket-detail/desktop.png) | Open | Open |
+| User Management | [`desktop.png`](../../artifacts/lab-03/screenshots/user-management/desktop.png) | [`tablet.png`](../../artifacts/lab-03/screenshots/user-management/tablet.png) | [`mobile.png`](../../artifacts/lab-03/screenshots/user-management/mobile.png) |

@@ -1,71 +1,79 @@
 # Lab 3 AI Use Record
 
 **Project:** TokTickIT Service Desk  
+**Lab:** Lab 3 — Users, Roles, IT Staff Ticketing, and Administrator User Management  
 **Author:** Phurithip Paisanworajit 67070503437  
-**Status:** In Progress
+**Status:** In Progress — final lab3-staging to main integration evidence is pending
 
-## 1. AI Tool
+## 1. Purpose
+
+This record describes how AI assisted with Lab 3 work. It records the requests made, the suggestions or implementation produced, and the checks used before accepting changes.
+
+## 2. AI Tool
 
 | Item | Details |
 | --- | --- |
-| Tool / model | TBD |
-| Main uses | Specification, test planning, implementation, review, and debugging |
+| Tool / model | OpenAI Codex (GPT-5) |
+| Main uses | Specification and test planning, scoped implementation, code review, debugging, release evidence, and documentation |
 | Review approach | AI-assisted and student-reviewed |
+| Current phase | Lab 3 implementation verification and release evidence preparation |
 
-## 2. Selected AI Prompts
-
-Record 6–10 important prompts. Summarize long prompts without changing their meaning, and do not include passwords, tokens, or personal data.
+## 3. AI Usage Record
 
 | No. | Task | Prompt / Request | AI Contribution | Student Review / Decision |
 | ---: | --- | --- | --- | --- |
-| 1 | Engineering contract | TBD | TBD | TBD |
-| 2 | Test planning | TBD | TBD | TBD |
-| 3 | Authentication | Implement only the Authentication Foundation: login, database sessions, current User, logout, CSRF, throttling, Login UI, and authenticated shell while deferring later role/ownership features. | Added contract-aligned auth tests and implementation, preserved Lab 2 workflows through an authenticated compatibility layer, and recorded executed verification. | Pending student review of security choices, scope, and test evidence. |
-| 4 | Mandatory password change | Implement only the first-login password-change workflow, including policy validation, session rotation, required routing, UI states, and regression tests. | Added the contract-aligned password-change API/UI and tests while retaining the existing authentication and Lab 2 compatibility boundaries. | Pending student review of password policy, session invalidation, scope, and test evidence. |
-| 5 | Lab 2 migration | Preserve Lab 2 records while evolving requesters into role-based Users and adding seed foundations. | Proposed guarded in-place migration, Argon2id seed hashing, and migration/seed regression tests. | Pending student review of migration SQL and executed evidence. |
-| 6 | IT Staff Ticket Queue | Implement only the shared Staff/Admin Ticket Queue with documented search, filters, sorting, pagination, safe role boundaries, responsive queue states, and a detail-navigation handoff; defer operational Ticket actions. | Added contract tests, a server-side query parser/queue endpoint, and an accessible responsive queue UI while leaving claim, assignment, priority, status, comments, notes, and full Staff Detail for later issues. | Pending student review of query semantics, authorization, responsive behavior, scope boundaries, and test evidence. |
-| 7 | Administrator User Management | Implement only Issue 9: protected User listing, search/filter, create/edit, activation safety, and new initial passwords while preserving Issues 1–8. | Added Administrator-only APIs and UI, server-derived safety checks, password hashing/session revocation, responsive list/cards, and focused regression coverage. | Pending student review of account safety rules, password/session behavior, and executed test evidence. |
-| 8 | Role authorization | Implement reusable backend role enforcement and migrate Requester Ticket/Attachment ownership from client requester context to authenticated session identity, without implementing later Staff/Admin workflows. | Added role and ownership guards, removed the Requester selector/header trust, migrated Lab 2 compatibility tests, and added direct spoof/cross-owner regression coverage. | Pending student review of the authorization matrix, safe failure behavior, and regression evidence. |
-| 9 | Public Comments and Internal Notes | Implement only Issue 8 on the completed Issues 1–7 baseline: append-only public and private Ticket communication with role/ownership boundaries, safe text, UI states, and regression tests. | Added separate API routes and Requester/Staff communication sections, verified author/time and privacy server-side, and corrected the seed test to count only seeded communication records during parallel tests. | Pending student review of API privacy, responsive layouts, and test evidence. |
-| 10 | Issue 7 audit repair | Audit found the approved IT Priority and Ticket Status operations missing from the merged Staff Ticket Detail; complete only those operations before Issue 8. | Added contract-aligned priority and atomic status APIs and UI, then corrected a parallel test fixture race by reusing seeded reference rows. | Pending student review of the transition rules, UI confirmation, and test evidence. |
+| 1 | Engineering contract | Convert the Lab 3 requirements into implementation, API, UI, and test specifications before feature work starts. | Helped maintain the Lab 3 contract documents and trace requirements to feature issues. | I compared the documents with the Lab 3 sheet and used them as the scope boundary. |
+| 2 | Lab 2 migration | Preserve Lab 2 records while evolving requesters into role-based Users and adding seed foundations. | Proposed a guarded in-place migration, Argon2id seed hashing, and migration and seed regression tests. | I reviewed the migration and seed behavior to preserve IDs, relationships, and existing data. |
+| 3 | Authentication | Implement only the Authentication Foundation: login, database sessions, current User, logout, CSRF, throttling, Login UI, and authenticated shell while deferring later role and ownership features. | Helped implement contract-aligned authentication tests and the authenticated shell while retaining Lab 2 compatibility. | I checked the security choices, scope, and test evidence against the specification. |
+| 4 | Mandatory password change | Implement the first-login password-change workflow, including policy validation, session rotation, required routing, UI states, and regression tests. | Helped implement the password-change API, UI, and tests while retaining authentication compatibility boundaries. | I reviewed the password policy, session invalidation, scope, and test evidence. |
+| 5 | Role authorization | Implement reusable backend role enforcement and migrate Requester Ticket and Attachment ownership from client requester context to authenticated session identity. | Helped add role and ownership guards, remove client requester identity as an authority source, and add spoofing and cross-owner regression coverage. | I checked the authorization matrix, safe failure behavior, and requester regressions. |
+| 6 | IT Staff Ticket Queue | Implement the documented Staff and Administrator Ticket Queue with search, filters, sorting, pagination, role boundaries, responsive states, and detail navigation. | Helped add the queue API, query parsing, accessible responsive UI, and contract coverage. | I reviewed query semantics, authorization, responsive behavior, and scope boundaries. |
+| 7 | Staff Ticket Detail | Complete the approved ticket priority and status operations in the Staff Ticket Detail before Issue 8. | Helped add contract-aligned priority and atomic status APIs and UI, then corrected a parallel test fixture race. | I reviewed transition rules, UI confirmation, and the related regression tests. |
+| 8 | Public Comments and Internal Notes | Implement append-only public comments and private ticket notes with role and ownership boundaries, safe text handling, UI states, and regression tests. | Helped add separate API routes and Requester and Staff communication sections with server-side author, time, and privacy rules. | I checked API privacy, responsive layouts, and test evidence. |
+| 9 | Administrator User Management | Implement Issue 9: protected User listing, search and role filter, create and edit, activation safety, and new initial passwords while preserving Issues 1–8. | Helped add Administrator-only APIs and UI, server-derived safety checks, password hashing and session revocation, and regression coverage. | I reviewed account-safety rules, password and session behavior, and role-specific navigation. |
+| 10 | Release evidence and audit | Audit the Lab 3 file structure, reviewer evidence, tests, screenshots, and unresolved requirements before final integration. | Helped organize Lab 3 test files and E2E screenshots, record reviewer evidence from verifiable PR history, diagnose seed idempotence, and identify remaining release work. | I checked repository evidence and recorded unresolved items instead of marking them complete. |
 
-## 3. Key Decisions Reviewed
+## 4. Key Decisions Reviewed
 
 | Area | AI Suggestion | Final Student Decision | Verification |
 | --- | --- | --- | --- |
-| Authentication/session | Use opaque 32-byte session and CSRF values, store only SHA-256 digests, enforce idle/absolute expiry, and revoke on logout. | Pending student review | API/unit tests and migration inspection |
-| Password handling | Enforce the 12–128 character policy, verify the current Argon2id hash, atomically replace the hash and first-login flag, revoke prior sessions, and issue a replacement session. | Pending student review | Unit/API/UI tests and production builds |
-| Role authorization | Use the authenticated session User for role and Requester ownership, return safe `403` role failures, apply ownership in database queries, and make client requester IDs non-authoritative. | Pending student review | Direct authorization, requester regression, and Lab 1/Lab 2 regression tests |
-| Ticket Queue | Parse only documented Queue query values server-side, constrain owner IDs to active eligible Staff/Admin Users, and add an IT Staff/Admin workspace without operational mutations. | Pending student review | Queue parser/API/UI tests and server/client regressions |
-| Ticket communication | Derive author and time on the server, validate trimmed plain text, enforce Requester ownership and Staff/Admin note access, and render distinct communication sections. | Pending student review | Issue 8 API/UI tests, Lab 3 suites, full regressions, and builds |
-| User Management | Restrict User APIs to Administrators, select safe User fields, validate one role and normalized email, and protect self/last-active-Administrator state server-side. | Pending student review | Issue 9 API/unit/UI tests, Lab 3 suites, full regressions, and builds |
-| Lab 2 migration | Rename the requester table in place, preserve IDs/relations, and guard enum/email data before casts. | Pending student review | Migration/regression tests |
-| UI/responsive behavior | TBD | TBD | UI spec, E2E screenshots |
+| Authentication/session | Use opaque session and CSRF values, store digests, enforce expiry, and revoke sessions on logout. | Retained after reviewing the documented authentication requirements. | API, unit, integration, and client tests |
+| Password handling | Enforce the documented password policy, replace the Argon2id hash atomically, clear the first-login flag, revoke prior sessions, and issue a replacement session. | Retained after reviewing password-change and session requirements. | Unit, API, UI, regression tests, and client build |
+| Role authorization | Derive role and Requester ownership from the authenticated session, enforce role checks server-side, and keep client identity non-authoritative. | Retained after checking the approved authorization matrix. | Direct authorization and Requester regression tests |
+| Ticket Queue | Parse documented query values server-side and show Ticket Queue only for the roles permitted by the matrix. | Retained. Administrator ticket operations were limited to the approved matrix. | Queue parser, API, UI, and regression tests |
+| User Management | Restrict User APIs to Administrators, validate one role and normalized email, and protect self-deactivation and last-active-Administrator state server-side. | Retained. Navigation visibility supplements, but does not replace, server authorization. | Issue 9 API, unit, UI, and navigation tests |
+| Seed idempotence | Preserve an existing seed User password hash instead of generating a new salted Argon2id hash on every seed run. | Retained after the idempotence failure showed password hashes changing between runs. | Lab 3 seed integration test |
+| Responsive evidence | Capture real browser screenshots for key Lab 3 flows and keep the evidence in the Lab 3 artifacts directory. | Retained. PNG screenshots were captured through the Lab 3 E2E suite. | Playwright E2E run and artifact inspection |
+| Remaining requirement | Do not report Requester ticket resolution as complete until its endpoint, UI, and tests exist. | Kept open for final Lab 3 work. | Comparison of specification, API/UI documents, source, and tests |
 
-## 4. My Reflection
+## 5. AI Output Verification
+
+| Verification Activity | How I Verified It |
+| --- | --- |
+| Requirements | Compared implementation and documentation with the Lab 3 sheet, specification.md, api-spec.md, ui-spec.md, and tests.md. |
+| Source changes | Read the affected server and client code and checked that feature changes stayed within the assigned issue scope. |
+| Authorization | Checked that server-side role and ownership checks remain in place and that navigation visibility is not treated as authorization. |
+| Automated tests | Ran the full Lab 3 server suite: 25 files and 188 tests passed; full client suite: 13 files and 93 tests passed. |
+| Browser tests | Ran the Lab 3 Playwright suite: 5 tests passed, including screenshot capture. |
+| Build | Ran the client production build successfully with npm run build. |
+| Documentation and evidence | Checked reviewer evidence against available repository and PR information; unverified review evidence remains marked as TODO. |
+
+## 6. My Reflection
 
 | Topic | Reflection |
 | --- | --- |
-| What AI helped with most | TBD |
-| What I learned | TBD |
-| AI limitation or incorrect suggestion | TBD |
-| How I verified AI output | TBD |
-| What I changed after review | TBD |
-| How I would use AI differently next time | TBD |
+| What AI helped with most | AI helped me break a large Lab 3 specification into smaller issues, trace requirements to tests, and find regressions across the client, server, seeds, and documentation. |
+| What I learned | I learned that role-based UI is only a convenience layer. The server must still derive identity from the session and enforce role and ownership checks for every protected operation. |
+| AI limitation or incorrect suggestion | AI output can look complete while repository evidence shows a gap. The seed idempotence failure showed that recreating salted password hashes breaks a valid repeatability requirement. The final audit also showed that Requester ticket resolution still needs implementation and tests. |
+| How I verified AI output | I read the relevant specifications and source code, inspected diffs, ran focused tests, the complete server and client suites, Playwright E2E tests, and the client build. I also checked that screenshots and reviewer entries were based on real evidence. |
+| What I changed after review | I corrected seed behavior so repeat runs retain existing seed password hashes, organized Lab 3 test and screenshot evidence, and kept incomplete release requirements visible instead of documenting them as finished. |
+| How I would use AI differently next time | I will ask AI for smaller, traceable changes, review the diff after each step, compare every claimed feature with the acceptance criteria, and run the full verification set before calling a feature complete. |
 
-## 5. Verification Checklist
+## 7. Future AI Usage
 
-- [x] Earlier AI output was checked against the Lab 3 sheet.
-- [ ] Issue 8 output was checked against the Lab 3 sheet (attachment path pending).
-- [x] Requirements were checked against `specification.md`.
-- [x] Endpoints were checked against `api-spec.md`.
-- [x] UI behavior was checked against `ui-spec.md`.
-- [x] Tests and AC traceability were checked against `tests.md`.
-- [ ] Generated code was reviewed and understood by the student.
-- [x] Actual test/build results were recorded; none were assumed.
-- [ ] No secrets or sensitive information were included in prompts or this file.
-- [ ] Final reflection was written in the student's own words.
+For the remaining Lab 3 work, I will use AI to help trace unresolved requirements to source and tests, but I will verify each change against the specification and real execution results. Before final integration, I will complete the remaining Requester ticket-resolution work, update final evidence, and record the actual lab3-staging to main review and merge history.
 
-## 6. Responsibility Statement
+## 8. Responsibility Statement
 
-AI is used as a development assistant. The student remains responsible for understanding the solution, reviewing changes, verifying requirements, running tests, correcting errors, and submitting the final work.
+AI was used as a development assistant. I remain responsible for understanding the solution, reviewing changes, verifying requirements, running tests, correcting errors, and submitting the final work.
+

@@ -123,6 +123,8 @@ Upload uses multipart field `file`. Removal body is `{ "reason": "trimmed reason
 
 Resolution indication uses an empty body. It returns the Ticket ID, existing/new indication time, and unchanged status. It is idempotent for active Tickets and returns `409` for Resolved, Closed, or Cancelled.
 
+> **Implementation status:** This is an approved Lab 3 contract requirement, but the current server does not yet expose this endpoint. It remains open with the matching Requester UI and API/integration coverage; it must not be represented as completed by the release evidence.
+
 ## 3. IT Staff
 
 All endpoints require `IT_STAFF` or `ADMINISTRATOR`.
