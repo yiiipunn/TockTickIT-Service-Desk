@@ -53,6 +53,11 @@ function installFetchMock(options?: {
   const fetchMock = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
     const pathname = new URL(String(input)).pathname;
 
+    if (pathname === "/api/auth/me") return jsonResponse({ data: { user: {
+      ...requester, role: "REQUESTER", isActive: true,
+      mustChangePassword: false,
+    }, csrfToken: "csrf-token" } });
+
     if (pathname === "/api/requesters") return jsonResponse([requester]);
     if (pathname === "/api/categories") return jsonResponse([category]);
     if (pathname === "/api/related-systems") return jsonResponse([relatedSystem]);
@@ -118,11 +123,6 @@ function installFetchMock(options?: {
 
 async function openTicketDetail() {
   render(<App />);
-  await screen.findByRole("option", { name: /Narin S\./i });
-  fireEvent.change(screen.getByLabelText("Development Requester"), {
-    target: { value: "1" },
-  });
-  fireEvent.click(screen.getByRole("button", { name: /Continue/i }));
   const viewButtons = await screen.findAllByRole("button", {
     name: "View TKT-000101",
   });
@@ -192,7 +192,9 @@ describe("Lab 2 - Attachment Section", () => {
     await waitFor(() => {
       expect(fetchMock).toHaveBeenCalledWith(
         "http://localhost:3000/api/attachments/11/download",
-        { headers: { "X-Requester-Id": "1" } },
+        expect.objectContaining({
+          credentials: "include",
+        }),
       );
       expect(createObjectUrl).toHaveBeenCalled();
       expect(revokeObjectUrl).toHaveBeenCalledWith("blob:attachment-test");

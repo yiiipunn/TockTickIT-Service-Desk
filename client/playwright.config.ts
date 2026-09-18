@@ -5,7 +5,7 @@ import { fileURLToPath } from "node:url";
 const currentDirectory = dirname(fileURLToPath(import.meta.url));
 
 export default defineConfig({
-  testDir: "./e2e",
+  testDir: "./e2e/lab-03",
   fullyParallel: false,
   workers: 1,
   timeout: 45_000,
@@ -21,7 +21,7 @@ export default defineConfig({
   },
   webServer: [
     {
-      command: "set PORT=3100&& npm run prisma:seed && npm run dev",
+      command: "set PORT=3100&& set CLIENT_ORIGIN=http://127.0.0.1:5174&& npm run prisma:seed && npm run dev",
       cwd: resolve(currentDirectory, "../server"),
       url: "http://127.0.0.1:3100/api/health",
       reuseExistingServer: false,

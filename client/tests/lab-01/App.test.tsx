@@ -9,8 +9,11 @@ function installLab2ShellFetch() {
     const url = String(input);
     let body: unknown;
 
-    if (url.endsWith("/api/requesters")) {
-      body = [{ id: 1, name: "Narin S.", email: "narin@example.com" }];
+    if (url.endsWith("/api/auth/me")) {
+      body = { data: { user: {
+        id: 1, name: "Narin S.", email: "narin@example.com",
+        role: "REQUESTER", isActive: true, mustChangePassword: false,
+      }, csrfToken: "csrf-token" } };
     } else if (url.endsWith("/api/categories") ||
       url.endsWith("/api/related-systems")) {
       body = [];
@@ -36,11 +39,6 @@ function installLab2ShellFetch() {
 }
 
 async function openSystemStatus(user: ReturnType<typeof userEvent.setup>) {
-  await user.selectOptions(
-    await screen.findByLabelText("Development Requester"),
-    "1",
-  );
-  await user.click(screen.getByRole("button", { name: /Continue/i }));
   await screen.findByRole("heading", { name: "My Tickets" });
   await user.click(screen.getByText("System Status"));
 }
@@ -54,10 +52,8 @@ describe("App", () => {
   it("renders the TokTickIT heading", async () => {
     installLab2ShellFetch();
     render(<App />);
-    expect(screen.getByText(/TokTickIT/i)).toBeInTheDocument();
-    expect(
-      await screen.findByLabelText("Development Requester"),
-    ).toBeInTheDocument();
+    expect((await screen.findAllByText(/TokTickIT/i)).length).toBeGreaterThan(0);
+    expect(screen.queryByLabelText("Development Requester")).not.toBeInTheDocument();
   });
 
   // Issue 4 — success state

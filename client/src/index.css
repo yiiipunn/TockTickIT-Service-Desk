@@ -90,6 +90,11 @@ body {
 }
 
 @media (max-width: 575.98px) {
+  .navbar[aria-label="Application navigation"] {
+    padding-left: 1rem !important;
+    padding-right: 1rem !important;
+  }
+
   .requester-navbar {
     display: grid;
     grid-template-columns: minmax(0, 1fr) auto;
@@ -126,4 +131,145 @@ body {
   width: 100%;
   max-width: 100%;
   padding: 0;
+}
+
+.login-page {
+  min-height: 100vh;
+  display: grid;
+  place-items: center;
+  padding: 2rem;
+  background:
+    radial-gradient(circle at top right, rgba(11, 122, 70, 0.16), transparent 38%),
+    var(--toktickit-page);
+}
+
+.password-change-page {
+  width: 100%;
+  display: grid;
+  place-items: start center;
+  flex: 1;
+  padding: 2rem;
+  background:
+    radial-gradient(circle at top right, rgba(11, 122, 70, 0.12), transparent 38%),
+    var(--toktickit-page);
+}
+
+.password-change-card {
+  width: min(100%, 580px);
+  border: 0;
+}
+
+.login-card {
+  width: min(100%, 480px);
+  border: 0;
+}
+
+.login-mark {
+  display: grid;
+  place-items: center;
+  width: 3.5rem;
+  height: 3.5rem;
+  margin: 0 auto 1rem;
+  border-radius: 50%;
+  background: var(--toktickit-pale);
+  color: var(--toktickit-primary);
+  font-size: 1.5rem;
+  font-weight: 800;
+}
+
+.identity-copy {
+  min-width: 0;
+  max-width: 18rem;
+}
+
+.queue-control-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 1rem;
+}
+
+.queue-search-control {
+  grid-column: span 2;
+}
+
+.queue-counts {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.queue-counts span {
+  border: 1px solid var(--bs-success-border-subtle);
+  border-radius: 999px;
+  padding: 0.35rem 0.7rem;
+  background: var(--toktickit-pale);
+  color: #004d2b;
+}
+
+.staff-queue-table th {
+  white-space: nowrap;
+  font-size: 0.82rem;
+}
+
+.staff-queue-table td {
+  min-width: 8rem;
+}
+
+.queue-card-list {
+  display: grid;
+  gap: 1rem;
+}
+
+.queue-card-details {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.75rem;
+  font-size: 0.9rem;
+}
+
+.queue-card-details dt {
+  color: #5c636a;
+  font-weight: 600;
+}
+
+.queue-card-details dd {
+  margin: 0.15rem 0 0;
+}
+
+@media (max-width: 991px) {
+  .queue-control-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 575.98px) {
+  .login-page {
+    align-items: start;
+    padding: 1rem;
+  }
+
+  .password-change-page {
+    padding: 1rem;
+  }
+
+  .password-change-actions {
+    flex-direction: column-reverse;
+  }
+
+  .login-card {
+    margin-top: 1.5rem;
+  }
+
+  .navbar .identity-copy {
+    max-width: 9rem;
+  }
+
+  .queue-control-grid,
+  .queue-card-details {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .queue-search-control {
+    grid-column: auto;
+  }
 }

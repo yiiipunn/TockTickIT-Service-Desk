@@ -1,15 +1,20 @@
-import request from "supertest";
-import { describe, expect, it } from "vitest";
-import { app } from "../../src/app";
+import { beforeAll, describe, expect, it } from "vitest";
 import { getPrisma } from "../../src/prisma";
+import {
+  createAuthenticatedTestClient,
+  type AuthenticatedTestClient,
+} from "../helpers/authenticated-client.js";
 
 const prisma = getPrisma();
+let api: AuthenticatedTestClient;
+
+beforeAll(async () => {
+  api = await createAuthenticatedTestClient();
+});
 
 async function getValidTestData() {
-  const requester = await prisma.developmentRequester.findFirst({
-    where: {
-      isActive: true,
-    },
+  const requester = await prisma.user.findUnique({
+    where: { id: api.user.id },
   });
 
   const category = await prisma.category.findFirst();
@@ -41,13 +46,12 @@ function validTicketBody(categoryId: number, relatedSystemId: number) {
 }
 
 describe("Lab 2 - Create Ticket API", () => {
-  it("creates a ticket for an active Development Requester", async () => {
+  it("creates a ticket for the authenticated Requester", async () => {
     const { requester, category, relatedSystem } =
       await getValidTestData();
 
-    const response = await request(app)
+    const response = await api
       .post("/api/tickets")
-      .set("X-Requester-Id", String(requester.id))
       .send(validTicketBody(category.id, relatedSystem.id));
 
     expect(response.status).toBe(201);
@@ -68,14 +72,12 @@ describe("Lab 2 - Create Ticket API", () => {
     const { requester, category, relatedSystem } =
       await getValidTestData();
 
-    const firstResponse = await request(app)
+    const firstResponse = await api
       .post("/api/tickets")
-      .set("X-Requester-Id", String(requester.id))
       .send(validTicketBody(category.id, relatedSystem.id));
 
-    const secondResponse = await request(app)
+    const secondResponse = await api
       .post("/api/tickets")
-      .set("X-Requester-Id", String(requester.id))
       .send(validTicketBody(category.id, relatedSystem.id));
 
     expect(firstResponse.status).toBe(201);
@@ -86,23 +88,22 @@ describe("Lab 2 - Create Ticket API", () => {
     );
   });
 
-  it("rejects ticket creation when Development Requester is missing", async () => {
+  it("creates without a Development Requester header", async () => {
     const { category, relatedSystem } = await getValidTestData();
 
-    const response = await request(app)
+    const response = await api
       .post("/api/tickets")
       .send(validTicketBody(category.id, relatedSystem.id));
 
-    expect(response.status).toBe(400);
-    expect(response.body.error).toBe(
-      "Development Requester is required"
-    );
+    expect(response.status).toBe(201);
+    expect(response.body.requesterId).toBe(api.user.id);
   });
 
-  it("rejects ticket creation for an inactive Development Requester", async () => {
+  it("ignores a client-supplied inactive Development Requester", async () => {
     const inactiveRequester =
-      await prisma.developmentRequester.findFirst({
+      await prisma.user.findFirst({
         where: {
+          role: "REQUESTER",
           isActive: false,
         },
       });
@@ -115,23 +116,21 @@ describe("Lab 2 - Create Ticket API", () => {
       );
     }
 
-    const response = await request(app)
+    const response = await api
       .post("/api/tickets")
       .set("X-Requester-Id", String(inactiveRequester.id))
       .send(validTicketBody(category.id, relatedSystem.id));
 
-    expect(response.status).toBe(400);
-    expect(response.body.error).toBe(
-      "Invalid or inactive Development Requester"
-    );
+    expect(response.status).toBe(201);
+    expect(response.body.requesterId).toBe(api.user.id);
+    expect(response.body.requesterId).not.toBe(inactiveRequester.id);
   });
 
   it("rejects an invalid Category", async () => {
     const { requester, relatedSystem } = await getValidTestData();
 
-    const response = await request(app)
+    const response = await api
       .post("/api/tickets")
-      .set("X-Requester-Id", String(requester.id))
       .send(validTicketBody(999999, relatedSystem.id));
 
     expect(response.status).toBe(400);
@@ -141,9 +140,8 @@ describe("Lab 2 - Create Ticket API", () => {
   it("rejects an invalid Related System", async () => {
     const { requester, category } = await getValidTestData();
 
-    const response = await request(app)
+    const response = await api
       .post("/api/tickets")
-      .set("X-Requester-Id", String(requester.id))
       .send(validTicketBody(category.id, 999999));
 
     expect(response.status).toBe(400);
@@ -156,9 +154,8 @@ describe("Lab 2 - Create Ticket API", () => {
 
     const body = validTicketBody(category.id, relatedSystem.id);
 
-    const response = await request(app)
+    const response = await api
       .post("/api/tickets")
-      .set("X-Requester-Id", String(requester.id))
       .send({
         ...body,
         summary: "   ",
@@ -176,9 +173,8 @@ describe("Lab 2 - Create Ticket API", () => {
 
     const body = validTicketBody(category.id, relatedSystem.id);
 
-    const response = await request(app)
+    const response = await api
       .post("/api/tickets")
-      .set("X-Requester-Id", String(requester.id))
       .send({
         ...body,
         summary: "A".repeat(121),
@@ -193,9 +189,8 @@ describe("Lab 2 - Create Ticket API", () => {
 
     const body = validTicketBody(category.id, relatedSystem.id);
 
-    const response = await request(app)
+    const response = await api
       .post("/api/tickets")
-      .set("X-Requester-Id", String(requester.id))
       .send({
         ...body,
         requestedPriority: "URGENT",
@@ -213,9 +208,8 @@ describe("Lab 2 - Create Ticket API", () => {
 
     const body = validTicketBody(category.id, relatedSystem.id);
 
-    const response = await request(app)
+    const response = await api
       .post("/api/tickets")
-      .set("X-Requester-Id", String(requester.id))
       .send({
         ...body,
         description: "   ",
@@ -233,9 +227,8 @@ describe("Lab 2 - Create Ticket API", () => {
 
     const body = validTicketBody(category.id, relatedSystem.id);
 
-    const response = await request(app)
+    const response = await api
       .post("/api/tickets")
-      .set("X-Requester-Id", String(requester.id))
       .send({
         ...body,
         description: "A".repeat(2001),
@@ -248,9 +241,8 @@ describe("Lab 2 - Create Ticket API", () => {
     const { requester, category, relatedSystem } =
       await getValidTestData();
 
-    const response = await request(app)
+    const response = await api
       .post("/api/tickets")
-      .set("X-Requester-Id", String(requester.id))
       .send({
         categoryId: category.id,
         relatedSystemId: relatedSystem.id,

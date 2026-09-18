@@ -1,6 +1,87 @@
 const API_URL =
   import.meta.env.VITE_API_URL ?? "http://localhost:3000";
 
+export type UserRole = "REQUESTER" | "IT_STAFF" | "ADMINISTRATOR";
+
+export interface CommunicationEntry {
+  id: number;
+  ticketId: number;
+  content: string;
+  author: { id: number; name: string; role: UserRole };
+  createdAt: string;
+}
+
+export interface AuthenticatedUser {
+  id: number;
+  name: string;
+  email: string;
+  role: UserRole;
+  isActive: boolean;
+  mustChangePassword: boolean;
+}
+
+export interface ManagedUser {
+  id: number;
+  name: string;
+  email: string;
+  role: UserRole;
+  isActive: boolean;
+  mustChangePassword: boolean;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface CreateManagedUserInput {
+  name: string;
+  email: string;
+  role: UserRole;
+  isActive: boolean;
+  initialPassword: string;
+}
+
+export interface UpdateManagedUserInput {
+  name: string;
+  email: string;
+  role: UserRole;
+  isActive: boolean;
+}
+
+interface AuthenticationResponse {
+  data: {
+    user: AuthenticatedUser;
+    csrfToken: string;
+  };
+}
+
+export class ApiError extends Error {
+  constructor(
+    message: string,
+    public readonly code: string,
+    public readonly status: number,
+    public readonly fields?: Record<string, string>,
+    public readonly retryAfter?: number,
+  ) {
+    super(message);
+    this.name = "ApiError";
+  }
+}
+
+let authenticationCsrfToken = "";
+
+function setAuthentication(response: AuthenticationResponse) {
+  authenticationCsrfToken = response.data.csrfToken;
+  return response.data.user;
+}
+
+function authenticatedHeaders(headers: Record<string, string> = {}, unsafe = false) {
+  return {
+    ...headers,
+    ...(unsafe && authenticationCsrfToken
+      ? { "X-CSRF-Token": authenticationCsrfToken }
+      : {}),
+  };
+}
+
 export interface Category {
   id: number;
   name: string;
@@ -11,18 +92,14 @@ export interface RelatedSystem {
   name: string;
 }
 
-export interface DevelopmentRequester {
-  id: number;
-  name: string;
-  email: string;
-}
-
 export interface SystemStatus {
   online: boolean;
   categories: Category[];
 }
 
 export type RequestedPriority = "LOW" | "MEDIUM" | "HIGH";
+export type TicketStatus = "NEW" | "OPEN" | "IN_PROGRESS" | "WAITING_FOR_REQUESTER" |
+  "RESOLVED" | "CLOSED" | "REOPENED" | "CANCELLED";
 
 export interface CreateTicketInput {
   categoryId: number;
@@ -88,6 +165,71 @@ export interface GetTicketsParams {
   requestedPriority?: RequestedPriority;
   status?: string;
   sortBy?: "createdAt" | "updatedAt" | "ticketNumber";
+  sortOrder?: "asc" | "desc";
+  page?: number;
+  pageSize?: 10 | 20 | 50;
+}
+
+// ---------------------------------------------------------------------------
+// Lab 3 - IT Staff Ticket Queue
+// ---------------------------------------------------------------------------
+
+export interface StaffQueueTicket {
+  id: number;
+  ticketNumber: string;
+  summary: string;
+  requester: {
+    id: number;
+    name: string;
+    email: string;
+  };
+  status: string;
+  requestedPriority: RequestedPriority;
+  itPriority: RequestedPriority;
+  owner: {
+    id: number;
+    name: string;
+  } | null;
+  updatedAt: string;
+}
+
+export interface StaffQueueResponse {
+  items: StaffQueueTicket[];
+  pagination: TicketPagination;
+  counts: {
+    matching: number;
+    matchingUnassigned: number;
+  };
+}
+
+export interface StaffTicketDetail extends StaffQueueTicket {
+  status: TicketStatus;
+  description: string;
+  category: Category;
+  relatedSystem: RelatedSystem;
+  ownerAssignedAt: string | null;
+  requesterResolutionIndicatedAt: string | null;
+  createdAt: string;
+  attachments: TicketAttachment[];
+  publicComments: CommunicationEntry[];
+  internalNotes: CommunicationEntry[];
+  allowedTransitions: TicketStatus[];
+}
+
+export interface EligibleOwner {
+  id: number;
+  name: string;
+  email: string;
+  role: "IT_STAFF" | "ADMINISTRATOR";
+}
+
+export interface GetStaffQueueParams {
+  search?: string;
+  status?: string;
+  requestedPriority?: RequestedPriority;
+  itPriority?: RequestedPriority;
+  owner?: "me" | "unassigned" | number;
+  sortBy?: "updatedAt" | "createdAt" | "ticketNumber" | "status" | "requestedPriority" | "itPriority";
   sortOrder?: "asc" | "desc";
   page?: number;
   pageSize?: 10 | 20 | 50;
@@ -169,12 +311,78 @@ async function getErrorMessage(
   return fallback;
 }
 
+async function throwApiError(response: Response, fallback: string): Promise<never> {
+  try {
+    const body = await response.json();
+    if (body?.error && typeof body.error === "object") {
+      throw new ApiError(
+        typeof body.error.message === "string" ? body.error.message : fallback,
+        typeof body.error.code === "string" ? body.error.code : "REQUEST_FAILED",
+        response.status,
+        body.error.fields,
+        Number(response.headers.get("Retry-After")) || undefined,
+      );
+    }
+  } catch (error) {
+    if (error instanceof ApiError) throw error;
+  }
+  throw new ApiError(fallback, "REQUEST_FAILED", response.status);
+}
+
+export async function login(email: string, password: string) {
+  const response = await fetch(`${API_URL}/api/auth/login`, {
+    method: "POST",
+    credentials: "include",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ email, password }),
+  });
+  if (!response.ok) await throwApiError(response, "Unable to sign in right now.");
+  return setAuthentication(await response.json() as AuthenticationResponse);
+}
+
+export async function getCurrentUser() {
+  const response = await fetch(`${API_URL}/api/auth/me`, {
+    credentials: "include",
+  });
+  if (!response.ok) await throwApiError(response, "Unable to restore your session.");
+  return setAuthentication(await response.json() as AuthenticationResponse);
+}
+
+export async function changePassword(
+  currentPassword: string,
+  newPassword: string,
+  confirmPassword: string,
+) {
+  const response = await fetch(`${API_URL}/api/auth/change-password`, {
+    method: "POST",
+    credentials: "include",
+    headers: authenticatedHeaders({ "Content-Type": "application/json" }, true),
+    body: JSON.stringify({ currentPassword, newPassword, confirmPassword }),
+  });
+  if (!response.ok) {
+    await throwApiError(response, "Unable to change your password right now.");
+  }
+  return setAuthentication(await response.json() as AuthenticationResponse);
+}
+
+export async function logout() {
+  const response = await fetch(`${API_URL}/api/auth/logout`, {
+    method: "POST",
+    credentials: "include",
+    headers: authenticatedHeaders({}, true),
+  });
+  if (!response.ok) await throwApiError(response, "Unable to sign out right now.");
+  authenticationCsrfToken = "";
+}
+
 // ---------------------------------------------------------------------------
 // Lab 1 - System check
 // ---------------------------------------------------------------------------
 
 export async function checkSystem(): Promise<SystemStatus> {
-  const healthResponse = await fetch(`${API_URL}/api/health`);
+  const healthResponse = await fetch(`${API_URL}/api/health`, {
+    credentials: "include",
+  });
 
   if (!healthResponse.ok) {
     throw new Error("Unable to connect to TokTickIT API");
@@ -182,6 +390,7 @@ export async function checkSystem(): Promise<SystemStatus> {
 
   const categoriesResponse = await fetch(
     `${API_URL}/api/categories`,
+    { credentials: "include" },
   );
 
   if (!categoriesResponse.ok) {
@@ -198,33 +407,13 @@ export async function checkSystem(): Promise<SystemStatus> {
 }
 
 // ---------------------------------------------------------------------------
-// Lab 2 - Development Requesters
-// ---------------------------------------------------------------------------
-
-export async function getRequesters(): Promise<
-  DevelopmentRequester[]
-> {
-  const response = await fetch(`${API_URL}/api/requesters`);
-
-  if (!response.ok) {
-    throw new Error(
-      "Unable to load development requesters",
-    );
-  }
-
-  const requesters: DevelopmentRequester[] =
-    await response.json();
-
-  return requesters;
-}
-
-// ---------------------------------------------------------------------------
 // Lab 2 - Categories
 // ---------------------------------------------------------------------------
 
 export async function getCategories(): Promise<Category[]> {
   const response = await fetch(
     `${API_URL}/api/categories`,
+    { credentials: "include" },
   );
 
   if (!response.ok) {
@@ -248,6 +437,7 @@ export async function getRelatedSystems(): Promise<
 > {
   const response = await fetch(
     `${API_URL}/api/related-systems`,
+    { credentials: "include" },
   );
 
   if (!response.ok) {
@@ -265,17 +455,16 @@ export async function getRelatedSystems(): Promise<
 // ---------------------------------------------------------------------------
 
 export async function createTicket(
-  requesterId: number,
   input: CreateTicketInput,
 ): Promise<Ticket> {
   const response = await fetch(
     `${API_URL}/api/tickets`,
     {
       method: "POST",
-      headers: {
+      credentials: "include",
+      headers: authenticatedHeaders({
         "Content-Type": "application/json",
-        "X-Requester-Id": String(requesterId),
-      },
+      }, true),
       body: JSON.stringify(input),
     },
   );
@@ -299,7 +488,6 @@ export async function createTicket(
 // ---------------------------------------------------------------------------
 
 export async function getTickets(
-  requesterId: number,
   params: GetTicketsParams = {},
 ): Promise<TicketListResponse> {
   const searchParams = new URLSearchParams();
@@ -372,9 +560,7 @@ export async function getTickets(
   const response = await fetch(
     `${API_URL}/api/tickets${query ? `?${query}` : ""}`,
     {
-      headers: {
-        "X-Requester-Id": String(requesterId),
-      },
+      credentials: "include",
     },
   );
 
@@ -393,20 +579,195 @@ export async function getTickets(
   return result;
 }
 
+export async function getStaffTickets(
+  params: GetStaffQueueParams = {},
+): Promise<StaffQueueResponse> {
+  const searchParams = new URLSearchParams();
+  for (const [key, value] of Object.entries(params)) {
+    if (value !== undefined && value !== "") {
+      searchParams.set(key, String(value));
+    }
+  }
+  const query = searchParams.toString();
+  const response = await fetch(
+    `${API_URL}/api/staff/tickets${query ? `?${query}` : ""}`,
+    { credentials: "include" },
+  );
+  if (!response.ok) {
+    await throwApiError(response, "Unable to load the Ticket Queue right now.");
+  }
+  return response.json() as Promise<StaffQueueResponse>;
+}
+
+export async function getStaffTicketDetail(ticketId: number): Promise<StaffTicketDetail> {
+  const response = await fetch(`${API_URL}/api/staff/tickets/${ticketId}`, {
+    credentials: "include",
+  });
+  if (!response.ok) await throwApiError(response, "Unable to load the Ticket right now.");
+  const body = await response.json() as { data: StaffTicketDetail };
+  return body.data;
+}
+
+export async function claimStaffTicket(ticketId: number): Promise<StaffTicketDetail> {
+  const response = await fetch(`${API_URL}/api/staff/tickets/${ticketId}/claim`, {
+    method: "POST",
+    credentials: "include",
+    headers: authenticatedHeaders({ "Content-Type": "application/json" }, true),
+    body: JSON.stringify({}),
+  });
+  if (!response.ok) await throwApiError(response, "Unable to claim the Ticket right now.");
+  const body = await response.json() as { data: StaffTicketDetail };
+  return body.data;
+}
+
+export async function getEligibleOwners(): Promise<EligibleOwner[]> {
+  const response = await fetch(`${API_URL}/api/staff/eligible-owners`, {
+    credentials: "include",
+  });
+  if (!response.ok) await throwApiError(response, "Unable to load eligible owners right now.");
+  const body = await response.json() as { items: EligibleOwner[] };
+  return body.items;
+}
+
+export async function assignStaffTicket(
+  ticketId: number,
+  ownerId: number | null,
+): Promise<StaffTicketDetail> {
+  const response = await fetch(`${API_URL}/api/staff/tickets/${ticketId}/owner`, {
+    method: "PATCH",
+    credentials: "include",
+    headers: authenticatedHeaders({ "Content-Type": "application/json" }, true),
+    body: JSON.stringify({ ownerId }),
+  });
+  if (!response.ok) await throwApiError(response, "Unable to update the Ticket assignment right now.");
+  const body = await response.json() as { data: StaffTicketDetail };
+  return body.data;
+}
+
+export async function updateStaffTicketPriority(
+  ticketId: number,
+  itPriority: RequestedPriority,
+): Promise<StaffTicketDetail> {
+  const response = await fetch(`${API_URL}/api/staff/tickets/${ticketId}/it-priority`, {
+    method: "PATCH",
+    credentials: "include",
+    headers: authenticatedHeaders({ "Content-Type": "application/json" }, true),
+    body: JSON.stringify({ itPriority }),
+  });
+  if (!response.ok) await throwApiError(response, "Unable to update IT Priority right now.");
+  const body = await response.json() as { data: StaffTicketDetail };
+  return body.data;
+}
+
+export async function updateStaffTicketStatus(
+  ticketId: number,
+  currentStatus: TicketStatus,
+  status: TicketStatus,
+  confirmed = false,
+): Promise<StaffTicketDetail> {
+  const response = await fetch(`${API_URL}/api/staff/tickets/${ticketId}/status`, {
+    method: "PATCH",
+    credentials: "include",
+    headers: authenticatedHeaders({ "Content-Type": "application/json" }, true),
+    body: JSON.stringify({ currentStatus, status, confirmed }),
+  });
+  if (!response.ok) await throwApiError(response, "Unable to update the Ticket status right now.");
+  const body = await response.json() as { data: StaffTicketDetail };
+  return body.data;
+}
+
+export async function getPublicComments(ticketId: number): Promise<CommunicationEntry[]> {
+  const response = await fetch(`${API_URL}/api/tickets/${ticketId}/public-comments`, {
+    credentials: "include",
+  });
+  if (!response.ok) await throwApiError(response, "Unable to load Public Comments right now.");
+  const body = await response.json() as { items: CommunicationEntry[] };
+  return body.items;
+}
+
+export async function postPublicComment(ticketId: number, content: string): Promise<CommunicationEntry> {
+  const response = await fetch(`${API_URL}/api/tickets/${ticketId}/public-comments`, {
+    method: "POST",
+    credentials: "include",
+    headers: authenticatedHeaders({ "Content-Type": "application/json" }, true),
+    body: JSON.stringify({ content }),
+  });
+  if (!response.ok) await throwApiError(response, "Unable to post the Public Comment right now.");
+  const body = await response.json() as { data: CommunicationEntry };
+  return body.data;
+}
+
+export async function getInternalNotes(ticketId: number): Promise<CommunicationEntry[]> {
+  const response = await fetch(`${API_URL}/api/staff/tickets/${ticketId}/internal-notes`, {
+    credentials: "include",
+  });
+  if (!response.ok) await throwApiError(response, "Unable to load Internal Notes right now.");
+  const body = await response.json() as { items: CommunicationEntry[] };
+  return body.items;
+}
+
+export async function postInternalNote(ticketId: number, content: string): Promise<CommunicationEntry> {
+  const response = await fetch(`${API_URL}/api/staff/tickets/${ticketId}/internal-notes`, {
+    method: "POST",
+    credentials: "include",
+    headers: authenticatedHeaders({ "Content-Type": "application/json" }, true),
+    body: JSON.stringify({ content }),
+  });
+  if (!response.ok) await throwApiError(response, "Unable to add the Internal Note right now.");
+  const body = await response.json() as { data: CommunicationEntry };
+  return body.data;
+}
+
+export async function getAdminUsers(params: { search?: string; role?: UserRole | "" } = {}): Promise<ManagedUser[]> {
+  const query = new URLSearchParams();
+  if (params.search?.trim()) query.set("search", params.search.trim());
+  if (params.role) query.set("role", params.role);
+  const response = await fetch(`${API_URL}/api/admin/users${query.size ? `?${query}` : ""}`, { credentials: "include" });
+  if (!response.ok) await throwApiError(response, "Unable to load Users right now.");
+  return (await response.json() as { items: ManagedUser[] }).items;
+}
+
+export async function createAdminUser(input: CreateManagedUserInput): Promise<ManagedUser> {
+  const response = await fetch(`${API_URL}/api/admin/users`, {
+    method: "POST", credentials: "include",
+    headers: authenticatedHeaders({ "Content-Type": "application/json" }, true),
+    body: JSON.stringify(input),
+  });
+  if (!response.ok) await throwApiError(response, "Unable to create the User right now.");
+  return (await response.json() as { data: ManagedUser }).data;
+}
+
+export async function updateAdminUser(userId: number, input: UpdateManagedUserInput): Promise<ManagedUser> {
+  const response = await fetch(`${API_URL}/api/admin/users/${userId}`, {
+    method: "PATCH", credentials: "include",
+    headers: authenticatedHeaders({ "Content-Type": "application/json" }, true),
+    body: JSON.stringify(input),
+  });
+  if (!response.ok) await throwApiError(response, "Unable to update the User right now.");
+  return (await response.json() as { data: ManagedUser }).data;
+}
+
+export async function setAdminInitialPassword(userId: number, initialPassword: string): Promise<{ userId: number; mustChangePassword: true }> {
+  const response = await fetch(`${API_URL}/api/admin/users/${userId}/initial-password`, {
+    method: "POST", credentials: "include",
+    headers: authenticatedHeaders({ "Content-Type": "application/json" }, true),
+    body: JSON.stringify({ initialPassword }),
+  });
+  if (!response.ok) await throwApiError(response, "Unable to set the initial password right now.");
+  return (await response.json() as { data: { userId: number; mustChangePassword: true } }).data;
+}
+
 // ---------------------------------------------------------------------------
 // Lab 2 - Requester Ticket Detail
 // ---------------------------------------------------------------------------
 
 export async function getTicketDetail(
-  requesterId: number,
   ticketId: number,
 ): Promise<TicketDetail> {
   const response = await fetch(
     `${API_URL}/api/tickets/${ticketId}`,
     {
-      headers: {
-        "X-Requester-Id": String(requesterId),
-      },
+      credentials: "include",
     },
   );
 
@@ -430,7 +791,6 @@ export async function getTicketDetail(
 // ---------------------------------------------------------------------------
 
 export async function uploadTicketAttachment(
-  requesterId: number,
   ticketId: number,
   file: File,
 ): Promise<TicketAttachment> {
@@ -441,9 +801,8 @@ export async function uploadTicketAttachment(
     `${API_URL}/api/tickets/${ticketId}/attachments`,
     {
       method: "POST",
-      headers: {
-        "X-Requester-Id": String(requesterId),
-      },
+      credentials: "include",
+      headers: authenticatedHeaders({}, true),
       body: formData,
     },
   );
@@ -464,7 +823,6 @@ export async function uploadTicketAttachment(
 }
 
 export async function removeTicketAttachment(
-  requesterId: number,
   attachmentId: number,
   reason: string,
 ): Promise<TicketAttachment> {
@@ -472,10 +830,10 @@ export async function removeTicketAttachment(
     `${API_URL}/api/attachments/${attachmentId}`,
     {
       method: "DELETE",
-      headers: {
+      credentials: "include",
+      headers: authenticatedHeaders({
         "Content-Type": "application/json",
-        "X-Requester-Id": String(requesterId),
-      },
+      }, true),
       body: JSON.stringify({ reason }),
     },
   );
@@ -494,15 +852,12 @@ export async function removeTicketAttachment(
 }
 
 export async function getAttachmentMetadata(
-  requesterId: number,
   attachmentId: number,
 ): Promise<TicketAttachment> {
   const response = await fetch(
     `${API_URL}/api/attachments/${attachmentId}`,
     {
-      headers: {
-        "X-Requester-Id": String(requesterId),
-      },
+      credentials: "include",
     },
   );
 
@@ -517,15 +872,12 @@ export async function getAttachmentMetadata(
 }
 
 export async function downloadTicketAttachment(
-  requesterId: number,
   attachmentId: number,
 ): Promise<Blob> {
   const response = await fetch(
     `${API_URL}/api/attachments/${attachmentId}/download`,
     {
-      headers: {
-        "X-Requester-Id": String(requesterId),
-      },
+      credentials: "include",
     },
   );
 

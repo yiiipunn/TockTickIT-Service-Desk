@@ -1,11 +1,14 @@
-import request from "supertest";
 import { beforeAll, describe, expect, it } from "vitest";
 
-import app from "../../src/app.js";
 import { getPrisma } from "../../src/prisma.js";
+import {
+  createAuthenticatedTestClient,
+  type AuthenticatedTestClient,
+} from "../helpers/authenticated-client.js";
 
 describe("Lab 2 - Requester Ticket Detail API", () => {
   const prisma = getPrisma();
+  let api: AuthenticatedTestClient;
 
   let requesterAId: number;
   let requesterBId: number;
@@ -16,25 +19,27 @@ describe("Lab 2 - Requester Ticket Detail API", () => {
   let requesterBTicketId: number;
 
   beforeAll(async () => {
-    const requesters =
-      await prisma.developmentRequester.findMany({
+    api = await createAuthenticatedTestClient();
+    const requesterB =
+      await prisma.user.findFirst({
         where: {
+          role: "REQUESTER",
           isActive: true,
+          id: { not: api.user.id },
         },
         orderBy: {
           id: "asc",
         },
-        take: 2,
       });
 
-    if (requesters.length < 2) {
+    if (!requesterB) {
       throw new Error(
         "Ticket Detail tests require at least 2 active Development Requesters",
       );
     }
 
-    requesterAId = requesters[0].id;
-    requesterBId = requesters[1].id;
+    requesterAId = api.user.id;
+    requesterBId = requesterB.id;
 
     const category = await prisma.category.findFirst({
       orderBy: {
@@ -76,6 +81,7 @@ describe("Lab 2 - Requester Ticket Detail API", () => {
           relatedSystemId,
           summary: "Requester A detail test ticket",
           requestedPriority: "MEDIUM",
+          itPriority: "MEDIUM",
           description:
             "Ticket used to verify requester-owned ticket detail.",
           status: "NEW",
@@ -93,6 +99,7 @@ describe("Lab 2 - Requester Ticket Detail API", () => {
           relatedSystemId,
           summary: "Requester B detail test ticket",
           requestedPriority: "LOW",
+          itPriority: "LOW",
           description:
             "Ticket used to verify cross-requester access.",
           status: "NEW",
@@ -126,12 +133,8 @@ describe("Lab 2 - Requester Ticket Detail API", () => {
   });
 
   it("returns an owned Ticket", async () => {
-    const response = await request(app)
+    const response = await api
       .get(`/api/tickets/${requesterATicketId}`)
-      .set(
-        "X-Requester-Id",
-        String(requesterAId),
-      );
 
     expect(response.status).toBe(200);
 
@@ -152,12 +155,8 @@ describe("Lab 2 - Requester Ticket Detail API", () => {
   });
 
   it("includes Category and Related System", async () => {
-    const response = await request(app)
+    const response = await api
       .get(`/api/tickets/${requesterATicketId}`)
-      .set(
-        "X-Requester-Id",
-        String(requesterAId),
-      );
 
     expect(response.status).toBe(200);
 
@@ -181,12 +180,8 @@ describe("Lab 2 - Requester Ticket Detail API", () => {
   });
 
   it("includes active Attachments", async () => {
-    const response = await request(app)
+    const response = await api
       .get(`/api/tickets/${requesterATicketId}`)
-      .set(
-        "X-Requester-Id",
-        String(requesterAId),
-      );
 
     expect(response.status).toBe(200);
 
@@ -205,12 +200,8 @@ describe("Lab 2 - Requester Ticket Detail API", () => {
   });
 
   it("retains soft-removed Attachment metadata", async () => {
-    const response = await request(app)
+    const response = await api
       .get(`/api/tickets/${requesterATicketId}`)
-      .set(
-        "X-Requester-Id",
-        String(requesterAId),
-      );
 
     expect(response.status).toBe(200);
 
@@ -230,58 +221,45 @@ describe("Lab 2 - Requester Ticket Detail API", () => {
     );
   });
 
-  it("rejects missing requester context", async () => {
-    const response = await request(app).get(
+  it("uses authenticated identity without requester context", async () => {
+    const response = await api.get(
       `/api/tickets/${requesterATicketId}`,
     );
 
-    expect(response.status).toBe(400);
-
-    expect(response.body).toEqual({
-      error:
-        "Development Requester is required",
-    });
+    expect(response.status).toBe(200);
+    expect(response.body.requesterId).toBe(requesterAId);
   });
 
-  it("rejects invalid requester context", async () => {
-    const response = await request(app)
+  it("ignores invalid requester context", async () => {
+    const response = await api
       .get(`/api/tickets/${requesterATicketId}`)
       .set("X-Requester-Id", "invalid");
 
-    expect(response.status).toBe(400);
-
-    expect(response.body).toEqual({
-      error: "Invalid Development Requester",
-    });
+    expect(response.status).toBe(200);
+    expect(response.body.requesterId).toBe(requesterAId);
   });
 
   it("returns 404 when the Ticket does not exist", async () => {
-    const response = await request(app)
+    const response = await api
       .get("/api/tickets/999999999")
-      .set(
-        "X-Requester-Id",
-        String(requesterAId),
-      );
 
     expect(response.status).toBe(404);
 
-    expect(response.body).toEqual({
-      error: "Ticket not found",
+    expect(response.body.error).toEqual({
+      code: "TICKET_NOT_FOUND",
+      message: "Ticket not found.",
     });
   });
 
   it("returns 404 when accessing another Requester's Ticket", async () => {
-    const response = await request(app)
+    const response = await api
       .get(`/api/tickets/${requesterBTicketId}`)
-      .set(
-        "X-Requester-Id",
-        String(requesterAId),
-      );
 
     expect(response.status).toBe(404);
 
-    expect(response.body).toEqual({
-      error: "Ticket not found",
+    expect(response.body.error).toEqual({
+      code: "TICKET_NOT_FOUND",
+      message: "Ticket not found.",
     });
   });
 });

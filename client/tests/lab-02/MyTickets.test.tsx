@@ -121,6 +121,20 @@ function mockBaseFetch(
     ) => {
       const url = String(input);
 
+      if (url.endsWith("/api/auth/me")) {
+        return {
+          ok: true,
+          json: async () => ({ data: { user: {
+            ...requesters[0], role: "REQUESTER", isActive: true,
+            mustChangePassword: false,
+          }, csrfToken: "csrf-token" } }),
+        } as Response;
+      }
+
+      if (url.endsWith("/api/auth/logout") && init?.method === "POST") {
+        return { ok: true } as Response;
+      }
+
       if (url.endsWith("/api/requesters")) {
         return {
           ok: true,
@@ -166,23 +180,8 @@ function mockBaseFetch(
 }
 
 async function selectRequester(
-  requesterId = "1",
+  _requesterId = "1",
 ) {
-  const requesterSelect = await screen.findByLabelText(
-    "Development Requester",
-  );
-
-  await userEvent.selectOptions(
-    requesterSelect,
-    requesterId,
-  );
-
-  await userEvent.click(
-    screen.getByRole("button", {
-      name: /Continue/i,
-    }),
-  );
-
   await screen.findByRole("heading", {
     name: "My Tickets",
   });
@@ -198,7 +197,7 @@ afterEach(() => {
 });
 describe("Lab 2 - My Tickets UI", () => {
   it(
-    "loads and displays tickets for the selected requester",
+    "loads and displays tickets for the authenticated requester",
     async () => {
       mockBaseFetch();
 
@@ -214,7 +213,7 @@ describe("Lab 2 - My Tickets UI", () => {
   );
 
   it(
-    "sends the selected requester in X-Requester-Id",
+    "keeps the authenticated requester identity in navigation",
     async () => {
       const fetchMock = mockBaseFetch();
 
@@ -237,11 +236,7 @@ describe("Lab 2 - My Tickets UI", () => {
 
         expect(ticketCall).toBeDefined();
 
-        expect(
-          ticketCall?.[1]?.headers,
-        ).toMatchObject({
-          "X-Requester-Id": "1",
-        });
+        expect(ticketCall?.[1]?.headers).toBeUndefined();
       });
     },
   );
@@ -600,7 +595,7 @@ describe("Lab 2 - My Tickets UI", () => {
   );
 
   it(
-    "clears requester ticket data when changing requester",
+    "clears requester ticket data when logging out",
     async () => {
       mockBaseFetch();
 
@@ -612,7 +607,7 @@ describe("Lab 2 - My Tickets UI", () => {
 
       await userEvent.click(
         screen.getByRole("button", {
-          name: /Change/i,
+          name: "Logout",
         }),
       );
 
@@ -628,11 +623,9 @@ describe("Lab 2 - My Tickets UI", () => {
         ),
       ).not.toBeInTheDocument();
 
-      expect(
-        screen.getByLabelText(
-          "Development Requester",
-        ),
-      ).toBeInTheDocument();
+      expect(await screen.findByRole("heading", {
+        name: "Sign in to TokTickIT",
+      })).toBeInTheDocument();
     },
   );
 });

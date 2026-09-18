@@ -10,21 +10,66 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
-// ---------------------------------------------------------------------------
-// Lab 2 — Requester Ticketing MVP
-// ---------------------------------------------------------------------------
+enum UserRole {
+  REQUESTER
+  IT_STAFF
+  ADMINISTRATOR
+}
 
-model DevelopmentRequester {
-  id        Int      @id @default(autoincrement())
-  name      String
-  email     String   @unique
-  isActive  Boolean  @default(true)
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+enum Priority {
+  LOW
+  MEDIUM
+  HIGH
+}
 
-  tickets Ticket[]
+enum TicketStatus {
+  NEW
+  OPEN
+  IN_PROGRESS
+  WAITING_FOR_REQUESTER
+  RESOLVED
+  CLOSED
+  REOPENED
+  CANCELLED
+}
 
+model User {
+  id                 Int      @id @default(autoincrement())
+  name               String
+  email              String   @unique
+  passwordHash       String
+  role               UserRole
+  isActive           Boolean  @default(true)
+  mustChangePassword Boolean  @default(true)
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
+
+  requestedTickets Ticket[]        @relation("TicketRequester")
+  ownedTickets     Ticket[]        @relation("TicketOwner")
+  publicComments   PublicComment[]
+  internalNotes    InternalNote[]
+  sessions         Session[]
+
+  @@index([role])
   @@index([isActive])
+}
+
+model Session {
+  id                Int       @id @default(autoincrement())
+  userId            Int
+  tokenHash         String    @unique
+  csrfTokenHash     String
+  expiresAt         DateTime
+  absoluteExpiresAt DateTime
+  lastActivityAt    DateTime  @default(now())
+  revokedAt         DateTime?
+  createdAt         DateTime  @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([expiresAt])
+  @@index([userId, revokedAt])
 }
 
 model Category {
@@ -44,27 +89,36 @@ model RelatedSystem {
 }
 
 model Ticket {
-  id                Int      @id @default(autoincrement())
-  ticketNumber      String   @unique
-  requesterId       Int
-  categoryId        Int
-  relatedSystemId   Int
-  summary           String
-  requestedPriority String
-  description       String
-  status            String   @default("NEW")
-  createdAt         DateTime @default(now())
-  updatedAt         DateTime @updatedAt
+  id                             Int          @id @default(autoincrement())
+  ticketNumber                   String       @unique
+  requesterId                    Int
+  ownerId                        Int?
+  categoryId                     Int
+  relatedSystemId                Int
+  summary                        String
+  requestedPriority              Priority
+  itPriority                     Priority
+  description                    String
+  status                         TicketStatus @default(NEW)
+  ownerAssignedAt                DateTime?
+  requesterResolutionIndicatedAt DateTime?
+  createdAt                      DateTime     @default(now())
+  updatedAt                      DateTime     @updatedAt
 
-  requester     DevelopmentRequester @relation(fields: [requesterId], references: [id])
-  category      Category             @relation(fields: [categoryId], references: [id])
-  relatedSystem RelatedSystem        @relation(fields: [relatedSystemId], references: [id])
-  attachments   Attachment[]
+  requester      User            @relation("TicketRequester", fields: [requesterId], references: [id])
+  owner          User?           @relation("TicketOwner", fields: [ownerId], references: [id], onDelete: SetNull)
+  category       Category        @relation(fields: [categoryId], references: [id])
+  relatedSystem  RelatedSystem   @relation(fields: [relatedSystemId], references: [id])
+  attachments    Attachment[]
+  publicComments PublicComment[]
+  internalNotes  InternalNote[]
 
   @@index([requesterId])
+  @@index([ownerId])
   @@index([categoryId])
   @@index([relatedSystemId])
   @@index([requestedPriority])
+  @@index([itPriority])
   @@index([status])
   @@index([updatedAt])
 }
@@ -86,4 +140,32 @@ model Attachment {
 
   @@index([ticketId])
   @@index([ticketId, isRemoved])
+}
+
+model PublicComment {
+  id        Int      @id @default(autoincrement())
+  ticketId  Int
+  authorId  Int
+  content   String
+  createdAt DateTime @default(now())
+
+  ticket Ticket @relation(fields: [ticketId], references: [id])
+  author User   @relation(fields: [authorId], references: [id])
+
+  @@index([ticketId, createdAt])
+  @@index([authorId])
+}
+
+model InternalNote {
+  id        Int      @id @default(autoincrement())
+  ticketId  Int
+  authorId  Int
+  content   String
+  createdAt DateTime @default(now())
+
+  ticket Ticket @relation(fields: [ticketId], references: [id])
+  author User   @relation(fields: [authorId], references: [id])
+
+  @@index([ticketId, createdAt])
+  @@index([authorId])
 }

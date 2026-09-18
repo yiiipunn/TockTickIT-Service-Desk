@@ -1,9 +1,12 @@
-import request from "supertest";
 import { beforeAll, describe, expect, it } from "vitest";
-import { app } from "../../src/app.js";
 import { getPrisma } from "../../src/prisma.js";
+import {
+  createAuthenticatedTestClient,
+  type AuthenticatedTestClient,
+} from "../helpers/authenticated-client.js";
 
 const prisma = getPrisma();
+let api: AuthenticatedTestClient;
 
 let requesterAId: number;
 let requesterBId: number;
@@ -13,22 +16,24 @@ let systemAId: number;
 let systemBId: number;
 
 beforeAll(async () => {
-  const requesters = await prisma.developmentRequester.findMany({
+  api = await createAuthenticatedTestClient();
+  const requesterB = await prisma.user.findFirst({
     where: {
+      role: "REQUESTER",
       isActive: true,
+      id: { not: api.user.id },
     },
     orderBy: {
       id: "asc",
     },
-    take: 2,
   });
 
-  if (requesters.length < 2) {
+  if (!requesterB) {
     throw new Error("At least 2 active Development Requesters are required");
   }
 
-  requesterAId = requesters[0].id;
-  requesterBId = requesters[1].id;
+  requesterAId = api.user.id;
+  requesterBId = requesterB.id;
 
   const categories = await prisma.category.findMany({
     orderBy: {
@@ -69,6 +74,7 @@ beforeAll(async () => {
         relatedSystemId: systemAId,
         summary: "VPN connection problem",
         requestedPriority: "HIGH",
+        itPriority: "HIGH",
         description: "Cannot connect to VPN",
         status: "NEW",
       },
@@ -79,6 +85,7 @@ beforeAll(async () => {
         relatedSystemId: systemBId,
         summary: "Printer is not working",
         requestedPriority: "LOW",
+        itPriority: "LOW",
         description: "Printer does not respond",
         status: "NEW",
       },
@@ -89,6 +96,7 @@ beforeAll(async () => {
         relatedSystemId: systemBId,
         summary: "Campus Wi-Fi connection issue",
         requestedPriority: "MEDIUM",
+        itPriority: "MEDIUM",
         description: "Wi-Fi disconnects frequently",
         status: "NEW",
       },
@@ -99,6 +107,7 @@ beforeAll(async () => {
         relatedSystemId: systemAId,
         summary: "Other requester private ticket",
         requestedPriority: "HIGH",
+        itPriority: "HIGH",
         description: "This ticket belongs to another requester",
         status: "NEW",
       },
@@ -107,10 +116,9 @@ beforeAll(async () => {
 });
 
 describe("GET /api/tickets - My Tickets", () => {
-  it("returns tickets for the selected requester", async () => {
-    const response = await request(app)
+  it("returns tickets for the authenticated requester", async () => {
+    const response = await api
       .get("/api/tickets?pageSize=50")
-      .set("X-Requester-Id", String(requesterAId));
 
     expect(response.status).toBe(200);
     expect(Array.isArray(response.body.items)).toBe(true);
@@ -124,9 +132,8 @@ describe("GET /api/tickets - My Tickets", () => {
   });
 
   it("does not return tickets owned by another requester", async () => {
-    const response = await request(app)
+    const response = await api
       .get("/api/tickets?pageSize=50")
-      .set("X-Requester-Id", String(requesterAId));
 
     expect(response.status).toBe(200);
 
@@ -138,30 +145,29 @@ describe("GET /api/tickets - My Tickets", () => {
     ).toBe(false);
   });
 
-  it("requires a Development Requester", async () => {
-    const response = await request(app).get("/api/tickets");
+  it("does not require a Development Requester header", async () => {
+    const response = await api.get("/api/tickets");
 
-    expect(response.status).toBe(400);
-    expect(response.body.error).toBe(
-      "Development Requester is required",
-    );
+    expect(response.status).toBe(200);
+    expect(response.body.items.every(
+      (ticket: { requesterId: number }) => ticket.requesterId === requesterAId,
+    )).toBe(true);
   });
 
-  it("rejects an invalid Development Requester", async () => {
-    const response = await request(app)
+  it("ignores an invalid Development Requester header", async () => {
+    const response = await api
       .get("/api/tickets")
       .set("X-Requester-Id", "invalid");
 
-    expect(response.status).toBe(400);
-    expect(response.body.error).toBe(
-      "Invalid Development Requester",
-    );
+    expect(response.status).toBe(200);
+    expect(response.body.items.every(
+      (ticket: { requesterId: number }) => ticket.requesterId === requesterAId,
+    )).toBe(true);
   });
 
   it("searches tickets by Summary", async () => {
-    const response = await request(app)
+    const response = await api
       .get("/api/tickets?search=VPN&pageSize=50")
-      .set("X-Requester-Id", String(requesterAId));
 
     expect(response.status).toBe(200);
 
@@ -182,9 +188,8 @@ describe("GET /api/tickets - My Tickets", () => {
   });
 
   it("filters tickets by Category", async () => {
-    const response = await request(app)
+    const response = await api
       .get(`/api/tickets?categoryId=${categoryAId}&pageSize=50`)
-      .set("X-Requester-Id", String(requesterAId));
 
     expect(response.status).toBe(200);
 
@@ -197,11 +202,10 @@ describe("GET /api/tickets - My Tickets", () => {
   });
 
   it("filters tickets by Related System", async () => {
-    const response = await request(app)
+    const response = await api
       .get(
         `/api/tickets?relatedSystemId=${systemBId}&pageSize=50`,
       )
-      .set("X-Requester-Id", String(requesterAId));
 
     expect(response.status).toBe(200);
 
@@ -214,9 +218,8 @@ describe("GET /api/tickets - My Tickets", () => {
   });
 
   it("filters tickets by Requested Priority", async () => {
-    const response = await request(app)
+    const response = await api
       .get("/api/tickets?requestedPriority=HIGH&pageSize=50")
-      .set("X-Requester-Id", String(requesterAId));
 
     expect(response.status).toBe(200);
 
@@ -229,9 +232,8 @@ describe("GET /api/tickets - My Tickets", () => {
   });
 
   it("filters tickets by Status", async () => {
-    const response = await request(app)
+    const response = await api
       .get("/api/tickets?status=NEW&pageSize=50")
-      .set("X-Requester-Id", String(requesterAId));
 
     expect(response.status).toBe(200);
 
@@ -243,11 +245,10 @@ describe("GET /api/tickets - My Tickets", () => {
   });
 
   it("sorts tickets by Ticket Number ascending", async () => {
-    const response = await request(app)
+    const response = await api
       .get(
         "/api/tickets?sortBy=ticketNumber&sortOrder=asc&pageSize=50",
       )
-      .set("X-Requester-Id", String(requesterAId));
 
     expect(response.status).toBe(200);
 
@@ -263,9 +264,8 @@ describe("GET /api/tickets - My Tickets", () => {
   });
 
   it("returns pagination metadata", async () => {
-    const response = await request(app)
+    const response = await api
       .get("/api/tickets?page=1&pageSize=10")
-      .set("X-Requester-Id", String(requesterAId));
 
     expect(response.status).toBe(200);
 
@@ -285,27 +285,24 @@ describe("GET /api/tickets - My Tickets", () => {
   });
 
   it("supports pagination", async () => {
-    const response = await request(app)
+    const response = await api
       .get("/api/tickets?page=1&pageSize=10")
-      .set("X-Requester-Id", String(requesterAId));
 
     expect(response.status).toBe(200);
     expect(response.body.items.length).toBeLessThanOrEqual(10);
   });
 
   it("rejects an invalid Category filter", async () => {
-    const response = await request(app)
+    const response = await api
       .get("/api/tickets?categoryId=abc")
-      .set("X-Requester-Id", String(requesterAId));
 
     expect(response.status).toBe(400);
     expect(response.body.error).toBe("Invalid Category filter");
   });
 
   it("rejects an invalid Related System filter", async () => {
-    const response = await request(app)
+    const response = await api
       .get("/api/tickets?relatedSystemId=abc")
-      .set("X-Requester-Id", String(requesterAId));
 
     expect(response.status).toBe(400);
     expect(response.body.error).toBe(
@@ -314,9 +311,8 @@ describe("GET /api/tickets - My Tickets", () => {
   });
 
   it("rejects an invalid Requested Priority filter", async () => {
-    const response = await request(app)
+    const response = await api
       .get("/api/tickets?requestedPriority=URGENT")
-      .set("X-Requester-Id", String(requesterAId));
 
     expect(response.status).toBe(400);
     expect(response.body.error).toBe(
@@ -325,45 +321,40 @@ describe("GET /api/tickets - My Tickets", () => {
   });
 
   it("rejects an invalid Status filter", async () => {
-    const response = await request(app)
+    const response = await api
       .get("/api/tickets?status=CLOSED")
-      .set("X-Requester-Id", String(requesterAId));
 
     expect(response.status).toBe(400);
     expect(response.body.error).toBe("Invalid Status filter");
   });
 
   it("rejects an invalid sort field", async () => {
-    const response = await request(app)
+    const response = await api
       .get("/api/tickets?sortBy=summary")
-      .set("X-Requester-Id", String(requesterAId));
 
     expect(response.status).toBe(400);
     expect(response.body.error).toBe("Invalid sort field");
   });
 
   it("rejects an invalid sort order", async () => {
-    const response = await request(app)
+    const response = await api
       .get("/api/tickets?sortOrder=random")
-      .set("X-Requester-Id", String(requesterAId));
 
     expect(response.status).toBe(400);
     expect(response.body.error).toBe("Invalid sort order");
   });
 
   it("rejects an invalid page", async () => {
-    const response = await request(app)
+    const response = await api
       .get("/api/tickets?page=0")
-      .set("X-Requester-Id", String(requesterAId));
 
     expect(response.status).toBe(400);
     expect(response.body.error).toBe("Invalid page");
   });
 
   it("rejects an unsupported page size", async () => {
-    const response = await request(app)
+    const response = await api
       .get("/api/tickets?pageSize=25")
-      .set("X-Requester-Id", String(requesterAId));
 
     expect(response.status).toBe(400);
     expect(response.body.error).toBe(
