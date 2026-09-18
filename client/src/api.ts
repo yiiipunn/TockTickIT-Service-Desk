@@ -20,6 +20,32 @@ export interface AuthenticatedUser {
   mustChangePassword: boolean;
 }
 
+export interface ManagedUser {
+  id: number;
+  name: string;
+  email: string;
+  role: UserRole;
+  isActive: boolean;
+  mustChangePassword: boolean;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface CreateManagedUserInput {
+  name: string;
+  email: string;
+  role: UserRole;
+  isActive: boolean;
+  initialPassword: string;
+}
+
+export interface UpdateManagedUserInput {
+  name: string;
+  email: string;
+  role: UserRole;
+  isActive: boolean;
+}
+
 interface AuthenticationResponse {
   data: {
     user: AuthenticatedUser;
@@ -690,6 +716,45 @@ export async function postInternalNote(ticketId: number, content: string): Promi
   if (!response.ok) await throwApiError(response, "Unable to add the Internal Note right now.");
   const body = await response.json() as { data: CommunicationEntry };
   return body.data;
+}
+
+export async function getAdminUsers(params: { search?: string; role?: UserRole | "" } = {}): Promise<ManagedUser[]> {
+  const query = new URLSearchParams();
+  if (params.search?.trim()) query.set("search", params.search.trim());
+  if (params.role) query.set("role", params.role);
+  const response = await fetch(`${API_URL}/api/admin/users${query.size ? `?${query}` : ""}`, { credentials: "include" });
+  if (!response.ok) await throwApiError(response, "Unable to load Users right now.");
+  return (await response.json() as { items: ManagedUser[] }).items;
+}
+
+export async function createAdminUser(input: CreateManagedUserInput): Promise<ManagedUser> {
+  const response = await fetch(`${API_URL}/api/admin/users`, {
+    method: "POST", credentials: "include",
+    headers: authenticatedHeaders({ "Content-Type": "application/json" }, true),
+    body: JSON.stringify(input),
+  });
+  if (!response.ok) await throwApiError(response, "Unable to create the User right now.");
+  return (await response.json() as { data: ManagedUser }).data;
+}
+
+export async function updateAdminUser(userId: number, input: UpdateManagedUserInput): Promise<ManagedUser> {
+  const response = await fetch(`${API_URL}/api/admin/users/${userId}`, {
+    method: "PATCH", credentials: "include",
+    headers: authenticatedHeaders({ "Content-Type": "application/json" }, true),
+    body: JSON.stringify(input),
+  });
+  if (!response.ok) await throwApiError(response, "Unable to update the User right now.");
+  return (await response.json() as { data: ManagedUser }).data;
+}
+
+export async function setAdminInitialPassword(userId: number, initialPassword: string): Promise<{ userId: number; mustChangePassword: true }> {
+  const response = await fetch(`${API_URL}/api/admin/users/${userId}/initial-password`, {
+    method: "POST", credentials: "include",
+    headers: authenticatedHeaders({ "Content-Type": "application/json" }, true),
+    body: JSON.stringify({ initialPassword }),
+  });
+  if (!response.ok) await throwApiError(response, "Unable to set the initial password right now.");
+  return (await response.json() as { data: { userId: number; mustChangePassword: true } }).data;
 }
 
 // ---------------------------------------------------------------------------

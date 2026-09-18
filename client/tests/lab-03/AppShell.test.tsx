@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { render, screen } from "@testing-library/react";
+import { render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import App from "../../src/App";
 
@@ -62,6 +62,12 @@ function installFetch(
         headers: { "Content-Type": "application/json" },
       });
     }
+    if (url.includes("/api/admin/users")) {
+      return new Response(JSON.stringify({ items: [] }), {
+        status: 200,
+        headers: { "Content-Type": "application/json" },
+      });
+    }
     const body = url.includes("/api/tickets")
       ? { items: [], pagination: { page: 1, pageSize: 10, totalItems: 0, totalPages: 0 } }
       : [];
@@ -86,6 +92,10 @@ describe("authenticated application shell", () => {
     await screen.findByRole("heading", { name: "My Tickets" });
     expect(screen.getByText("Ari Example")).toBeInTheDocument();
     expect(screen.getByText("Requester")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "My Tickets" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Create Ticket" })).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "User Management" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Ticket Queue" })).not.toBeInTheDocument();
     expect(screen.queryByLabelText("Development Requester")).not.toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Change Password" })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Logout" })).toBeInTheDocument();
@@ -142,7 +152,28 @@ describe("authenticated application shell", () => {
     expect(await screen.findByText("IT Staff")).toBeInTheDocument();
     expect(screen.getByText("Ari Example")).toBeInTheDocument();
     expect(screen.getByRole("heading", { name: "Ticket Queue" })).toBeInTheDocument();
+    expect(screen.getByText("IT Staff workspace")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Ticket Queue" })).toHaveAttribute("aria-current", "page");
     expect(screen.queryByText("Claim Ticket")).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "User Management" })).not.toBeInTheDocument();
+  });
+
+  it("lets an Administrator navigate between User Management and the permitted Ticket Queue", async () => {
+    installFetch("ADMINISTRATOR");
+    render(<App />);
+    expect(await screen.findByRole("heading", { name: "User Management" })).toBeInTheDocument();
+    expect(within(screen.getByRole("navigation", { name: "Application navigation" })).getByText("Administrator")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "User Management" })).toHaveAttribute("aria-current", "page");
+    expect(screen.getByRole("button", { name: "User Management" })).toHaveClass("text-decoration-underline");
+    await userEvent.click(screen.getByRole("button", { name: "Ticket Queue" }));
+    expect(await screen.findByRole("heading", { name: "Ticket Queue" })).toBeInTheDocument();
+    expect(screen.getByText("Administrator workspace")).toBeInTheDocument();
+    expect(screen.queryByText("IT Staff workspace")).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Ticket Queue" })).toHaveAttribute("aria-current", "page");
+    expect(screen.getByRole("button", { name: "Ticket Queue" })).toHaveClass("text-decoration-underline");
+    await userEvent.click(screen.getByRole("button", { name: "User Management" }));
+    expect(await screen.findByRole("heading", { name: "User Management" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "User Management" })).toHaveAttribute("aria-current", "page");
   });
 
   it("opens Ticket Detail with Claim available for an unassigned Ticket", async () => {

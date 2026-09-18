@@ -51,8 +51,10 @@ function formatDate(value: string) {
 
 export default function StaffTicketQueue({
   onOpenTicket,
+  role,
 }: {
   onOpenTicket: (ticket: StaffQueueTicket) => void;
+  role: "IT_STAFF" | "ADMINISTRATOR";
 }) {
   const [state, setState] = useState<QueueState>("loading");
   const [result, setResult] = useState<StaffQueueResponse | null>(null);
@@ -127,7 +129,7 @@ export default function StaffTicketQueue({
     <section aria-labelledby="ticket-queue-heading">
       <div className="d-flex flex-wrap align-items-start justify-content-between gap-3 mb-4">
         <div>
-          <p className="text-success fw-semibold mb-1">IT Staff workspace</p>
+          <p className="text-success fw-semibold mb-1">{role === "ADMINISTRATOR" ? "Administrator workspace" : "IT Staff workspace"}</p>
           <h1 id="ticket-queue-heading" className="h2 mb-1">Ticket Queue</h1>
           <p className="text-muted mb-0">Find and prioritize shared operational work.</p>
         </div>
