@@ -1,216 +1,171 @@
-# TokTickIT IT Service Desk
+# TokTickIT Service Desk
 
-TokTickIT is a requester-facing IT service desk web application developed for CPE 334. Lab 2 builds on the Lab 1 system check with a complete ticketing MVP: requester selection, ticket creation, ticket discovery and detail views, attachment management, and responsive UI foundations.
+TokTickIT is an IT service desk web application for CPE 334. Lab 3 adds authenticated, role-based workflows to the Lab 2 ticketing foundation: Requesters manage their own tickets, IT Staff operate the queue, and Administrators manage user accounts.
 
-> **Important:** Development Requester selection and the `X-Requester-Id` header exist only to support Lab 2 development and testing. They are not authentication or an authorization model for production use.
+## Main Features
 
-## Features
+- Authenticated login and logout with server-enforced session and role authorization
+- Mandatory password change for initial-password accounts
+- Requester ticket creation, My Tickets, Ticket Detail, and Lab 2 attachment continuity
+- IT Staff Ticket Queue and operational Ticket Detail
+- Ticket claim, assignment/reassignment, IT Priority, and status workflow
+- Public Comments and role-restricted Internal Notes
+- Administrator User Management for listing, filtering, creating, editing, activating/deactivating, and resetting user initial passwords
+- Attachment upload, download, and soft removal: JPG/JPEG, PNG, WEBP, or PDF; up to 5 MB per file and five active files per ticket
 
-- Backend health and request-category checks
-- Temporary Development Requester selection and switching
-- Ticket creation with category, related system, priority, summary, description, and optional attachments
-- Requester-scoped **My Tickets** search, filtering, sorting, and pagination
-- Read-only Ticket Detail with backend-enforced requester ownership
-- Attachment upload, download, metadata display, and soft removal
-- Loading, empty, no-results, validation, and safe error states
-- Responsive desktop, tablet, and mobile layouts using the Zen Green visual foundation
+## Roles
 
-Attachment uploads support JPG/JPEG, PNG, WEBP, and PDF files. Each file may be up to 5 MB, and each ticket may have up to five active attachments. Removed attachments retain their metadata but can no longer be downloaded or previewed.
+| Role | Access |
+| --- | --- |
+| Requester | Creates and manages only their own tickets, attachments, and Public Comments. |
+| IT Staff | Uses the shared Ticket Queue and operational Ticket Detail, including ticket assignment, IT Priority, status changes, Public Comments, and Internal Notes. |
+| Administrator | Uses User Management and the IT Staff ticket operations permitted by the Lab 3 authorization matrix. |
 
-## Tech Stack
+Authentication supplies the user identity. The server enforces roles, ownership, active-account status, session state, and password-change restrictions for every protected operation.
+
+## Technology Stack
 
 | Area | Technologies |
-|---|---|
+| --- | --- |
 | Frontend | React 18, TypeScript, Vite, Bootstrap 5 |
 | Backend | Node.js, Express, TypeScript |
 | Database | PostgreSQL, Prisma ORM |
+| Authentication | Opaque HTTP-only sessions with Argon2 password hashing |
 | Testing | Vitest, Supertest, React Testing Library, Playwright |
 
-## Getting Started
+## Prerequisites
 
-### Prerequisites
-
-- Node.js (a current LTS release is recommended)
-- npm
+- Git
+- Node.js and npm
 - PostgreSQL
 
-Clone the repository and open its root directory. The backend and frontend have separate dependencies and must be installed independently.
+Create a local PostgreSQL database before applying migrations. The backend and frontend have separate dependencies.
 
-### 1. Configure and run the backend
+## Installation
 
-```bash
+From a fresh clone, install dependencies and create local environment files:
+
+```powershell
+git clone https://github.com/yiiipunn/TockTickIT-Service-Desk.git
+cd TockTickIT-Service-Desk
+
 cd server
 npm install
+Copy-Item .env.example .env
+
+cd ..\client
+npm install
+Copy-Item .env.example .env
 ```
 
-Copy `server/.env.example` to `server/.env`, then update the connection string for your local PostgreSQL database:
+On macOS or Linux, use `cp .env.example .env` in each directory instead of `Copy-Item`.
+
+## Environment Setup
+
+Use the copied template files and set values for your local environment. Do not commit either `.env` file.
+
+`server/.env` requires:
 
 ```env
 DATABASE_URL="postgresql://<username>:<password>@localhost:5432/<database>?schema=public"
 PORT=3000
 ```
 
-The database named in `DATABASE_URL` must already exist. Local `.env` files and attachment storage are ignored by Git and must not be committed.
-
-Apply the Prisma migrations and seed the reference data:
-
-```bash
-npm run prisma:migrate
-npm run prisma:seed
-```
-
-The idempotent seed creates:
-
-- Four request categories: Account and Access, Hardware, Software, and Network
-- Six related systems
-- Four active Development Requesters and one inactive test requester
-
-Start the API:
-
-```bash
-npm run dev
-```
-
-The API is available at `http://localhost:3000`. Uploaded files are stored in `server/storage/attachments` by default. Set `ATTACHMENT_STORAGE_DIR` to override that location.
-
-Optional database inspection:
-
-```bash
-npx prisma studio
-```
-
-### 2. Configure and run the frontend
-
-In a second terminal:
-
-```bash
-cd client
-npm install
-```
-
-Copy `client/.env.example` to `client/.env`. Its default value points to the local API:
+The PostgreSQL database named in `DATABASE_URL` must already exist. `client/.env` requires the API base URL:
 
 ```env
 VITE_API_URL="http://localhost:3000"
 ```
 
-Start the frontend:
+## Database Setup
 
-```bash
+Run these commands from `server/` after configuring `server/.env`:
+
+```powershell
+npm run prisma:migrate
+npm run prisma:seed
+```
+
+`prisma:migrate` runs Prisma's development migration workflow. The seed is idempotent for its reference data, users, tickets, comments, and notes; it creates development data when it is missing.
+
+## Running the Application
+
+Start the API from `server/`:
+
+```powershell
 npm run dev
 ```
 
-Open `http://localhost:5173`, select a Development Requester, and choose **Create Ticket** or **My Tickets**.
+The API listens at <http://localhost:3000>.
+
+In a second terminal, start the client from `client/`:
+
+```powershell
+npm run dev
+```
+
+Open <http://localhost:5173> in a browser.
+
+## Lab 3 Development Accounts
+
+The following are fictional, local development accounts created by the seed. Each uses the initial password `TokTickIT-Lab3!` on a freshly seeded database and must change that password on first login.
+
+| Role | Example email | Initial password | Status |
+| --- | --- | --- | --- |
+| Requester | `narin@example.com` | `TokTickIT-Lab3!` | Active |
+| Requester | `inactive@example.com` | `TokTickIT-Lab3!` | Inactive |
+| IT Staff | `ari.staff@example.com` | `TokTickIT-Lab3!` | Active |
+| IT Staff | `somchai.retired@example.com` | `TokTickIT-Lab3!` | Inactive |
+| Administrator | `anong.admin@example.com` | `TokTickIT-Lab3!` | Active |
+
+See [Lab 3 development credentials](docs/lab-03/development-credentials.md) for the complete local account list. Passwords changed during local use are account-specific and are not recorded in the repository.
 
 ## API Overview
 
-Requester-scoped endpoints require the temporary header `X-Requester-Id: <id>`. Ownership is checked by the backend; missing tickets and tickets belonging to another requester both return `404` without exposing ticket data.
+The API base path is `http://localhost:3000/api`. Protected requests use the authenticated session cookie; unsafe requests also use the session-bound CSRF token returned by `GET /api/auth/me`. The server derives the current user from the session and enforces role and ownership rules.
 
-| Method | Endpoint | Purpose | Requester header |
-|---|---|---|---|
-| `GET` | `/api/health` | Check API availability | No |
-| `GET` | `/api/categories` | List request categories | No |
-| `GET` | `/api/requesters` | List active Development Requesters | No |
-| `GET` | `/api/related-systems` | List related systems | No |
-| `POST` | `/api/tickets` | Create a ticket | Yes |
-| `GET` | `/api/tickets` | Search, filter, sort, and paginate owned tickets | Yes |
-| `GET` | `/api/tickets/:id` | Get an owned ticket and its attachments | Yes |
-| `POST` | `/api/tickets/:id/attachments` | Upload an attachment using multipart field `file` | Yes |
-| `GET` | `/api/attachments/:id` | Get attachment metadata | Yes |
-| `GET` | `/api/attachments/:id/download` | Download an active attachment | Yes |
-| `DELETE` | `/api/attachments/:id` | Soft-remove an attachment with a removal reason | Yes |
+| API group | Purpose | Permitted roles |
+| --- | --- | --- |
+| Authentication | Login, current user, password change, and logout | Public / authenticated user, as applicable |
+| Reference data | Categories and related systems | Authenticated users |
+| Requester tickets | Create, list, and view owned tickets; attachment operations | Requester, with ticket ownership |
+| Ticket Queue | Search, filter, sort, and page operational tickets | IT Staff, Administrator |
+| Ticket operations | Claim, assign/reassign, set IT Priority, and change status | IT Staff, Administrator |
+| Comments and notes | Public Comments; role-restricted Internal Notes | Per authorization matrix |
+| User Management | List, create, edit, activate/deactivate, and reset Users | Administrator |
 
-`GET /api/tickets` supports `search`, `categoryId`, `relatedSystemId`, `priority`, `status`, `sort`, `order`, `page`, and `pageSize`. See the [Lab 2 API specification](docs/lab-02/api-spec.md) for complete request, response, validation, and error contracts.
-
-Attachment removal expects a JSON body such as `{ "reason": "Uploaded the wrong file" }`; the trimmed reason must contain 1 to 250 characters.
+See the [Lab 3 API specification](docs/lab-03/api-spec.md) for exact endpoints, request bodies, validation, response shapes, and status codes.
 
 ## Testing
 
-The backend tests require the PostgreSQL database configured in `server/.env`. Apply migrations before running them.
+The server tests require the PostgreSQL database configured in `server/.env` and its migrations. Run each command from the shown directory.
 
-### Backend API and integration tests
+| Suite | Directory | Command |
+| --- | --- | --- |
+| Server tests | `server/` | `npm test` |
+| Client tests | `client/` | `npm test` |
+| Browser E2E tests | `client/` | `npx playwright install chromium` (once), then `npm run test:e2e` |
+| Server production build | `server/` | `npm run build` |
+| Client production build | `client/` | `npm run build` |
 
-```bash
-cd server
-npm test
-```
+The E2E configuration starts its own API on port 3100 and client on port 5174, then runs the Lab 3 Playwright suite.
 
-The backend suite covers health and reference data, requester validation, ticket creation, ownership boundaries, My Tickets queries, Ticket Detail, the Lab 2 data model, and attachment rules.
+## Lab 3 Documentation
 
-### Frontend component tests
+- [Specification](docs/lab-03/specification.md)
+- [Test plan and results](docs/lab-03/tests.md)
+- [UI specification](docs/lab-03/ui-spec.md)
+- [API specification](docs/lab-03/api-spec.md)
+- [Reviewer evidence](docs/lab-03/reviewer.md)
+- [AI-use record](docs/lab-03/ai-use.md)
 
-```bash
-cd client
-npm test
-```
-
-The frontend suite covers the Lab 1 system state plus Development Requester selection, Create Ticket, My Tickets, Ticket Detail, and attachment interactions.
-
-### Browser end-to-end tests
-
-Install Chromium once, then run the Playwright suite:
-
-```bash
-cd client
-npx playwright install chromium
-npm run test:e2e
-```
-
-Playwright starts the API and frontend, seeds the database, and verifies the requester workflow, attachment lifecycle, ownership isolation, visual tokens, and responsive layouts. Transient captures are written to the ignored `artifacts/lab-02/runtime-screenshots/` directory; reviewed evidence is committed under `artifacts/lab-02/screenshots/`.
-
-### Production builds
-
-```bash
-cd server
-npm run build
-
-cd ../client
-npm run build
-```
-
-The completed Lab 2 verification record reports 120 passing automated tests across 16 files, with no failures or skipped tests. See the [Lab 2 test plan and results](docs/lab-02/tests.md) for traceability and evidence.
-
-## Project Structure
+## Repository Structure
 
 ```text
 TokTickIT-Service-Desk/
-|-- client/
-|   |-- e2e/                 # Playwright end-to-end tests
-|   |-- src/                 # React application
-|   `-- tests/               # Component tests
-|-- server/
-|   |-- prisma/              # Schema, migrations, and seed data
-|   |-- src/                 # Express API
-|   `-- tests/               # API and integration tests
-|-- docs/
-|   |-- lab-01/              # Lab 1 documentation
-|   `-- lab-02/              # Lab 2 specifications and records
-|-- artifacts/
-|   `-- lab-02/screenshots/  # Reviewed UI evidence
-|-- .gitignore
+|-- client/                 # React app, component tests, and Playwright E2E tests
+|-- server/                 # Express API, Prisma schema/migrations/seed, and API tests
+|-- docs/lab-03/            # Lab 3 specifications, evidence, and records
+|-- artifacts/lab-03/       # Reviewed Lab 3 UI evidence
 `-- README.md
-```
-
-## Lab 2 Documentation
-
-- [Product specification](docs/lab-02/specification.md)
-- [API specification](docs/lab-02/api-spec.md)
-- [UI specification](docs/lab-02/ui-spec.md)
-- [Test plan and results](docs/lab-02/tests.md)
-- [Peer-review record](docs/lab-02/reviewer.md)
-- [AI-use record](docs/lab-02/ai-use.md)
-
-## Development Workflow
-
-Lab work follows an issue-based Git workflow:
-
-```text
-Issue
-  -> Feature branch
-  -> Implementation and testing
-  -> Pull request
-  -> Peer review and approval
-  -> Lab staging branch
-  -> Final integration
-  -> main
 ```
