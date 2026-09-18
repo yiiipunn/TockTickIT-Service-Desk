@@ -181,13 +181,15 @@ Checked items have automated component or browser evidence. Unchecked items requ
 - [ ] Labels, announcements, contrast, and headings are accessible.
 - [ ] Desktop, tablet, mobile, 320 px, and 200% zoom have no clipping/overflow.
 - [ ] Long content wraps safely.
-- [ ] Screenshots exist for authentication, Ticket Queue, Staff Ticket Detail, and User Management at all three viewports.
+- [x] PNG screenshots exist for implemented major Lab 3 screens and named visible states at desktop, tablet, and mobile viewports.
 
 ### Current Screenshot Evidence
 
-| Screen | Desktop | Tablet | Mobile |
+| Screen / state group | Desktop | Tablet | Mobile |
 | --- | --- | --- | --- |
-| Authentication | [`login.png`](../../artifacts/lab-03/screenshots/authentication/login.png) | Open | Open |
-| Ticket Queue | [`desktop.png`](../../artifacts/lab-03/screenshots/staff-queue/desktop.png) | Open | Open |
-| Staff Ticket Detail | [`desktop.png`](../../artifacts/lab-03/screenshots/staff-ticket-detail/desktop.png) | Open | Open |
-| User Management | [`desktop.png`](../../artifacts/lab-03/screenshots/user-management/desktop.png) | [`tablet.png`](../../artifacts/lab-03/screenshots/user-management/tablet.png) | [`mobile.png`](../../artifacts/lab-03/screenshots/user-management/mobile.png) |
+| Authentication: login initial, login validation, mandatory password change, password-change validation | [`desktop`](../../artifacts/lab-03/screenshots/authentication/login-initial/desktop.png) | [`tablet`](../../artifacts/lab-03/screenshots/authentication/login-initial/tablet.png) | [`mobile`](../../artifacts/lab-03/screenshots/authentication/login-initial/mobile.png) |
+| Requester: My Tickets, Create Ticket, Ticket Detail, public-comment success | [`desktop`](../../artifacts/lab-03/screenshots/requester/my-tickets/desktop.png) | [`tablet`](../../artifacts/lab-03/screenshots/requester/my-tickets/tablet.png) | [`mobile`](../../artifacts/lab-03/screenshots/requester/my-tickets/mobile.png) |
+| IT Staff: Ticket Queue and Ticket Detail | [`desktop`](../../artifacts/lab-03/screenshots/staff-queue/ready/desktop.png) | [`tablet`](../../artifacts/lab-03/screenshots/staff-queue/ready/tablet.png) | [`mobile`](../../artifacts/lab-03/screenshots/staff-queue/ready/mobile.png) |
+| Administrator: list, create, create validation, edit, set-initial-password, validation, success | [`desktop`](../../artifacts/lab-03/screenshots/user-management/list/desktop.png) | [`tablet`](../../artifacts/lab-03/screenshots/user-management/list/tablet.png) | [`mobile`](../../artifacts/lab-03/screenshots/user-management/list/mobile.png) |
+
+Each named state group has a `desktop.png`, `tablet.png`, and `mobile.png` file in its artifact subdirectory. All files under `artifacts/lab-03/screenshots/` are PNG images.

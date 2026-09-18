@@ -3,7 +3,7 @@
 **Project:** TokTickIT Service Desk  
 **Lab:** Lab 3 — Users, Roles, IT Staff Ticketing, and Administrator User Management  
 **Author:** Phurithip Paisanworajit 67070503437  
-**Status:** In Progress — final lab3-staging to main integration evidence is pending
+**Status:** Done
 
 ## 1. Purpose
 

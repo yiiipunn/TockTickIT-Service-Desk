@@ -112,7 +112,7 @@ Traceability status: **27/27 ACs mapped**.
 | Client tests | `cd client; npm test` | Passed: 13 files, 93 tests. Lab 3: 7 files, 57 tests. |
 | Server build | `cd server; npm run build` | Passed |
 | Client build | `cd client; npm run build` | Passed |
-| E2E/responsive | `cd client; npm run test:e2e` | Passed: 5 tests. PNG screenshots captured under `artifacts/lab-03/screenshots/`. |
-| Visual review | [`ui-spec.md`](./ui-spec.md) checklist and screenshots | Partial: User Management is captured at desktop, tablet, and mobile; authentication, Ticket Queue, and Staff Ticket Detail have desktop evidence. Remaining visual/accessibility checklist items are open. |
+| E2E/responsive | `cd client; npm run test:e2e` | Passed: 6 tests. PNG screenshots captured under `artifacts/lab-03/screenshots/`. |
+| Visual review | [`ui-spec.md`](./ui-spec.md) checklist and screenshots | Partial: implemented major screens and named visible states are captured at desktop, tablet, and mobile. Remaining keyboard, focus, contrast, 320 px, and 200% zoom verification is open. |
 
-Planned tests: **61**. Passed: **44**. Partial: **14**. Open: **3**. Failed: **0**. Full server and client regressions, client build, and five Playwright tests passed with zero failures.
+Planned tests: **61**. Passed: **44**. Partial: **14**. Open: **3**. Failed: **0**. Full server and client regressions, client build, and six Playwright tests passed with zero failures.

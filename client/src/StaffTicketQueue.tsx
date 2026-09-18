@@ -279,7 +279,7 @@ export default function StaffTicketQueue({
 
       {state === "success" && result && result.items.length > 0 && (
         <>
-          <div className="card shadow-sm border-0 d-none d-md-block">
+          <div className="card shadow-sm border-0 d-none d-lg-block">
             <div className="table-responsive">
               <table className="table table-hover align-middle mb-0 staff-queue-table">
                 <thead>
@@ -296,7 +296,7 @@ export default function StaffTicketQueue({
               </table>
             </div>
           </div>
-          <div className="d-md-none queue-card-list">{result.items.map((ticket) => <QueueCard key={ticket.id} ticket={ticket} onOpenTicket={onOpenTicket} />)}</div>
+          <div className="d-lg-none queue-card-list">{result.items.map((ticket) => <QueueCard key={ticket.id} ticket={ticket} onOpenTicket={onOpenTicket} />)}</div>
           <nav className="d-flex flex-wrap justify-content-between align-items-center gap-2 mt-3" aria-label="Ticket Queue pages">
             <span className="text-muted small">Page {result.pagination.page} of {result.pagination.totalPages}</span>
             <div className="d-flex gap-2">
