@@ -131,6 +131,10 @@ function installFetchMock(options?: {
         });
       }
 
+      if (pathname === "/api/tickets/101/actions") {
+        return jsonResponse({ items: [], pagination: { page: 1, pageSize: 20, totalItems: 0, totalPages: 0 } });
+      }
+
       if (pathname === "/api/tickets") {
         return jsonResponse(ticketListResponse);
       }

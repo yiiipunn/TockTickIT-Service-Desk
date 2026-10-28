@@ -40,6 +40,7 @@ function installFetch(options: {
     if (path === "/api/related-systems") return Promise.resolve(response([system]));
     if (path === "/api/tickets") return Promise.resolve(response({ items: [ticket], pagination: { page: 1, pageSize: 10, totalItems: 1, totalPages: 1 } }));
     if (path === "/api/tickets/101") return Promise.resolve(response({ ...ticket, internalNotes: [{ content: "SECRET INTERNAL MARKER" }] }));
+    if (path === "/api/tickets/101/actions") return Promise.resolve(response({ items: [], pagination: { page: 1, pageSize: 20, totalItems: 0, totalPages: 0 } }));
     if (path === "/api/tickets/101/public-comments") {
       if (init?.method === "POST") return Promise.resolve(options.commentPost ?? response({ data: created }, 201));
       return Promise.resolve(options.commentGet ?? response({ items: options.comments ?? [existing] }));
