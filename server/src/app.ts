@@ -6,6 +6,7 @@ import { promises as fs } from "node:fs";
 import { basename, dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { Prisma, Priority, TicketStatus, UserRole } from "@prisma/client";
+import { actionsRouter } from "./actions.js";
 import { getPrisma } from "./prisma.js";
 import {
   SESSION_COOKIE_NAME,
@@ -495,6 +496,8 @@ app.use("/api", (req: Request, res: Response, next) => {
   }
   requireCsrf(req, res, next);
 });
+
+app.use("/api", actionsRouter);
 
 // ---------------------------------------------------------------------------
 // Lab 3 - IT Staff Ticket Queue
