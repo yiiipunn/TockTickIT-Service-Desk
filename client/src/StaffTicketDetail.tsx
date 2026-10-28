@@ -14,6 +14,7 @@ import {
   updateStaffTicketStatus,
 } from "./api";
 import TicketCommunication from "./TicketCommunication";
+import ActionsTaken from "./ActionsTaken";
 
 type DetailState = "loading" | "success" | "error";
 type Action = "claim" | "assignment" | "priority" | "status";
@@ -44,10 +45,12 @@ export default function StaffTicketDetail({
   ticketId,
   currentUser,
   onBack,
+  showActions = false,
 }: {
   ticketId: number;
   currentUser: AuthenticatedUser;
   onBack: () => void;
+  showActions?: boolean;
 }) {
   const [state, setState] = useState<DetailState>("loading");
   const [ticket, setTicket] = useState<TicketDetail | null>(null);
@@ -267,6 +270,13 @@ export default function StaffTicketDetail({
           <h2 id="staff-attachments-heading" className="h5">Attachments</h2>
           {ticket.attachments.length === 0 ? <p className="text-muted mb-0">No attachments were added to this Ticket.</p> : <ul className="list-group">{ticket.attachments.map((attachment) => <li className="list-group-item text-break" key={attachment.id}>{attachment.originalFilename} {attachment.isRemoved && <span className="badge text-bg-secondary">Removed</span>}</li>)}</ul>}
         </section>
+        {showActions && <ActionsTaken
+          ticketId={ticket.id}
+          ticketNumber={ticket.ticketNumber}
+          ticketStatus={ticket.status}
+          ticketOwnerName={ticket.owner?.name ?? null}
+          currentUser={currentUser}
+        />}
         {canOperate && <>
           <TicketCommunication ticketId={ticket.id} kind="public" initialEntries={ticket.publicComments} />
           <TicketCommunication ticketId={ticket.id} kind="internal" initialEntries={ticket.internalNotes} />

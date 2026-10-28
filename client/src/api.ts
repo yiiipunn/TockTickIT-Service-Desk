@@ -60,6 +60,7 @@ export class ApiError extends Error {
     public readonly status: number,
     public readonly fields?: Record<string, string>,
     public readonly retryAfter?: number,
+    public readonly current?: Record<string, unknown>,
   ) {
     super(message);
     this.name = "ApiError";
@@ -223,6 +224,75 @@ export interface EligibleOwner {
   role: "IT_STAFF" | "ADMINISTRATOR";
 }
 
+// ---------------------------------------------------------------------------
+// Lab 4 - Actions Taken
+// ---------------------------------------------------------------------------
+
+export type ActionStatus = "PLANNED" | "IN_PROGRESS" | "COMPLETED" | "CANCELLED";
+
+export interface ActionPerson {
+  id: number;
+  name: string;
+  role: UserRole;
+  isActive?: boolean;
+}
+
+export interface ActionTaken {
+  id: number;
+  ticketId: number;
+  actionAt: string;
+  description: string;
+  result: string | null;
+  status: ActionStatus;
+  assignee: ActionPerson & { isActive: boolean };
+  createdBy: ActionPerson;
+  performedBy: ActionPerson | null;
+  followUpRequired: boolean;
+  followUpNote: string | null;
+  attachmentNotes: string | null;
+  completedAt: string | null;
+  cancelledAt: string | null;
+  cancelledBy: ActionPerson | null;
+  cancellationReason: string | null;
+  version: number;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface ActionListResponse {
+  items: ActionTaken[];
+  pagination: TicketPagination;
+}
+
+export interface ActionEvent {
+  id: number;
+  type: "CREATED" | "UPDATED" | "ASSIGNEE_CHANGED" | "STATUS_CHANGED";
+  actor: ActionPerson;
+  fromStatus: ActionStatus | null;
+  toStatus: ActionStatus | null;
+  fromAssignee: Pick<ActionPerson, "id" | "name"> | null;
+  toAssignee: Pick<ActionPerson, "id" | "name"> | null;
+  createdAt: string;
+}
+
+export interface ActionEditableInput {
+  actionAt: string;
+  description: string;
+  result: string | null;
+  followUpRequired: boolean;
+  followUpNote: string | null;
+  attachmentNotes: string | null;
+}
+
+export interface CreateActionInput extends ActionEditableInput {
+  assigneeId: number;
+}
+
+export type ActionStatusInput =
+  | { expectedVersion: number; status: "IN_PROGRESS" }
+  | ({ expectedVersion: number; status: "COMPLETED" } & Omit<ActionEditableInput, "description">)
+  | { expectedVersion: number; status: "CANCELLED"; confirmed: true; cancellationReason: string };
+
 export interface GetStaffQueueParams {
   search?: string;
   status?: string;
@@ -321,6 +391,7 @@ async function throwApiError(response: Response, fallback: string): Promise<neve
         response.status,
         body.error.fields,
         Number(response.headers.get("Retry-After")) || undefined,
+        body.error.current,
       );
     }
   } catch (error) {
@@ -627,6 +698,88 @@ export async function getEligibleOwners(): Promise<EligibleOwner[]> {
   if (!response.ok) await throwApiError(response, "Unable to load eligible owners right now.");
   const body = await response.json() as { items: EligibleOwner[] };
   return body.items;
+}
+
+export async function getActions(
+  ticketId: number,
+  page = 1,
+  pageSize: 10 | 20 | 50 = 20,
+): Promise<ActionListResponse> {
+  const query = new URLSearchParams({ page: String(page), pageSize: String(pageSize) });
+  const response = await fetch(`${API_URL}/api/tickets/${ticketId}/actions?${query}`, {
+    credentials: "include",
+  });
+  if (!response.ok) await throwApiError(response, "Unable to load Actions Taken right now.");
+  return response.json() as Promise<ActionListResponse>;
+}
+
+export async function getAction(actionId: number): Promise<ActionTaken> {
+  const response = await fetch(`${API_URL}/api/actions/${actionId}`, { credentials: "include" });
+  if (!response.ok) await throwApiError(response, "Unable to load the Action right now.");
+  return (await response.json() as { data: ActionTaken }).data;
+}
+
+export async function getActionEvents(actionId: number): Promise<ActionEvent[]> {
+  const response = await fetch(`${API_URL}/api/staff/actions/${actionId}/events`, {
+    credentials: "include",
+  });
+  if (!response.ok) await throwApiError(response, "Unable to load Action history right now.");
+  return (await response.json() as { items: ActionEvent[] }).items;
+}
+
+export async function createAction(ticketId: number, input: CreateActionInput): Promise<ActionTaken> {
+  const response = await fetch(`${API_URL}/api/staff/tickets/${ticketId}/actions`, {
+    method: "POST",
+    credentials: "include",
+    headers: authenticatedHeaders({ "Content-Type": "application/json" }, true),
+    body: JSON.stringify(input),
+  });
+  if (!response.ok) await throwApiError(response, "Unable to plan the Action right now.");
+  return (await response.json() as { data: ActionTaken }).data;
+}
+
+export async function updateAction(
+  actionId: number,
+  expectedVersion: number,
+  input: ActionEditableInput,
+): Promise<ActionTaken> {
+  const response = await fetch(`${API_URL}/api/staff/actions/${actionId}`, {
+    method: "PATCH",
+    credentials: "include",
+    headers: authenticatedHeaders({ "Content-Type": "application/json" }, true),
+    body: JSON.stringify({ expectedVersion, ...input }),
+  });
+  if (!response.ok) await throwApiError(response, "Unable to save the Action right now.");
+  return (await response.json() as { data: ActionTaken }).data;
+}
+
+export async function reassignAction(
+  actionId: number,
+  expectedVersion: number,
+  assigneeId: number,
+): Promise<ActionTaken> {
+  const response = await fetch(`${API_URL}/api/staff/actions/${actionId}/assignee`, {
+    method: "PATCH",
+    credentials: "include",
+    headers: authenticatedHeaders({ "Content-Type": "application/json" }, true),
+    body: JSON.stringify({ expectedVersion, assigneeId }),
+  });
+  if (!response.ok) await throwApiError(response, "Unable to reassign the Action right now.");
+  return (await response.json() as { data: ActionTaken }).data;
+}
+
+export async function transitionAction(
+  actionId: number,
+  input: ActionStatusInput,
+): Promise<ActionTaken> {
+  const response = await fetch(`${API_URL}/api/staff/actions/${actionId}/status`, {
+    method: "PATCH",
+    credentials: "include",
+    headers: authenticatedHeaders({ "Content-Type": "application/json" }, true),
+    body: JSON.stringify(input),
+  });
+  if (!response.ok) await throwApiError(response, "Unable to change the Action status right now.");
+  return (await response.json() as { data: ActionTaken }).data;
 }
 
 export async function assignStaffTicket(

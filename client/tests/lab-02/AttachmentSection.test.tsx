@@ -62,6 +62,9 @@ function installFetchMock(options?: {
     if (pathname === "/api/categories") return jsonResponse([category]);
     if (pathname === "/api/related-systems") return jsonResponse([relatedSystem]);
     if (pathname === "/api/tickets") return jsonResponse(ticketListResponse);
+    if (pathname === "/api/tickets/101/actions") {
+      return jsonResponse({ items: [], pagination: { page: 1, pageSize: 20, totalItems: 0, totalPages: 0 } });
+    }
 
     if (pathname === "/api/attachments/11/download") {
       return Promise.resolve(new Response(new Blob(["png-bytes"], {

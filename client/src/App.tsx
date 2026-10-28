@@ -28,6 +28,7 @@ import StaffTicketQueue from "./StaffTicketQueue";
 import StaffTicketDetail from "./StaffTicketDetail";
 import TicketCommunication from "./TicketCommunication";
 import UserManagement from "./UserManagement";
+import ActionsTaken from "./ActionsTaken";
 
 type UiState = "idle" | "loading" | "success" | "error";
 type AuthState = "loading" | "unauthenticated" | "authenticated" | "error";
@@ -760,6 +761,7 @@ export default function App() {
                   ticketId={selectedStaffTicket.id}
                   currentUser={currentUser}
                   onBack={() => setAppView("queue")}
+                  showActions
                 />
               ) : <StaffTicketQueue onOpenTicket={handleOpenStaffTicket} role={currentUser.role} />}
             </main>
@@ -1994,6 +1996,13 @@ export default function App() {
                             </div>
                           )}
                         </div>
+
+                        <ActionsTaken
+                          ticketId={selectedTicketDetail.id}
+                          ticketNumber={selectedTicketDetail.ticketNumber}
+                          ticketStatus={selectedTicketDetail.status}
+                          currentUser={currentUser}
+                        />
 
                         <TicketCommunication ticketId={selectedTicketDetail.id} kind="public" headingLevel={3} />
 
