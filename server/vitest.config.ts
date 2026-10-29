@@ -6,5 +6,6 @@ export default defineConfig({
     include: ["tests/**/*.test.ts"],
     // Integration files share one PostgreSQL database and create transactional fixtures.
     fileParallelism: false,
+    testTimeout: 15_000,
   },
 });

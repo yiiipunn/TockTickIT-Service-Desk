@@ -203,6 +203,49 @@ export interface StaffQueueResponse {
   };
 }
 
+export interface StaffDashboardTicket {
+  id: number;
+  ticketNumber: string;
+  summary: string;
+  status: TicketStatus;
+  itPriority: RequestedPriority;
+  updatedAt: string;
+}
+
+export interface StaffDashboardAction {
+  id: number;
+  status: "PLANNED" | "IN_PROGRESS" | "COMPLETED" | "CANCELLED";
+  actionAt: string;
+  description: string;
+  completedAt: string | null;
+  ticket: {
+    id: number;
+    ticketNumber: string;
+    summary: string;
+  };
+}
+
+export interface StaffDashboardData {
+  asOf: string;
+  timezone: "UTC";
+  metrics: {
+    unassignedOpenCount: number;
+    myOpenTicketCount: number;
+    myActiveActionsCount: number;
+    countsByStatus: Record<TicketStatus, number>;
+    countsByItPriority: Record<RequestedPriority, number>;
+  };
+  urgentTickets: StaffDashboardTicket[];
+  recentlyUpdated: StaffDashboardTicket[];
+  myActiveActions: StaffDashboardAction[];
+  myRecentCompletedActions: StaffDashboardAction[];
+  links: {
+    unassigned: string;
+    mine: string;
+    urgent: string;
+  };
+}
+
 export interface StaffTicketDetail extends StaffQueueTicket {
   status: TicketStatus;
   owner: ({
@@ -321,6 +364,7 @@ export type ActionStatusInput =
 
 export interface GetStaffQueueParams {
   search?: string;
+  scope?: "open";
   status?: string;
   requestedPriority?: RequestedPriority;
   itPriority?: RequestedPriority;
@@ -695,6 +739,18 @@ export async function getStaffTickets(
     await throwApiError(response, "Unable to load the Ticket Queue right now.");
   }
   return response.json() as Promise<StaffQueueResponse>;
+}
+
+export async function getStaffDashboard(): Promise<StaffDashboardData> {
+  const response = await fetch(`${API_URL}/api/dashboards/staff`, {
+    credentials: "include",
+    cache: "no-store",
+  });
+  if (!response.ok) {
+    await throwApiError(response, "Unable to load the Staff Dashboard right now.");
+  }
+  const body = await response.json() as { data: StaffDashboardData };
+  return body.data;
 }
 
 export async function getStaffTicketDetail(ticketId: number): Promise<StaffTicketDetail> {

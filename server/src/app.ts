@@ -7,6 +7,7 @@ import { basename, dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { Prisma, Priority, TicketStatus, UserRole } from "@prisma/client";
 import { actionsRouter } from "./actions.js";
+import { dashboardsRouter } from "./dashboards.js";
 import { getPrisma } from "./prisma.js";
 import {
   SESSION_COOKIE_NAME,
@@ -500,6 +501,7 @@ app.use("/api", (req: Request, res: Response, next) => {
 });
 
 app.use("/api", actionsRouter);
+app.use("/api", dashboardsRouter);
 
 // ---------------------------------------------------------------------------
 // Lab 3 - IT Staff Ticket Queue
@@ -534,6 +536,9 @@ app.get("/api/staff/tickets", requireRole("IT_STAFF", "ADMINISTRATOR"), async (
 
     const where: Prisma.TicketWhereInput = {
       ...(query.status !== undefined && { status: query.status }),
+      ...(query.scope === "open" && query.status === undefined && {
+        status: { in: [...ACTIVE_TICKET_STATUSES] },
+      }),
       ...(query.requestedPriority !== undefined && {
         requestedPriority: query.requestedPriority,
       }),

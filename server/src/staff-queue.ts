@@ -10,11 +10,20 @@ export const STAFF_QUEUE_SORT_FIELDS = [
   "itPriority",
 ] as const;
 
+const OPEN_TICKET_STATUSES = new Set<TicketStatus>([
+  TicketStatus.NEW,
+  TicketStatus.OPEN,
+  TicketStatus.IN_PROGRESS,
+  TicketStatus.WAITING_FOR_REQUESTER,
+  TicketStatus.REOPENED,
+]);
+
 export type StaffQueueSortField = (typeof STAFF_QUEUE_SORT_FIELDS)[number];
 export type StaffQueueOwner = "me" | "unassigned" | number;
 
 export interface StaffQueueQuery {
   search: string;
+  scope?: "open";
   status?: TicketStatus;
   requestedPriority?: Priority;
   itPriority?: Priority;
@@ -59,6 +68,7 @@ function priority(value: string | undefined) {
 export function parseStaffQueueQuery(query: Record<string, unknown>): StaffQueueQuery {
   const allowed = new Set([
     "search",
+    "scope",
     "status",
     "requestedPriority",
     "itPriority",
@@ -76,6 +86,16 @@ export function parseStaffQueueQuery(query: Record<string, unknown>): StaffQueue
 
   const statusValue = singleQueryValue(query, "status");
   if (statusValue !== undefined && !Object.values(TicketStatus).includes(statusValue as TicketStatus)) {
+    invalidQuery();
+  }
+
+  const scopeValue = singleQueryValue(query, "scope");
+  if (scopeValue !== undefined && scopeValue !== "open") invalidQuery();
+  if (
+    scopeValue === "open" &&
+    statusValue !== undefined &&
+    !OPEN_TICKET_STATUSES.has(statusValue as TicketStatus)
+  ) {
     invalidQuery();
   }
 
@@ -107,6 +127,7 @@ export function parseStaffQueueQuery(query: Record<string, unknown>): StaffQueue
 
   return {
     search,
+    scope: scopeValue as "open" | undefined,
     status: statusValue as TicketStatus | undefined,
     requestedPriority: priority(singleQueryValue(query, "requestedPriority")),
     itPriority: priority(singleQueryValue(query, "itPriority")),

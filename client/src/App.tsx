@@ -11,6 +11,7 @@ import {
   getTicketDetail,
   getTickets,
   indicateRequesterResolution,
+  GetStaffQueueParams,
   GetTicketsParams,
   RelatedSystem,
   RequestedPriority,
@@ -30,12 +31,13 @@ import StaffTicketDetail from "./StaffTicketDetail";
 import TicketCommunication from "./TicketCommunication";
 import UserManagement from "./UserManagement";
 import ActionsTaken from "./ActionsTaken";
+import StaffDashboard from "./StaffDashboard";
 
 type UiState = "idle" | "loading" | "success" | "error";
 type AuthState = "loading" | "unauthenticated" | "authenticated" | "error";
 type ReferenceDataState = "idle" | "loading" | "success" | "error";
 type SubmitState = "idle" | "submitting" | "success" | "error";
-type AppView = "tickets" | "create" | "detail" | "queue" | "staff-detail" | "users";
+type AppView = "tickets" | "create" | "detail" | "dashboard" | "queue" | "staff-detail" | "users";
 
 const MAX_ATTACHMENT_SIZE = 5 * 1024 * 1024;
 const ALLOWED_ATTACHMENT_TYPES = new Set([
@@ -68,22 +70,36 @@ function AuthenticatedNavbar({
   user,
   onChangePassword,
   onLogout,
+  onDashboard,
   onTicketQueue,
   onUserManagement,
+  dashboardActive = false,
   ticketQueueActive = false,
   userManagementActive = false,
 }: {
   user: AuthenticatedUser;
   onChangePassword?: () => void;
   onLogout: () => void;
+  onDashboard?: () => void;
   onTicketQueue?: () => void;
   onUserManagement?: () => void;
+  dashboardActive?: boolean;
   ticketQueueActive?: boolean;
   userManagementActive?: boolean;
 }) {
   return (
     <nav className="navbar flex-wrap gap-2 bg-success shadow-sm px-4 py-3" aria-label="Application navigation">
       <span className="navbar-brand text-white fw-bold mb-0">TokTickIT</span>
+      {onDashboard && (
+        <button
+          type="button"
+          className={`btn btn-link text-white ${dashboardActive ? "text-decoration-underline fw-semibold" : "text-decoration-none"}`}
+          onClick={onDashboard}
+          aria-current={dashboardActive ? "page" : undefined}
+        >
+          Dashboard
+        </button>
+      )}
       {onUserManagement && (
         <button
           type="button"
@@ -138,7 +154,11 @@ export default function App() {
   const [showPasswordChange, setShowPasswordChange] = useState(false);
 
   const [appView, setAppView] = useState<AppView>("tickets");
-  const [selectedStaffTicket, setSelectedStaffTicket] = useState<StaffQueueTicket | null>(null);
+  const [selectedStaffTicketId, setSelectedStaffTicketId] = useState<number | null>(null);
+  const [selectedStaffActionId, setSelectedStaffActionId] = useState<number | null>(null);
+  const [staffDetailBackView, setStaffDetailBackView] = useState<"dashboard" | "queue">("queue");
+  const [staffQueueQuery, setStaffQueueQuery] = useState<GetStaffQueueParams>({});
+  const [staffQueueKey, setStaffQueueKey] = useState(0);
 
   // -------------------------------------------------------------------------
   // Lab 2 - Create Ticket Reference Data
@@ -255,8 +275,9 @@ export default function App() {
     setAuthState("authenticated");
     setAuthFailure("");
     setShowPasswordChange(false);
-    setAppView(user.role === "REQUESTER" ? "tickets" : user.role === "ADMINISTRATOR" ? "users" : "queue");
-    setSelectedStaffTicket(null);
+    setAppView(user.role === "REQUESTER" ? "tickets" : "dashboard");
+    setSelectedStaffTicketId(null);
+    setSelectedStaffActionId(null);
 
     if (user.role === "REQUESTER" && !user.mustChangePassword) {
       await Promise.all([
@@ -278,7 +299,8 @@ export default function App() {
     setAuthState("unauthenticated");
     setShowPasswordChange(false);
     setAppView("tickets");
-    setSelectedStaffTicket(null);
+    setSelectedStaffTicketId(null);
+    setSelectedStaffActionId(null);
 
     resetTicketForm();
 
@@ -324,12 +346,37 @@ export default function App() {
     setAuthState("unauthenticated");
     setShowPasswordChange(false);
     setAuthFailure("Your session expired. Sign in again.");
-    setSelectedStaffTicket(null);
+    setSelectedStaffTicketId(null);
+    setSelectedStaffActionId(null);
   }
 
   function handleOpenStaffTicket(ticket: StaffQueueTicket) {
-    setSelectedStaffTicket(ticket);
+    setSelectedStaffTicketId(ticket.id);
+    setSelectedStaffActionId(null);
+    setStaffDetailBackView("queue");
     setAppView("staff-detail");
+  }
+
+  function handleOpenDashboardTicket(ticketId: number) {
+    setSelectedStaffTicketId(ticketId);
+    setSelectedStaffActionId(null);
+    setStaffDetailBackView("dashboard");
+    setAppView("staff-detail");
+  }
+
+  function handleOpenDashboardAction(ticketId: number, actionId: number) {
+    setSelectedStaffTicketId(ticketId);
+    setSelectedStaffActionId(actionId);
+    setStaffDetailBackView("dashboard");
+    setAppView("staff-detail");
+  }
+
+  function handleOpenStaffQueue(query: GetStaffQueueParams = {}) {
+    setSelectedStaffTicketId(null);
+    setSelectedStaffActionId(null);
+    setStaffQueueQuery(query);
+    setStaffQueueKey((current) => current + 1);
+    setAppView("queue");
   }
 
   // -------------------------------------------------------------------------
@@ -776,29 +823,46 @@ export default function App() {
               user={currentUser}
               onChangePassword={() => setShowPasswordChange(true)}
               onLogout={handleLogout}
-              onTicketQueue={() => {
-                setSelectedStaffTicket(null);
-                setAppView("queue");
+              onDashboard={() => {
+                setSelectedStaffTicketId(null);
+                setSelectedStaffActionId(null);
+                setAppView("dashboard");
               }}
+              onTicketQueue={() => handleOpenStaffQueue()}
               onUserManagement={currentUser.role === "ADMINISTRATOR" ? () => {
-                setSelectedStaffTicket(null);
+                setSelectedStaffTicketId(null);
+                setSelectedStaffActionId(null);
                 setAppView("users");
               } : undefined}
+              dashboardActive={appView === "dashboard"}
               ticketQueueActive={appView === "queue" || appView === "staff-detail"}
               userManagementActive={appView === "users"}
             />
             <main className="app-content">
               {authFailure && <div className="alert alert-danger" role="alert">{authFailure}</div>}
-              {currentUser.role === "ADMINISTRATOR" && appView === "users" ? (
-                <UserManagement currentUser={currentUser} />
-              ) : appView === "staff-detail" && selectedStaffTicket ? (
-                <StaffTicketDetail
-                  ticketId={selectedStaffTicket.id}
+              {appView === "dashboard" ? (
+                <StaffDashboard
                   currentUser={currentUser}
-                  onBack={() => setAppView("queue")}
-                  showActions
+                  onOpenQueue={handleOpenStaffQueue}
+                  onOpenTicket={handleOpenDashboardTicket}
+                  onOpenAction={handleOpenDashboardAction}
                 />
-              ) : <StaffTicketQueue onOpenTicket={handleOpenStaffTicket} role={currentUser.role} />}
+              ) : currentUser.role === "ADMINISTRATOR" && appView === "users" ? (
+                <UserManagement currentUser={currentUser} />
+              ) : appView === "staff-detail" && selectedStaffTicketId !== null ? (
+                <StaffTicketDetail
+                  ticketId={selectedStaffTicketId}
+                  currentUser={currentUser}
+                  onBack={() => setAppView(staffDetailBackView)}
+                  showActions
+                  focusActionId={selectedStaffActionId ?? undefined}
+                />
+              ) : <StaffTicketQueue
+                key={staffQueueKey}
+                onOpenTicket={handleOpenStaffTicket}
+                role={currentUser.role}
+                initialQuery={staffQueueQuery}
+              />}
             </main>
           </>
         )}
