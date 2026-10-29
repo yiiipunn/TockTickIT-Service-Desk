@@ -1,4 +1,5 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
+import type { KeyboardEvent as ReactKeyboardEvent, ReactNode } from "react";
 import {
   ApiError,
   AuthenticatedUser,
@@ -6,6 +7,7 @@ import {
   RequestedPriority,
   StaffTicketDetail as TicketDetail,
   TicketStatus,
+  TicketWorkflowEvent,
   assignStaffTicket,
   claimStaffTicket,
   getEligibleOwners,
@@ -18,6 +20,58 @@ import ActionsTaken from "./ActionsTaken";
 
 type DetailState = "loading" | "success" | "error";
 type Action = "claim" | "assignment" | "priority" | "status";
+
+function TicketWorkflowDialog({
+  title,
+  onClose,
+  children,
+}: {
+  title: string;
+  onClose: () => void;
+  children: ReactNode;
+}) {
+  const dialogRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    dialogRef.current?.querySelector<HTMLElement>(
+      "button:not([disabled]), input:not([disabled]), textarea:not([disabled]), select:not([disabled])",
+    )?.focus();
+  }, []);
+
+  function handleKeyDown(event: ReactKeyboardEvent<HTMLDivElement>) {
+    if (event.key === "Escape") {
+      event.preventDefault();
+      onClose();
+      return;
+    }
+    if (event.key !== "Tab") return;
+    const controls = Array.from(dialogRef.current?.querySelectorAll<HTMLElement>(
+      "button:not([disabled]), input:not([disabled]), textarea:not([disabled]), select:not([disabled])",
+    ) ?? []);
+    if (controls.length === 0) return;
+    const first = controls[0];
+    const last = controls[controls.length - 1];
+    if (event.shiftKey && document.activeElement === first) {
+      event.preventDefault();
+      last.focus();
+    } else if (!event.shiftKey && document.activeElement === last) {
+      event.preventDefault();
+      first.focus();
+    }
+  }
+
+  return <div className="ticket-workflow-dialog-backdrop" role="presentation">
+    <div ref={dialogRef} className="ticket-workflow-dialog card shadow-lg" role="dialog" aria-modal="true" aria-labelledby="ticket-workflow-dialog-title" onKeyDown={handleKeyDown}>
+      <div className="card-body p-4">
+        <div className="d-flex justify-content-between align-items-start gap-3 mb-3">
+          <h3 id="ticket-workflow-dialog-title" className="h5 mb-0">{title}</h3>
+          <button type="button" className="btn-close" aria-label="Close dialog" onClick={onClose} />
+        </div>
+        {children}
+      </div>
+    </div>
+  </div>;
+}
 
 function date(value: string | null) {
   return value ? new Date(value).toLocaleString() : "Not recorded";
@@ -35,6 +89,24 @@ function statusLabel(status: TicketStatus) {
     CANCELLED: "Cancelled",
   };
   return labels[status];
+}
+
+function transitionLabel(status: TicketStatus | "") {
+  if (status === "RESOLVED") return "Resolve ticket";
+  if (status === "CLOSED") return "Close ticket";
+  if (status === "CANCELLED") return "Cancel ticket";
+  if (status === "REOPENED") return "Reopen ticket";
+  return "Update Status";
+}
+
+function workflowEventText(event: TicketWorkflowEvent) {
+  if (event.eventType === "OWNER_CHANGED") {
+    return `Owner changed from ${event.fromOwner?.name ?? "Unassigned"} to ${event.toOwner?.name ?? "Unassigned"}.`;
+  }
+  if (event.eventType === "STATUS_CHANGED") {
+    return `Status changed from ${event.fromStatus ? statusLabel(event.fromStatus) : "Unknown"} to ${event.toStatus ? statusLabel(event.toStatus) : "Unknown"}.`;
+  }
+  return "IT Priority changed.";
 }
 
 function safeError(error: unknown, fallback: string) {
@@ -62,6 +134,10 @@ export default function StaffTicketDetail({
   const [errorAction, setErrorAction] = useState<Action | null>(null);
   const [savingAction, setSavingAction] = useState<Action | null>(null);
   const [success, setSuccess] = useState("");
+  const [confirmationStatus, setConfirmationStatus] = useState<TicketStatus | null>(null);
+  const [conflictChoice, setConflictChoice] = useState("");
+  const [actionsRefreshKey, setActionsRefreshKey] = useState(0);
+  const confirmationInvoker = useRef<HTMLButtonElement | null>(null);
 
   useEffect(() => {
     void loadTicket();
@@ -95,13 +171,18 @@ export default function StaffTicketDetail({
     if (savingAction || !ticket || ticket.owner !== null || !canOperate) return;
     setSavingAction("claim");
     setError(null);
+    setErrorAction(null);
     setSuccess("");
     try {
-      applyTicket(await claimStaffTicket(ticket.id));
+      applyTicket(await claimStaffTicket(ticket.id, ticket.version));
       setSuccess("Ticket claimed successfully.");
     } catch (claimError) {
       setErrorAction("claim");
-      setError(safeError(claimError, "Unable to claim the Ticket right now."));
+      const result = safeError(claimError, "Unable to claim the Ticket right now.");
+      setError(result);
+      if (["TICKET_VERSION_CONFLICT", "OWNER_CONFLICT"].includes(result.code)) {
+        await refreshConflict("Claim Ticket");
+      }
     } finally {
       setSavingAction(null);
     }
@@ -112,14 +193,19 @@ export default function StaffTicketDetail({
     if (savingAction || !ticket || !canOperate || !Number.isInteger(ownerId) || ownerId <= 0) return;
     setSavingAction("assignment");
     setError(null);
+    setErrorAction(null);
     setSuccess("");
     try {
       const wasAssigned = ticket.owner !== null;
-      applyTicket(await assignStaffTicket(ticket.id, ownerId));
+      applyTicket(await assignStaffTicket(ticket.id, ticket.version, ownerId));
       setSuccess(wasAssigned ? "Ticket reassigned successfully." : "Ticket assigned successfully.");
     } catch (assignmentError) {
       setErrorAction("assignment");
-      setError(safeError(assignmentError, "Unable to update the Ticket assignment right now."));
+      const result = safeError(assignmentError, "Unable to update the Ticket assignment right now.");
+      setError(result);
+      if (["TICKET_VERSION_CONFLICT", "OWNER_CONFLICT"].includes(result.code)) {
+        await refreshConflict("Change Ticket owner");
+      }
     } finally {
       setSavingAction(null);
     }
@@ -129,39 +215,81 @@ export default function StaffTicketDetail({
     if (savingAction || !ticket || !canOperate || selectedPriority === ticket.itPriority) return;
     setSavingAction("priority");
     setError(null);
+    setErrorAction(null);
     setSuccess("");
     try {
-      applyTicket(await updateStaffTicketPriority(ticket.id, selectedPriority));
+      applyTicket(await updateStaffTicketPriority(ticket.id, ticket.version, selectedPriority));
       setSuccess("IT Priority updated successfully.");
     } catch (priorityError) {
       setErrorAction("priority");
-      setError(safeError(priorityError, "Unable to update IT Priority right now."));
+      const result = safeError(priorityError, "Unable to update IT Priority right now.");
+      setError(result);
+      if (result.code === "TICKET_VERSION_CONFLICT") {
+        await refreshConflict(`Set IT Priority to ${selectedPriority}`);
+      }
     } finally {
       setSavingAction(null);
     }
   }
 
-  async function saveStatus() {
+  function requestStatusChange(button: HTMLButtonElement) {
     if (savingAction || !ticket || !canOperate || !selectedStatus ||
         !ticket.allowedTransitions.includes(selectedStatus)) return;
-    const confirmed = selectedStatus === "CLOSED" || selectedStatus === "CANCELLED";
-    if (confirmed && !window.confirm(`Change this Ticket to ${statusLabel(selectedStatus)}?`)) return;
+    if (selectedStatus === "CLOSED" || selectedStatus === "CANCELLED") {
+      confirmationInvoker.current = button;
+      setConfirmationStatus(selectedStatus);
+      return;
+    }
+    void saveStatus(false);
+  }
+
+  function closeConfirmation() {
+    if (savingAction) return;
+    setConfirmationStatus(null);
+    requestAnimationFrame(() => confirmationInvoker.current?.focus());
+  }
+
+  async function refreshConflict(choice: string) {
+    if (!ticket) return;
+    setConflictChoice(choice);
+    try {
+      applyTicket(await getStaffTicketDetail(ticket.id));
+    } catch {
+      // Keep the last confirmed Ticket when the current state cannot be refreshed.
+    }
+  }
+
+  async function saveStatus(confirmed: boolean) {
+    if (savingAction || !ticket || !canOperate || !selectedStatus) return;
+    const requestedStatus = selectedStatus;
     setSavingAction("status");
     setError(null);
+    setErrorAction(null);
     setSuccess("");
     try {
-      applyTicket(await updateStaffTicketStatus(ticket.id, ticket.status, selectedStatus, confirmed));
+      applyTicket(await updateStaffTicketStatus(
+        ticket.id,
+        ticket.version,
+        ticket.status,
+        requestedStatus,
+        confirmed,
+      ));
+      setConfirmationStatus(null);
+      setConflictChoice("");
+      setActionsRefreshKey((current) => current + 1);
       setSuccess("Ticket status updated successfully.");
     } catch (statusError) {
       setErrorAction("status");
       const result = safeError(statusError, "Unable to update the Ticket status right now.");
       setError(result);
-      if (result.code === "STATUS_CONFLICT") {
-        try {
-          applyTicket(await getStaffTicketDetail(ticket.id));
-        } catch {
-          // Keep the last confirmed Ticket and show the conflict.
-        }
+      setConfirmationStatus(null);
+      requestAnimationFrame(() => confirmationInvoker.current?.focus());
+      if (["TICKET_VERSION_CONFLICT", "STATUS_CONFLICT", "TICKET_STATE_CONFLICT"].includes(result.code)) {
+        await refreshConflict(statusLabel(requestedStatus));
+      }
+      if (result.code === "RESOLUTION_GATE_FAILED") {
+        setConflictChoice(statusLabel(requestedStatus));
+        requestAnimationFrame(() => document.getElementById("actions-taken-heading")?.focus());
       }
     } finally {
       setSavingAction(null);
@@ -182,26 +310,35 @@ export default function StaffTicketDetail({
   const canOperate = currentUser.role === "IT_STAFF" || currentUser.role === "ADMINISTRATOR";
   const unassigned = ticket.owner === null;
   const selectedOwnerMatchesCurrent = selectedOwnerId === String(ticket.owner?.id ?? "");
-  const errorMessage = errorAction === "claim" && error?.code === "OWNER_CONFLICT"
-    ? "This Ticket was assigned before your claim could complete."
-    : errorAction === "assignment" && (error?.code === "VALIDATION_ERROR" || error?.code === "USER_NOT_FOUND")
-      ? "The selected assignee is no longer available."
-      : errorAction === "priority" && error?.code === "VALIDATION_ERROR"
-        ? "Select a valid IT Priority."
-        : errorAction === "status" && error?.code === "STATUS_CONFLICT"
-          ? "The Ticket status changed or this transition is no longer available. Review the current status and try again."
-          : errorAction === "status" && error?.code === "VALIDATION_ERROR"
-            ? "The selected status change is invalid. Review the current status and try again."
-          : errorAction === "priority"
-            ? "Unable to update IT Priority right now."
-            : errorAction === "status"
-              ? "Unable to update the Ticket status right now."
-              : "Unable to update the Ticket right now.";
+  const errorMessage = error?.code === "TICKET_VERSION_CONFLICT"
+    ? `This Ticket changed after you opened it. The latest Ticket is shown. Review it before retrying${conflictChoice ? ` “${conflictChoice}”` : ""}.`
+    : errorAction === "claim" && error?.code === "OWNER_CONFLICT"
+      ? "This Ticket was assigned before your claim could complete. The latest owner is shown."
+      : errorAction === "assignment" && ["VALIDATION_ERROR", "USER_NOT_FOUND", "INELIGIBLE_OWNER"].includes(error?.code ?? "")
+        ? "The selected owner is inactive or no longer eligible."
+        : errorAction === "priority" && error?.code === "VALIDATION_ERROR"
+          ? "Select a valid IT Priority."
+          : errorAction === "status" && ["STATUS_CONFLICT", "TICKET_STATE_CONFLICT"].includes(error?.code ?? "")
+            ? "The Ticket changed or this transition is no longer available. Review the current status and choose again."
+            : errorAction === "status" && error?.code === "RESOLUTION_GATE_FAILED"
+              ? "This Ticket cannot be resolved yet. Complete the missing requirements listed below."
+              : errorAction === "status" && ["VALIDATION_ERROR", "CONFIRMATION_REQUIRED"].includes(error?.code ?? "")
+                ? "The selected status change is invalid. Review the current status and try again."
+                : errorAction === "priority"
+                  ? "Unable to update IT Priority right now."
+                  : errorAction === "status"
+                    ? "Unable to update the Ticket status right now."
+                    : "Unable to update the Ticket right now.";
 
   return <section aria-labelledby="staff-ticket-detail-heading">
     <button className="btn btn-outline-success mb-4" type="button" onClick={onBack}>Back to Ticket Queue</button>
     {success && <div className="alert alert-success" role="status">{success}</div>}
-    {error && <div className="alert alert-danger" role="alert">{errorMessage}</div>}
+    {error && <div className="alert alert-danger" role="alert">
+      <p className="mb-1">{errorMessage}</p>
+      {error.fields && Object.values(error.fields).length > 0 && <ul className="mb-0">
+        {Object.values(error.fields).map((message) => <li key={message}>{message}</li>)}
+      </ul>}
+    </div>}
     <div className="card border-0 shadow-sm">
       <div className="card-body p-4 p-md-5">
         <div className="d-flex flex-wrap justify-content-between gap-3 mb-4">
@@ -212,7 +349,7 @@ export default function StaffTicketDetail({
           </div>
           <div className="staff-owner-card">
             <span className="small text-muted d-block">Assigned To</span>
-            {unassigned ? <strong>Unassigned</strong> : <><strong>{ticket.owner?.name}</strong><span className="small text-muted d-block">Assigned {date(ticket.ownerAssignedAt)}</span></>}
+            {unassigned ? <strong>Unassigned</strong> : <><strong>{ticket.owner?.name}</strong>{ticket.owner && !ticket.owner.isActive && <span className="badge text-bg-secondary ms-2">Inactive</span>}<span className="small text-muted d-block">Assigned {date(ticket.ownerAssignedAt)}</span></>}
           </div>
         </div>
         <div className="row g-4">
@@ -239,6 +376,7 @@ export default function StaffTicketDetail({
                   <label className="form-label fw-semibold" htmlFor="staff-ticket-owner">{unassigned ? "Assign Ticket" : "Reassign Ticket"}</label>
                   <select id="staff-ticket-owner" className="form-select mb-2" value={selectedOwnerId} onChange={(event) => setSelectedOwnerId(event.target.value)} disabled={savingAction !== null}>
                     <option value="">Select an eligible assignee</option>
+                    {ticket.owner && !ticket.owner.isActive && <option value={ticket.owner.id} disabled>{ticket.owner.name} (Inactive current owner)</option>}
                     {eligibleOwners.map((owner) => <option key={owner.id} value={owner.id}>{owner.name} ({owner.email})</option>)}
                   </select>
                   <button className="btn btn-outline-success w-100" type="button" onClick={() => void assign()} disabled={savingAction !== null || !selectedOwnerId || selectedOwnerMatchesCurrent}>{savingAction === "assignment" ? "Saving Assignment…" : unassigned ? "Assign Ticket" : "Reassign Ticket"}</button>
@@ -253,13 +391,22 @@ export default function StaffTicketDetail({
                 </div>
                 <div className="border-top mt-3 pt-3">
                   <p className="mb-2"><strong>Current Status:</strong> {statusLabel(ticket.status)}</p>
+                  <div className="ticket-resolution-gate rounded-3 p-3 mb-3" aria-labelledby="ticket-resolution-gate-heading">
+                    <h3 id="ticket-resolution-gate-heading" className="h6">Resolution requirements</h3>
+                    <ul className="small mb-2">
+                      <li>Active Ticket owner: {ticket.owner?.isActive ? "Met" : "Missing"}</li>
+                      <li>At least one completed Action: {ticket.resolutionGate.completedActions > 0 ? "Met" : "Missing"}</li>
+                      <li>No planned or in-progress Actions: {ticket.resolutionGate.activeActions === 0 ? "Met" : `${ticket.resolutionGate.activeActions} remaining`}</li>
+                    </ul>
+                    <p className="small mb-0">{ticket.resolutionGate.canResolve ? "This Ticket is ready for formal resolution." : "Resolve ticket becomes available after every requirement is met."}</p>
+                  </div>
                   {ticket.allowedTransitions.length > 0 ? <>
                     <label className="form-label fw-semibold" htmlFor="staff-ticket-next-status">Next Status</label>
                     <select id="staff-ticket-next-status" className="form-select mb-2" value={selectedStatus} onChange={(event) => setSelectedStatus(event.target.value as TicketStatus | "")} disabled={savingAction !== null}>
                       <option value="">Select next status</option>
                       {ticket.allowedTransitions.map((next) => <option key={next} value={next}>{statusLabel(next)}</option>)}
                     </select>
-                    <button className="btn btn-outline-success w-100" type="button" onClick={() => void saveStatus()} disabled={savingAction !== null || !selectedStatus}>{savingAction === "status" ? "Saving Status…" : "Update Status"}</button>
+                    <button className="btn btn-outline-success w-100" type="button" onClick={(event) => requestStatusChange(event.currentTarget)} disabled={savingAction !== null || !selectedStatus}>{savingAction === "status" ? (selectedStatus === "RESOLVED" ? "Resolving…" : "Saving Status…") : transitionLabel(selectedStatus)}</button>
                   </> : <p className="text-muted mb-0">No further status changes are available.</p>}
                 </div>
               </> : <p className="mb-0 text-muted">{unassigned ? "This Ticket is unassigned." : "This Ticket is assigned."}</p>}
@@ -276,12 +423,31 @@ export default function StaffTicketDetail({
           ticketStatus={ticket.status}
           ticketOwnerName={ticket.owner?.name ?? null}
           currentUser={currentUser}
+          refreshKey={actionsRefreshKey}
         />}
+        {canOperate && <section className="border rounded-3 p-3 p-md-4 mt-4" aria-labelledby="ticket-workflow-history-heading">
+          <h2 id="ticket-workflow-history-heading" className="h5">Ticket workflow history</h2>
+          {ticket.workflowEvents.length === 0 ? <p className="text-muted mb-0">No Ticket workflow changes have been recorded yet.</p> : <ol className="list-group list-group-numbered">
+            {ticket.workflowEvents.map((event) => <li className="list-group-item" key={event.id}>
+              <span className="fw-semibold">{event.actor.name}</span> — {workflowEventText(event)} <span className="small text-muted">{date(event.createdAt)}</span>
+            </li>)}
+          </ol>}
+        </section>}
         {canOperate && <>
           <TicketCommunication ticketId={ticket.id} kind="public" initialEntries={ticket.publicComments} />
           <TicketCommunication ticketId={ticket.id} kind="internal" initialEntries={ticket.internalNotes} />
         </>}
       </div>
     </div>
+    {confirmationStatus && <TicketWorkflowDialog title={`${transitionLabel(confirmationStatus)} confirmation`} onClose={closeConfirmation}>
+      <p>Change Ticket <strong>{ticket.ticketNumber}</strong> from <strong>{statusLabel(ticket.status)}</strong> to <strong>{statusLabel(confirmationStatus)}</strong>?</p>
+      <p className="text-muted small">This is a formal Ticket status change. {confirmationStatus === "CANCELLED" ? "Cancellation is terminal." : "Closing preserves the recorded resolution time."}</p>
+      <div className="d-flex flex-wrap gap-2">
+        <button type="button" className={confirmationStatus === "CANCELLED" ? "btn btn-danger" : "btn btn-success"} onClick={() => void saveStatus(true)} disabled={savingAction !== null}>
+          {savingAction === "status" ? "Saving Status…" : `Confirm ${statusLabel(confirmationStatus)}`}
+        </button>
+        <button type="button" className="btn btn-outline-secondary" onClick={closeConfirmation} disabled={savingAction !== null}>Keep current status</button>
+      </div>
+    </TicketWorkflowDialog>}
   </section>;
 }

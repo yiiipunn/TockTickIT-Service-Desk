@@ -194,12 +194,14 @@ export default function ActionsTaken({
   ticketStatus,
   ticketOwnerName,
   currentUser,
+  refreshKey = 0,
 }: {
   ticketId: number;
   ticketNumber: string;
   ticketStatus: TicketStatus | string;
   ticketOwnerName?: string | null;
   currentUser: AuthenticatedUser;
+  refreshKey?: number;
 }) {
   const canManage = currentUser.role === "IT_STAFF" || currentUser.role === "ADMINISTRATOR";
   const canCreate = canManage && ACTIVE_TICKET_STATUSES.has(ticketStatus as TicketStatus);
@@ -240,7 +242,7 @@ export default function ActionsTaken({
 
   useEffect(() => {
     void loadActions();
-  }, [ticketId, page, pageSize]);
+  }, [ticketId, page, pageSize, refreshKey]);
 
   useEffect(() => {
     if (!canManage) return;
@@ -717,7 +719,7 @@ export default function ActionsTaken({
   return <section className="actions-taken mt-4" aria-labelledby="actions-taken-heading">
     <div className="d-flex flex-wrap justify-content-between align-items-center gap-3 mb-3">
       <div>
-        <h2 id="actions-taken-heading" className="h4 mb-1">Actions Taken <span className="text-muted">({pagination.totalItems})</span></h2>
+        <h2 id="actions-taken-heading" className="h4 mb-1" tabIndex={-1}>Actions Taken <span className="text-muted">({pagination.totalItems})</span></h2>
         <p className="text-muted mb-0">Planned and completed work for this Ticket.</p>
       </div>
       {canCreate && <button type="button" className="btn btn-success" onClick={openCreate} disabled={mutation !== null || editorMode !== null}>Plan action</button>}
