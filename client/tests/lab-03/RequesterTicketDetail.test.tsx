@@ -53,6 +53,7 @@ function installFetch(options: {
 
 async function openDetail() {
   render(<App />);
+  await userEvent.click(await screen.findByRole("button", { name: "My Tickets" }));
   await screen.findByRole("heading", { name: "My Tickets" });
   await userEvent.click(screen.getAllByRole("button", { name: "View TKT-000101" })[0]);
   await screen.findByRole("heading", { name: "Public Comments" });

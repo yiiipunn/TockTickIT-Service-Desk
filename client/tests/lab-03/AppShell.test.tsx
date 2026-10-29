@@ -68,6 +68,23 @@ function installFetch(
         headers: { "Content-Type": "application/json" },
       });
     }
+    if (url.endsWith("/api/dashboards/requester")) {
+      return new Response(JSON.stringify({ data: {
+        asOf: "2026-10-29T05:00:00.000Z",
+        timezone: "UTC",
+        metrics: { openCount: 0, waitingForRequesterCount: 0 },
+        attentionRequired: [],
+        recentlyUpdated: [],
+        recentlyResolved: [],
+        links: {
+          open: "/api/tickets?scope=open&page=1&pageSize=10",
+          waitingForRequester: "/api/tickets?status=WAITING_FOR_REQUESTER&page=1&pageSize=10",
+        },
+      } }), {
+        status: 200,
+        headers: { "Content-Type": "application/json" },
+      });
+    }
     if (url.match(/\/api\/staff\/tickets\/\d+$/)) {
       return new Response(JSON.stringify({ data: staffDetail }), {
         status: 200,
@@ -117,11 +134,12 @@ describe("authenticated application shell", () => {
   it("restores a requester session and shows server-provided identity and role", async () => {
     installFetch();
     render(<App />);
-    await screen.findByRole("heading", { name: "My Tickets" });
+    await screen.findByRole("heading", { name: "Your Dashboard" });
     expect(screen.getByText("Ari Example")).toBeInTheDocument();
     expect(screen.getByText("Requester")).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "My Tickets" })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Create Ticket" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Dashboard" })).toHaveAttribute("aria-current", "page");
     expect(screen.queryByRole("button", { name: "User Management" })).not.toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "Ticket Queue" })).not.toBeInTheDocument();
     expect(screen.queryByLabelText("Development Requester")).not.toBeInTheDocument();
@@ -152,7 +170,8 @@ describe("authenticated application shell", () => {
     await userEvent.type(screen.getByLabelText("Confirm new password"), "new-password!");
     await userEvent.click(screen.getByRole("button", { name: "Change Password" }));
     expect(await screen.findByRole("status")).toHaveTextContent("Password changed successfully");
-    expect(await screen.findByRole("heading", { name: "My Tickets" })).toBeInTheDocument();
+    await screen.findByText("No Tickets are waiting for your response.");
+    expect(screen.getByRole("heading", { name: "Your Dashboard" })).toBeInTheDocument();
     expect(fetchMock).toHaveBeenCalledWith(
       "http://localhost:3000/api/auth/change-password",
       expect.objectContaining({
@@ -167,11 +186,12 @@ describe("authenticated application shell", () => {
   it("allows a normal user to open and cancel voluntary password change", async () => {
     installFetch("REQUESTER", false);
     render(<App />);
-    await screen.findByRole("heading", { name: "My Tickets" });
+    await screen.findByRole("heading", { name: "Your Dashboard" });
     await userEvent.click(screen.getByRole("button", { name: "Change Password" }));
     expect(await screen.findByRole("heading", { name: "Change Password" })).toBeInTheDocument();
     await userEvent.click(screen.getByRole("button", { name: "Cancel" }));
-    expect(await screen.findByRole("heading", { name: "My Tickets" })).toBeInTheDocument();
+    await screen.findByText("No Tickets are waiting for your response.");
+    expect(screen.getByRole("heading", { name: "Your Dashboard" })).toBeInTheDocument();
   });
 
   it("shows the Staff Dashboard as the operational starting point and keeps Ticket Queue navigation", async () => {

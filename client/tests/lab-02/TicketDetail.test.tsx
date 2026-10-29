@@ -150,6 +150,9 @@ function installFetchMock(options?: {
 }
 
 async function selectRequester() {
+  fireEvent.click(await screen.findByRole("button", {
+    name: "My Tickets",
+  }));
   await screen.findByRole("heading", {
     name: "My Tickets",
   });

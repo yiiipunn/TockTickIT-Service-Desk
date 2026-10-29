@@ -156,9 +156,8 @@ function mockFetchForCreateTicket(options: { attachmentError?: string } = {}) {
 }
 
 async function selectRequesterAndContinue() {
-  await screen.findByRole("heading", { name: "My Tickets" });
   await userEvent.click(
-    screen.getByRole("button", {
+    await screen.findByRole("button", {
       name: "Create Ticket",
     }),
   );

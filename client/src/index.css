@@ -337,6 +337,14 @@ body:has(.ticket-workflow-dialog-backdrop) {
   gap: 1rem;
 }
 
+.requester-dashboard .dashboard-metric-grid {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.requester-dashboard .dashboard-content-grid > :last-child {
+  grid-column: 1 / -1;
+}
+
 .dashboard-metric-card {
   width: 100%;
   color: inherit;
@@ -456,6 +464,19 @@ body:has(.ticket-workflow-dialog-backdrop) {
   }
 
   .dashboard-list .btn {
+    min-height: 44px;
+    width: 100%;
+  }
+
+  .requester-dashboard .dashboard-metric-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .requester-dashboard .dashboard-content-grid > :last-child {
+    grid-column: auto;
+  }
+
+  .requester-quick-actions .btn {
     min-height: 44px;
     width: 100%;
   }

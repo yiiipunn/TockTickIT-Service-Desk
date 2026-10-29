@@ -322,7 +322,7 @@ describe("GET /api/tickets - My Tickets", () => {
 
   it("rejects an invalid Status filter", async () => {
     const response = await api
-      .get("/api/tickets?status=CLOSED")
+      .get("/api/tickets?status=NOT_A_STATUS")
 
     expect(response.status).toBe(400);
     expect(response.body.error).toBe("Invalid Status filter");

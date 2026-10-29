@@ -206,6 +206,7 @@ describe("Lab 4 Requester resolution advisory UI", () => {
     });
     vi.stubGlobal("fetch", fetchMock);
     render(<App />);
+    await userEvent.click(await screen.findByRole("button", { name: "My Tickets" }));
     await screen.findByRole("heading", { name: "My Tickets" });
     await userEvent.click(screen.getAllByRole("button", { name: "View TKT-000101" })[0]);
     expect(await screen.findByText("This notifies IT; it does not change the Ticket status.")).toBeInTheDocument();
