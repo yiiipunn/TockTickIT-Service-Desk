@@ -40,6 +40,34 @@ function installFetch(
         headers: { "Content-Type": "application/json" },
       });
     }
+    if (url.endsWith("/api/dashboards/staff")) {
+      return new Response(JSON.stringify({ data: {
+        asOf: "2026-10-29T05:00:00.000Z",
+        timezone: "UTC",
+        metrics: {
+          unassignedOpenCount: 0,
+          myOpenTicketCount: 0,
+          myActiveActionsCount: 0,
+          countsByStatus: {
+            NEW: 0, OPEN: 0, IN_PROGRESS: 0, WAITING_FOR_REQUESTER: 0,
+            RESOLVED: 0, CLOSED: 0, REOPENED: 0, CANCELLED: 0,
+          },
+          countsByItPriority: { LOW: 0, MEDIUM: 0, HIGH: 0 },
+        },
+        urgentTickets: [],
+        recentlyUpdated: [],
+        myActiveActions: [],
+        myRecentCompletedActions: [],
+        links: {
+          unassigned: "/api/staff/tickets?owner=unassigned&scope=open&page=1&pageSize=20",
+          mine: "/api/staff/tickets?owner=me&scope=open&page=1&pageSize=20",
+          urgent: "/api/staff/tickets?itPriority=HIGH&scope=open&page=1&pageSize=20",
+        },
+      } }), {
+        status: 200,
+        headers: { "Content-Type": "application/json" },
+      });
+    }
     if (url.match(/\/api\/staff\/tickets\/\d+$/)) {
       return new Response(JSON.stringify({ data: staffDetail }), {
         status: 200,
@@ -146,23 +174,30 @@ describe("authenticated application shell", () => {
     expect(await screen.findByRole("heading", { name: "My Tickets" })).toBeInTheDocument();
   });
 
-  it("shows the staff queue navigation without implementing future staff operations", async () => {
+  it("shows the Staff Dashboard as the operational starting point and keeps Ticket Queue navigation", async () => {
     installFetch("IT_STAFF");
     render(<App />);
     expect(await screen.findByText("IT Staff")).toBeInTheDocument();
     expect(screen.getByText("Ari Example")).toBeInTheDocument();
-    expect(screen.getByRole("heading", { name: "Ticket Queue" })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "Staff Dashboard" })).toBeInTheDocument();
     expect(screen.getByText("IT Staff workspace")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Dashboard" })).toHaveAttribute("aria-current", "page");
+    await userEvent.click(screen.getByRole("button", { name: "Ticket Queue" }));
+    expect(await screen.findByRole("heading", { name: "Ticket Queue" })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Ticket Queue" })).toHaveAttribute("aria-current", "page");
     expect(screen.queryByText("Claim Ticket")).not.toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "User Management" })).not.toBeInTheDocument();
   });
 
-  it("lets an Administrator navigate between User Management and the permitted Ticket Queue", async () => {
+  it("lets an Administrator navigate among Dashboard, User Management, and Ticket Queue", async () => {
     installFetch("ADMINISTRATOR");
     render(<App />);
-    expect(await screen.findByRole("heading", { name: "User Management" })).toBeInTheDocument();
+    await screen.findByText("No active High-priority Tickets need attention.");
+    expect(screen.getByRole("heading", { name: "Staff Dashboard" })).toBeInTheDocument();
     expect(within(screen.getByRole("navigation", { name: "Application navigation" })).getByText("Administrator")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Dashboard" })).toHaveAttribute("aria-current", "page");
+    await userEvent.click(screen.getByRole("button", { name: "User Management" }));
+    expect(await screen.findByRole("heading", { name: "User Management" })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "User Management" })).toHaveAttribute("aria-current", "page");
     expect(screen.getByRole("button", { name: "User Management" })).toHaveClass("text-decoration-underline");
     await userEvent.click(screen.getByRole("button", { name: "Ticket Queue" }));
@@ -206,6 +241,8 @@ describe("authenticated application shell", () => {
       allowedTransitions: ["WAITING_FOR_REQUESTER", "CANCELLED"],
     });
     render(<App />);
+    await screen.findByRole("heading", { name: "Staff Dashboard" });
+    await userEvent.click(screen.getByRole("button", { name: "Ticket Queue" }));
     await screen.findByRole("heading", { name: "Ticket Queue" });
     await userEvent.click(screen.getAllByRole("button", { name: "Open Ticket" })[0]);
     expect(await screen.findByRole("heading", { name: "Cannot connect to Wi-Fi" })).toBeInTheDocument();

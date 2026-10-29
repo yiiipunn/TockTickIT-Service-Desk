@@ -118,11 +118,13 @@ export default function StaffTicketDetail({
   currentUser,
   onBack,
   showActions = false,
+  focusActionId,
 }: {
   ticketId: number;
   currentUser: AuthenticatedUser;
   onBack: () => void;
   showActions?: boolean;
+  focusActionId?: number;
 }) {
   const [state, setState] = useState<DetailState>("loading");
   const [ticket, setTicket] = useState<TicketDetail | null>(null);
@@ -424,6 +426,7 @@ export default function StaffTicketDetail({
           ticketOwnerName={ticket.owner?.name ?? null}
           currentUser={currentUser}
           refreshKey={actionsRefreshKey}
+          focusActionId={focusActionId}
         />}
         {canOperate && <section className="border rounded-3 p-3 p-md-4 mt-4" aria-labelledby="ticket-workflow-history-heading">
           <h2 id="ticket-workflow-history-heading" className="h5">Ticket workflow history</h2>

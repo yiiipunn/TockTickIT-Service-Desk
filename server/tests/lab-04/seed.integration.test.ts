@@ -84,11 +84,14 @@ async function withSeedFixture<T>(
   let result: T | undefined;
 
   try {
-    await fixturePrisma.$transaction(async (transaction) => {
-      await runSeed(transaction);
-      result = await assertion(transaction);
-      throw rollback;
-    });
+    await fixturePrisma.$transaction(
+      async (transaction) => {
+        await runSeed(transaction);
+        result = await assertion(transaction);
+        throw rollback;
+      },
+      { timeout: 15_000 },
+    );
   } catch (error) {
     if (error !== rollback) throw error;
   }

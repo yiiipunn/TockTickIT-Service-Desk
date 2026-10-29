@@ -52,31 +52,37 @@ function formatDate(value: string) {
 export default function StaffTicketQueue({
   onOpenTicket,
   role,
+  initialQuery = {},
 }: {
   onOpenTicket: (ticket: StaffQueueTicket) => void;
   role: "IT_STAFF" | "ADMINISTRATOR";
+  initialQuery?: GetStaffQueueParams;
 }) {
   const [state, setState] = useState<QueueState>("loading");
   const [result, setResult] = useState<StaffQueueResponse | null>(null);
   const [error, setError] = useState<ApiError | null>(null);
-  const [search, setSearch] = useState("");
-  const [status, setStatus] = useState("");
-  const [requestedPriority, setRequestedPriority] = useState<RequestedPriority | "">("");
-  const [itPriority, setItPriority] = useState<RequestedPriority | "">("");
-  const [ownerMode, setOwnerMode] = useState<"" | "me" | "unassigned">("");
-  const [ownerId, setOwnerId] = useState("");
-  const [sortBy, setSortBy] = useState<GetStaffQueueParams["sortBy"]>(defaultQuery.sortBy);
-  const [sortOrder, setSortOrder] = useState<GetStaffQueueParams["sortOrder"]>(defaultQuery.sortOrder);
-  const [pageSize, setPageSize] = useState<10 | 20 | 50>(defaultQuery.pageSize);
+  const [search, setSearch] = useState(initialQuery.search ?? "");
+  const [scope, setScope] = useState<"" | "open">(initialQuery.scope ?? "");
+  const [status, setStatus] = useState(initialQuery.status ?? "");
+  const [requestedPriority, setRequestedPriority] = useState<RequestedPriority | "">(initialQuery.requestedPriority ?? "");
+  const [itPriority, setItPriority] = useState<RequestedPriority | "">(initialQuery.itPriority ?? "");
+  const [ownerMode, setOwnerMode] = useState<"" | "me" | "unassigned">(
+    initialQuery.owner === "me" || initialQuery.owner === "unassigned" ? initialQuery.owner : "",
+  );
+  const [ownerId, setOwnerId] = useState(typeof initialQuery.owner === "number" ? String(initialQuery.owner) : "");
+  const [sortBy, setSortBy] = useState<GetStaffQueueParams["sortBy"]>(initialQuery.sortBy ?? defaultQuery.sortBy);
+  const [sortOrder, setSortOrder] = useState<GetStaffQueueParams["sortOrder"]>(initialQuery.sortOrder ?? defaultQuery.sortOrder);
+  const [pageSize, setPageSize] = useState<10 | 20 | 50>(initialQuery.pageSize ?? defaultQuery.pageSize);
 
   useEffect(() => {
-    void loadQueue(1);
+    void loadQueue(1, { ...defaultQuery, ...initialQuery });
   }, []);
 
   function currentQuery(): GetStaffQueueParams {
     const parsedOwnerId = ownerId.trim() ? Number(ownerId) : undefined;
     return {
       search,
+      scope: scope || undefined,
       status: status || undefined,
       requestedPriority: requestedPriority || undefined,
       itPriority: itPriority || undefined,
@@ -110,6 +116,7 @@ export default function StaffTicketQueue({
 
   function clearQuery() {
     setSearch("");
+    setScope("");
     setStatus("");
     setRequestedPriority("");
     setItPriority("");
@@ -122,7 +129,7 @@ export default function StaffTicketQueue({
   }
 
   const hasSearchOrFilters = Boolean(
-    search.trim() || status || requestedPriority || itPriority || ownerMode || ownerId.trim(),
+    search.trim() || scope || status || requestedPriority || itPriority || ownerMode || ownerId.trim(),
   );
 
   return (
@@ -156,8 +163,19 @@ export default function StaffTicketQueue({
               />
             </div>
             <div>
+              <label className="form-label" htmlFor="queue-scope">Scope</label>
+              <select id="queue-scope" className="form-select" value={scope} onChange={(event) => setScope(event.target.value as "" | "open")}>
+                <option value="">All Tickets</option>
+                <option value="open">Active/open Tickets</option>
+              </select>
+            </div>
+            <div>
               <label className="form-label" htmlFor="queue-status">Status</label>
-              <select id="queue-status" className="form-select" value={status} onChange={(event) => setStatus(event.target.value)}>
+              <select id="queue-status" className="form-select" value={status} onChange={(event) => {
+                const nextStatus = event.target.value;
+                setStatus(nextStatus);
+                if (["RESOLVED", "CLOSED", "CANCELLED"].includes(nextStatus)) setScope("");
+              }}>
                 <option value="">All statuses</option>
                 {STATUSES.map((value) => <option key={value} value={value}>{formatLabel(value)}</option>)}
               </select>

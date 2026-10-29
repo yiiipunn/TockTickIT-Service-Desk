@@ -331,8 +331,89 @@ body:has(.ticket-workflow-dialog-backdrop) {
   margin: 0.15rem 0 0;
 }
 
+.dashboard-metric-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 1rem;
+}
+
+.dashboard-metric-card {
+  width: 100%;
+  color: inherit;
+  background: #fff;
+  transition: transform 120ms ease, box-shadow 120ms ease;
+}
+
+.dashboard-metric-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 0.5rem 1rem rgba(0, 107, 60, 0.14) !important;
+}
+
+.dashboard-metric-value {
+  display: block;
+  margin: 0.2rem 0;
+  color: #006b3c;
+  font-size: clamp(2rem, 4vw, 2.75rem);
+  line-height: 1.1;
+}
+
+.dashboard-count-grid,
+.dashboard-content-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 1rem;
+  align-items: start;
+}
+
+.dashboard-count-list {
+  display: grid;
+  gap: 0.35rem;
+}
+
+.dashboard-count-row {
+  display: flex;
+  min-height: 44px;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  width: 100%;
+  padding: 0.55rem 0.75rem;
+  border: 1px solid #d8e8df;
+  border-radius: 0.6rem;
+  color: #173e2b;
+  background: #f8fcfa;
+  text-align: left;
+}
+
+.dashboard-count-row:hover {
+  border-color: #0b7a46;
+  background: #eaf6ef;
+}
+
+.dashboard-count-row strong {
+  color: #006b3c;
+  font-size: 1.15rem;
+}
+
+.dashboard-list-card {
+  min-width: 0;
+}
+
+.dashboard-list-copy {
+  min-width: 0;
+  flex: 1 1 18rem;
+}
+
+.dashboard-list .list-group-item:last-child {
+  padding-bottom: 0 !important;
+}
+
 @media (max-width: 991px) {
   .queue-control-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .dashboard-metric-grid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 }
@@ -366,6 +447,17 @@ body:has(.ticket-workflow-dialog-backdrop) {
 
   .queue-search-control {
     grid-column: auto;
+  }
+
+  .dashboard-metric-grid,
+  .dashboard-count-grid,
+  .dashboard-content-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .dashboard-list .btn {
+    min-height: 44px;
+    width: 100%;
   }
 
   .actions-taken .btn,

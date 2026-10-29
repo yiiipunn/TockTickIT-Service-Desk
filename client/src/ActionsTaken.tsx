@@ -195,6 +195,7 @@ export default function ActionsTaken({
   ticketOwnerName,
   currentUser,
   refreshKey = 0,
+  focusActionId,
 }: {
   ticketId: number;
   ticketNumber: string;
@@ -202,6 +203,7 @@ export default function ActionsTaken({
   ticketOwnerName?: string | null;
   currentUser: AuthenticatedUser;
   refreshKey?: number;
+  focusActionId?: number;
 }) {
   const canManage = currentUser.role === "IT_STAFF" || currentUser.role === "ADMINISTRATOR";
   const canCreate = canManage && ACTIVE_TICKET_STATUSES.has(ticketStatus as TicketStatus);
@@ -243,6 +245,38 @@ export default function ActionsTaken({
   useEffect(() => {
     void loadActions();
   }, [ticketId, page, pageSize, refreshKey]);
+
+  useEffect(() => {
+    if (focusActionId === undefined) return;
+    let cancelled = false;
+    void (async () => {
+      try {
+        const action = await getAction(focusActionId);
+        if (cancelled || action.ticketId !== ticketId) return;
+        setSelected(action);
+        setItems((current) => current.some((item) => item.id === action.id)
+          ? current.map((item) => item.id === action.id ? action : item)
+          : current);
+        if (canManage) {
+          setEventsLoading(true);
+          try {
+            const loadedEvents = await getActionEvents(action.id);
+            if (!cancelled) setEvents(loadedEvents);
+          } catch {
+            if (!cancelled) setEventsError("Unable to load Action history right now.");
+          } finally {
+            if (!cancelled) setEventsLoading(false);
+          }
+        }
+        requestAnimationFrame(() => document.getElementById("action-detail-heading")?.focus());
+      } catch {
+        if (!cancelled) setEventsError("Unable to load the linked Action right now.");
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [focusActionId, ticketId, canManage]);
 
   useEffect(() => {
     if (!canManage) return;
@@ -789,7 +823,7 @@ export default function ActionsTaken({
 
     {selected && !editorMode && <article className="action-detail border rounded-3 p-3 p-md-4 mt-4" aria-labelledby="action-detail-heading">
       <div className="d-flex flex-wrap justify-content-between align-items-start gap-3">
-        <div><h3 id="action-detail-heading" className="h5 mb-1">Action Detail</h3><p className="text-muted mb-0">Action #{selected.id} · Version {selected.version}</p></div>
+        <div><h3 id="action-detail-heading" className="h5 mb-1" tabIndex={-1}>Action Detail</h3><p className="text-muted mb-0">Action #{selected.id} · Version {selected.version}</p></div>
         <span className={`badge ${statusClass(selected.status)}`}>{statusLabel(selected.status)}</span>
       </div>
       <p className="mt-3 text-break" style={{ whiteSpace: "pre-wrap" }}>{selected.description}</p>
