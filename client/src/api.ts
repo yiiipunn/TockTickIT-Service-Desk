@@ -205,16 +205,42 @@ export interface StaffQueueResponse {
 
 export interface StaffTicketDetail extends StaffQueueTicket {
   status: TicketStatus;
+  owner: ({
+    id: number;
+    name: string;
+    isActive: boolean;
+    role: "IT_STAFF" | "ADMINISTRATOR";
+  }) | null;
   description: string;
   category: Category;
   relatedSystem: RelatedSystem;
   ownerAssignedAt: string | null;
   requesterResolutionIndicatedAt: string | null;
+  version: number;
+  resolvedAt: string | null;
   createdAt: string;
   attachments: TicketAttachment[];
   publicComments: CommunicationEntry[];
   internalNotes: CommunicationEntry[];
   allowedTransitions: TicketStatus[];
+  resolutionGate: {
+    canResolve: boolean;
+    completedActions: number;
+    activeActions: number;
+    missing: string[];
+  };
+  workflowEvents: TicketWorkflowEvent[];
+}
+
+export interface TicketWorkflowEvent {
+  id: number;
+  eventType: "OWNER_CHANGED" | "PRIORITY_CHANGED" | "STATUS_CHANGED";
+  actor: { id: number; name: string; role: UserRole };
+  fromStatus: TicketStatus | null;
+  toStatus: TicketStatus | null;
+  fromOwner: { id: number; name: string } | null;
+  toOwner: { id: number; name: string } | null;
+  createdAt: string;
 }
 
 export interface EligibleOwner {
@@ -329,7 +355,8 @@ export interface TicketDetail {
   summary: string;
   requestedPriority: RequestedPriority;
   description: string;
-  status: string;
+  status: TicketStatus;
+  requesterResolutionIndicatedAt: string | null;
   createdAt: string;
   updatedAt: string;
   category: {
@@ -679,12 +706,12 @@ export async function getStaffTicketDetail(ticketId: number): Promise<StaffTicke
   return body.data;
 }
 
-export async function claimStaffTicket(ticketId: number): Promise<StaffTicketDetail> {
+export async function claimStaffTicket(ticketId: number, expectedVersion: number): Promise<StaffTicketDetail> {
   const response = await fetch(`${API_URL}/api/staff/tickets/${ticketId}/claim`, {
     method: "POST",
     credentials: "include",
     headers: authenticatedHeaders({ "Content-Type": "application/json" }, true),
-    body: JSON.stringify({}),
+    body: JSON.stringify({ expectedVersion }),
   });
   if (!response.ok) await throwApiError(response, "Unable to claim the Ticket right now.");
   const body = await response.json() as { data: StaffTicketDetail };
@@ -784,13 +811,14 @@ export async function transitionAction(
 
 export async function assignStaffTicket(
   ticketId: number,
+  expectedVersion: number,
   ownerId: number | null,
 ): Promise<StaffTicketDetail> {
   const response = await fetch(`${API_URL}/api/staff/tickets/${ticketId}/owner`, {
     method: "PATCH",
     credentials: "include",
     headers: authenticatedHeaders({ "Content-Type": "application/json" }, true),
-    body: JSON.stringify({ ownerId }),
+    body: JSON.stringify({ expectedVersion, ownerId }),
   });
   if (!response.ok) await throwApiError(response, "Unable to update the Ticket assignment right now.");
   const body = await response.json() as { data: StaffTicketDetail };
@@ -799,13 +827,14 @@ export async function assignStaffTicket(
 
 export async function updateStaffTicketPriority(
   ticketId: number,
+  expectedVersion: number,
   itPriority: RequestedPriority,
 ): Promise<StaffTicketDetail> {
   const response = await fetch(`${API_URL}/api/staff/tickets/${ticketId}/it-priority`, {
     method: "PATCH",
     credentials: "include",
     headers: authenticatedHeaders({ "Content-Type": "application/json" }, true),
-    body: JSON.stringify({ itPriority }),
+    body: JSON.stringify({ expectedVersion, itPriority }),
   });
   if (!response.ok) await throwApiError(response, "Unable to update IT Priority right now.");
   const body = await response.json() as { data: StaffTicketDetail };
@@ -814,6 +843,7 @@ export async function updateStaffTicketPriority(
 
 export async function updateStaffTicketStatus(
   ticketId: number,
+  expectedVersion: number,
   currentStatus: TicketStatus,
   status: TicketStatus,
   confirmed = false,
@@ -822,11 +852,30 @@ export async function updateStaffTicketStatus(
     method: "PATCH",
     credentials: "include",
     headers: authenticatedHeaders({ "Content-Type": "application/json" }, true),
-    body: JSON.stringify({ currentStatus, status, confirmed }),
+    body: JSON.stringify({ expectedVersion, currentStatus, status, confirmed }),
   });
   if (!response.ok) await throwApiError(response, "Unable to update the Ticket status right now.");
   const body = await response.json() as { data: StaffTicketDetail };
   return body.data;
+}
+
+export async function indicateRequesterResolution(ticketId: number): Promise<{
+  ticketId: number;
+  status: TicketStatus;
+  requesterResolutionIndicatedAt: string;
+}> {
+  const response = await fetch(`${API_URL}/api/tickets/${ticketId}/resolution-indication`, {
+    method: "POST",
+    credentials: "include",
+    headers: authenticatedHeaders({ "Content-Type": "application/json" }, true),
+    body: JSON.stringify({}),
+  });
+  if (!response.ok) await throwApiError(response, "Unable to notify IT right now.");
+  return (await response.json() as { data: {
+    ticketId: number;
+    status: TicketStatus;
+    requesterResolutionIndicatedAt: string;
+  } }).data;
 }
 
 export async function getPublicComments(ticketId: number): Promise<CommunicationEntry[]> {

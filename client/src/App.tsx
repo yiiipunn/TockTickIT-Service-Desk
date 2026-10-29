@@ -10,6 +10,7 @@ import {
   getRelatedSystems,
   getTicketDetail,
   getTickets,
+  indicateRequesterResolution,
   GetTicketsParams,
   RelatedSystem,
   RequestedPriority,
@@ -43,6 +44,7 @@ const ALLOWED_ATTACHMENT_TYPES = new Set([
   "image/webp",
   "application/pdf",
 ]);
+const REQUESTER_RESOLUTION_ACTIVE_STATUSES = new Set(["NEW", "OPEN", "IN_PROGRESS", "WAITING_FOR_REQUESTER", "REOPENED"]);
 
 function getAttachmentValidationError(file: File) {
   if (!ALLOWED_ATTACHMENT_TYPES.has(file.type)) {
@@ -210,6 +212,9 @@ export default function App() {
   const [removalReason, setRemovalReason] = useState("");
   const [downloadingAttachmentId, setDownloadingAttachmentId] =
     useState<number | null>(null);
+  const [resolutionIndicationState, setResolutionIndicationState] = useState<SubmitState>("idle");
+  const [resolutionIndicationError, setResolutionIndicationError] = useState("");
+  const [resolutionIndicationSuccess, setResolutionIndicationSuccess] = useState("");
 
   useEffect(() => {
     void restoreAuthentication();
@@ -309,6 +314,9 @@ export default function App() {
     setAttachmentSuccess("");
     setRemovalTargetId(null);
     setRemovalReason("");
+    setResolutionIndicationState("idle");
+    setResolutionIndicationError("");
+    setResolutionIndicationSuccess("");
   }
 
   function handleSessionExpired() {
@@ -502,6 +510,9 @@ export default function App() {
     setAttachmentSuccess("");
     setRemovalTargetId(null);
     setRemovalReason("");
+    setResolutionIndicationState("idle");
+    setResolutionIndicationError("");
+    setResolutionIndicationSuccess("");
 
     try {
       const result = await getTicketDetail(ticketId);
@@ -530,12 +541,36 @@ export default function App() {
     setAttachmentSuccess("");
     setRemovalTargetId(null);
     setRemovalReason("");
+    setResolutionIndicationState("idle");
+    setResolutionIndicationError("");
+    setResolutionIndicationSuccess("");
   }
 
   async function refreshTicketDetail(ticketId: number) {
     if (currentUser?.role !== "REQUESTER") return;
     const result = await getTicketDetail(ticketId);
     setSelectedTicketDetail(result);
+  }
+
+  async function handleResolutionIndication() {
+    if (currentUser?.role !== "REQUESTER" || !selectedTicketDetail ||
+        resolutionIndicationState === "submitting" ||
+        selectedTicketDetail.requesterResolutionIndicatedAt ||
+        !REQUESTER_RESOLUTION_ACTIVE_STATUSES.has(selectedTicketDetail.status)) return;
+
+    setResolutionIndicationState("submitting");
+    setResolutionIndicationError("");
+    setResolutionIndicationSuccess("");
+
+    try {
+      await indicateRequesterResolution(selectedTicketDetail.id);
+      await refreshTicketDetail(selectedTicketDetail.id);
+      setResolutionIndicationState("success");
+      setResolutionIndicationSuccess("IT has been notified that the problem appears resolved.");
+    } catch (error) {
+      setResolutionIndicationState("error");
+      setResolutionIndicationError(error instanceof Error ? error.message : "Unable to notify IT right now.");
+    }
   }
 
   async function handleUploadAttachment(event: FormEvent<HTMLFormElement>) {
@@ -1786,6 +1821,30 @@ export default function App() {
                             {selectedTicketDetail.description}
                           </p>
                         </div>
+
+                        <section className="ticket-resolution-feedback border border-success-subtle bg-success-subtle rounded-3 p-3 mb-4" aria-labelledby="resolution-feedback-heading">
+                          <h3 id="resolution-feedback-heading" className="h6">Resolution feedback</h3>
+                          <p className="mb-2">This notifies IT; it does not change the Ticket status.</p>
+                          {selectedTicketDetail.requesterResolutionIndicatedAt && <p className="small text-muted mb-2">
+                            IT notified {new Date(selectedTicketDetail.requesterResolutionIndicatedAt).toLocaleString()}.
+                          </p>}
+                          {REQUESTER_RESOLUTION_ACTIVE_STATUSES.has(selectedTicketDetail.status) ? <button
+                            type="button"
+                            className="btn btn-success"
+                            onClick={() => void handleResolutionIndication()}
+                            disabled={resolutionIndicationState === "submitting" || Boolean(selectedTicketDetail.requesterResolutionIndicatedAt)}
+                          >
+                            {resolutionIndicationState === "submitting"
+                              ? "Notifying IT…"
+                              : selectedTicketDetail.requesterResolutionIndicatedAt
+                                ? "IT has been notified"
+                                : "Problem Appears Resolved"}
+                          </button> : <p className="small text-muted mb-0">
+                            This Ticket is no longer active, so resolution feedback is unavailable.
+                          </p>}
+                          {resolutionIndicationSuccess && <div className="alert alert-success py-2 mt-3 mb-0" role="status">{resolutionIndicationSuccess}</div>}
+                          {resolutionIndicationError && <div className="alert alert-danger py-2 mt-3 mb-0" role="alert">{resolutionIndicationError}</div>}
+                        </section>
 
                         <div className="mb-4">
                           <div className="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-3">

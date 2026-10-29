@@ -156,9 +156,15 @@ export function sendApiError(
   code: string,
   message: string,
   fields?: Record<string, string>,
+  current?: Record<string, unknown>,
 ) {
   return res.status(status).json({
-    error: { code, message, ...(fields ? { fields } : {}) },
+    error: {
+      code,
+      message,
+      ...(fields ? { fields } : {}),
+      ...(current ? { current } : {}),
+    },
   });
 }
 

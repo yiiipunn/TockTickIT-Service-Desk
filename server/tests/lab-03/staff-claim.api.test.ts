@@ -42,9 +42,10 @@ describe("IT Staff Ticket Claim API", () => {
   });
 
   beforeEach(async () => {
+    await prisma.ticketWorkflowEvent.deleteMany({ where: { ticketId } });
     await prisma.ticket.update({
       where: { id: ticketId },
-      data: { ownerId: null, ownerAssignedAt: null },
+      data: { ownerId: null, ownerAssignedAt: null, version: 1 },
     });
   });
 
@@ -55,9 +56,9 @@ describe("IT Staff Ticket Claim API", () => {
     expect(detail.body.data.requestedPriority).toBe("MEDIUM");
     expect(detail.body.data.itPriority).toBe("MEDIUM");
 
-    const claim = await staff.post(`/api/staff/tickets/${ticketId}/claim`).send({});
+    const claim = await staff.post(`/api/staff/tickets/${ticketId}/claim`).send({ expectedVersion: 1 });
     expect(claim.status).toBe(200);
-    expect(claim.body.data.owner).toEqual({ id: staff.user.id, name: staff.user.name });
+    expect(claim.body.data.owner).toEqual(expect.objectContaining({ id: staff.user.id, name: staff.user.name }));
     expect(claim.body.data.ownerAssignedAt).toEqual(expect.any(String));
     const stored = await prisma.ticket.findUniqueOrThrow({ where: { id: ticketId } });
     expect(stored.ownerId).toBe(staff.user.id);
@@ -65,12 +66,12 @@ describe("IT Staff Ticket Claim API", () => {
   });
 
   it("rejects a second claim and Requester access without trusting spoofed roles", async () => {
-    expect((await staff.post(`/api/staff/tickets/${ticketId}/claim`).send({})).status).toBe(200);
-    const conflict = await staff.post(`/api/staff/tickets/${ticketId}/claim`).send({});
+    expect((await staff.post(`/api/staff/tickets/${ticketId}/claim`).send({ expectedVersion: 1 })).status).toBe(200);
+    const conflict = await staff.post(`/api/staff/tickets/${ticketId}/claim`).send({ expectedVersion: 2 });
     expect(conflict.status).toBe(409);
     expect(conflict.body.error.code).toBe("OWNER_CONFLICT");
     const forbiddenDetail = await requester.get(`/api/staff/tickets/${ticketId}`).set("X-Role", "IT_STAFF");
-    const forbiddenClaim = await requester.post(`/api/staff/tickets/${ticketId}/claim`).set("X-Role", "IT_STAFF").send({});
+    const forbiddenClaim = await requester.post(`/api/staff/tickets/${ticketId}/claim`).set("X-Role", "IT_STAFF").send({ expectedVersion: 2 });
     expect(forbiddenDetail.status).toBe(403);
     expect(forbiddenClaim.status).toBe(403);
   });
