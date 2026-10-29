@@ -165,6 +165,7 @@ export interface GetTicketsParams {
   relatedSystemId?: number;
   requestedPriority?: RequestedPriority;
   status?: string;
+  scope?: "open";
   sortBy?: "createdAt" | "updatedAt" | "ticketNumber";
   sortOrder?: "asc" | "desc";
   page?: number;
@@ -243,6 +244,32 @@ export interface StaffDashboardData {
     unassigned: string;
     mine: string;
     urgent: string;
+  };
+}
+
+export interface RequesterDashboardTicket {
+  id: number;
+  ticketNumber: string;
+  summary: string;
+  status: TicketStatus;
+  requestedPriority: RequestedPriority;
+  updatedAt: string;
+  resolvedAt: string | null;
+}
+
+export interface RequesterDashboardData {
+  asOf: string;
+  timezone: "UTC";
+  metrics: {
+    openCount: number;
+    waitingForRequesterCount: number;
+  };
+  attentionRequired: RequesterDashboardTicket[];
+  recentlyUpdated: RequesterDashboardTicket[];
+  recentlyResolved: RequesterDashboardTicket[];
+  links: {
+    open: string;
+    waitingForRequester: string;
   };
 }
 
@@ -669,6 +696,10 @@ export async function getTickets(
     );
   }
 
+  if (params.scope !== undefined) {
+    searchParams.set("scope", params.scope);
+  }
+
   if (params.sortBy !== undefined) {
     searchParams.set(
       "sortBy",
@@ -750,6 +781,18 @@ export async function getStaffDashboard(): Promise<StaffDashboardData> {
     await throwApiError(response, "Unable to load the Staff Dashboard right now.");
   }
   const body = await response.json() as { data: StaffDashboardData };
+  return body.data;
+}
+
+export async function getRequesterDashboard(): Promise<RequesterDashboardData> {
+  const response = await fetch(`${API_URL}/api/dashboards/requester`, {
+    credentials: "include",
+    cache: "no-store",
+  });
+  if (!response.ok) {
+    await throwApiError(response, "Unable to load your Dashboard right now.");
+  }
+  const body = await response.json() as { data: RequesterDashboardData };
   return body.data;
 }
 

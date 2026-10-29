@@ -126,6 +126,7 @@ function installFetchMock(options?: {
 
 async function openTicketDetail() {
   render(<App />);
+  fireEvent.click(await screen.findByRole("button", { name: "My Tickets" }));
   const viewButtons = await screen.findAllByRole("button", {
     name: "View TKT-000101",
   });

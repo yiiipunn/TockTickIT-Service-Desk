@@ -1713,6 +1713,7 @@ app.get("/api/tickets", requireRole("REQUESTER"), async (
     const relatedSystemIdQuery = req.query.relatedSystemId;
     const requestedPriorityQuery = req.query.requestedPriority;
     const statusQuery = req.query.status;
+    const scopeQuery = req.query.scope;
     const sortByQuery = req.query.sortBy;
     const sortOrderQuery = req.query.sortOrder;
     const pageQuery = req.query.page;
@@ -1784,19 +1785,49 @@ app.get("/api/tickets", requireRole("REQUESTER"), async (
     }
 
     // -----------------------------------------------------------------------
-    // Status filter
-    // Lab 2 currently creates tickets with NEW status only.
+    // Status and dashboard scope filters
     // -----------------------------------------------------------------------
     let status: TicketStatus | undefined;
 
     if (statusQuery !== undefined) {
-      if (typeof statusQuery !== "string" || statusQuery !== "NEW") {
+      if (
+        typeof statusQuery !== "string" ||
+        !Object.values(TicketStatus).includes(statusQuery as TicketStatus)
+      ) {
         return res.status(400).json({
           error: "Invalid Status filter",
         });
       }
 
-      status = TicketStatus.NEW;
+      status = statusQuery as TicketStatus;
+    }
+
+    let scope: "open" | undefined;
+    if (scopeQuery !== undefined) {
+      if (typeof scopeQuery !== "string" || scopeQuery !== "open") {
+        return sendApiError(
+          res,
+          400,
+          "INVALID_QUERY",
+          "The Ticket query is invalid.",
+        );
+      }
+      scope = "open";
+    }
+
+    if (
+      scope === "open" &&
+      status !== undefined &&
+      !ACTIVE_TICKET_STATUSES.includes(
+        status as (typeof ACTIVE_TICKET_STATUSES)[number],
+      )
+    ) {
+      return sendApiError(
+        res,
+        400,
+        "INVALID_QUERY",
+        "The Ticket query is invalid.",
+      );
     }
 
     // -----------------------------------------------------------------------
@@ -1893,6 +1924,10 @@ app.get("/api/tickets", requireRole("REQUESTER"), async (
 
       ...(status !== undefined && {
         status,
+      }),
+
+      ...(scope === "open" && status === undefined && {
+        status: { in: [...ACTIVE_TICKET_STATUSES] },
       }),
 
       ...(search.length > 0 && {

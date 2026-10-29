@@ -32,6 +32,7 @@ import TicketCommunication from "./TicketCommunication";
 import UserManagement from "./UserManagement";
 import ActionsTaken from "./ActionsTaken";
 import StaffDashboard from "./StaffDashboard";
+import RequesterDashboard from "./RequesterDashboard";
 
 type UiState = "idle" | "loading" | "success" | "error";
 type AuthState = "loading" | "unauthenticated" | "authenticated" | "error";
@@ -200,6 +201,7 @@ export default function App() {
   const [ticketPriorityFilter, setTicketPriorityFilter] =
     useState<RequestedPriority | "">("");
   const [ticketStatusFilter, setTicketStatusFilter] = useState("");
+  const [ticketScopeFilter, setTicketScopeFilter] = useState<"" | "open">("");
   const [ticketSortBy, setTicketSortBy] =
     useState<GetTicketsParams["sortBy"]>("updatedAt");
   const [ticketSortOrder, setTicketSortOrder] =
@@ -235,6 +237,8 @@ export default function App() {
   const [resolutionIndicationState, setResolutionIndicationState] = useState<SubmitState>("idle");
   const [resolutionIndicationError, setResolutionIndicationError] = useState("");
   const [resolutionIndicationSuccess, setResolutionIndicationSuccess] = useState("");
+  const [requesterDetailBackView, setRequesterDetailBackView] =
+    useState<"tickets" | "dashboard">("tickets");
 
   useEffect(() => {
     void restoreAuthentication();
@@ -275,15 +279,12 @@ export default function App() {
     setAuthState("authenticated");
     setAuthFailure("");
     setShowPasswordChange(false);
-    setAppView(user.role === "REQUESTER" ? "tickets" : "dashboard");
+    setAppView("dashboard");
     setSelectedStaffTicketId(null);
     setSelectedStaffActionId(null);
 
     if (user.role === "REQUESTER" && !user.mustChangePassword) {
-      await Promise.all([
-        loadTicketReferenceData(),
-        loadTickets(1),
-      ]);
+      await loadTicketReferenceData();
     }
   }
 
@@ -316,6 +317,7 @@ export default function App() {
     setTicketSystemFilter(null);
     setTicketPriorityFilter("");
     setTicketStatusFilter("");
+    setTicketScopeFilter("");
     setTicketSortBy("updatedAt");
     setTicketSortOrder("desc");
     setTicketPageSize(10);
@@ -339,6 +341,7 @@ export default function App() {
     setResolutionIndicationState("idle");
     setResolutionIndicationError("");
     setResolutionIndicationSuccess("");
+    setRequesterDetailBackView("tickets");
   }
 
   function handleSessionExpired() {
@@ -482,13 +485,13 @@ export default function App() {
 
   function handleCancelCreateTicket() {
     resetTicketForm();
-    setAppView("tickets");
+    handleOpenRequesterTickets({});
   }
 
   // -------------------------------------------------------------------------
   // My Tickets
   // -------------------------------------------------------------------------
-  async function loadTickets(page = 1) {
+  async function loadTickets(page = 1, overrides: GetTicketsParams = {}) {
     setTicketsState("loading");
     setTicketsError("");
 
@@ -499,10 +502,12 @@ export default function App() {
         relatedSystemId: ticketSystemFilter ?? undefined,
         requestedPriority: ticketPriorityFilter || undefined,
         status: ticketStatusFilter || undefined,
+        scope: ticketScopeFilter || undefined,
         sortBy: ticketSortBy,
         sortOrder: ticketSortOrder,
         page,
         pageSize: ticketPageSize,
+        ...overrides,
       });
 
       setTickets(result.items);
@@ -534,20 +539,56 @@ export default function App() {
     setTicketSystemFilter(null);
     setTicketPriorityFilter("");
     setTicketStatusFilter("");
+    setTicketScopeFilter("");
     setTicketSortBy("updatedAt");
     setTicketSortOrder("desc");
     setTicketPageSize(10);
   }
 
+  function handleOpenRequesterDashboard() {
+    setAppView("dashboard");
+    setSelectedTicketDetail(null);
+    setTicketDetailState("idle");
+    setTicketDetailError("");
+  }
+
+  function handleOpenRequesterTickets(query: GetTicketsParams = {}) {
+    setTicketSearch("");
+    setTicketCategoryFilter(null);
+    setTicketSystemFilter(null);
+    setTicketPriorityFilter("");
+    setTicketStatusFilter(query.status ?? "");
+    setTicketScopeFilter(query.scope ?? "");
+    setTicketSortBy("updatedAt");
+    setTicketSortOrder("desc");
+    setTicketPageSize(10);
+    setAppView("tickets");
+    void loadTickets(1, {
+      search: undefined,
+      categoryId: undefined,
+      relatedSystemId: undefined,
+      requestedPriority: undefined,
+      status: query.status,
+      scope: query.scope,
+      sortBy: "updatedAt",
+      sortOrder: "desc",
+      pageSize: 10,
+    });
+  }
+
   // -------------------------------------------------------------------------
   // Requester Ticket Detail
   // -------------------------------------------------------------------------
-  async function handleViewTicket(ticketId: number) {
+  async function handleViewTicket(
+    ticketId: number,
+    backView: "tickets" | "dashboard" = "tickets",
+  ) {
     if (currentUser?.role !== "REQUESTER") {
       return;
     }
 
     setAppView("detail");
+    setRequesterDetailBackView(backView);
     setSelectedTicketDetail(null);
     setTicketDetailState("loading");
     setTicketDetailError("");
@@ -591,6 +632,12 @@ export default function App() {
     setResolutionIndicationState("idle");
     setResolutionIndicationError("");
     setResolutionIndicationSuccess("");
+  }
+
+  function handleBackFromTicketDetail() {
+    const destination = requesterDetailBackView;
+    handleBackToTickets();
+    setAppView(destination);
   }
 
   async function refreshTicketDetail(ticketId: number) {
@@ -879,9 +926,7 @@ export default function App() {
             <button
               type="button"
               className="navbar-brand btn btn-link text-decoration-none p-0 me-3 text-white fw-bold"
-              onClick={() => {
-                handleBackToTickets();
-              }}
+              onClick={handleOpenRequesterDashboard}
             >
               TokTickIT
             </button>
@@ -889,11 +934,15 @@ export default function App() {
             <div className="requester-nav-actions d-flex flex-wrap align-items-center gap-2 flex-grow-1">
               <button
                 type="button"
-                className="btn btn-link btn-sm text-white p-0 text-decoration-none d-block mt-1"
-                onClick={() => setShowPasswordChange(true)}
-                disabled={submitState === "submitting"}
+                className={`btn btn-sm ${
+                  appView === "dashboard"
+                    ? "btn-light text-success"
+                    : "btn-link text-white text-decoration-none"
+                }`}
+                onClick={handleOpenRequesterDashboard}
+                aria-current={appView === "dashboard" ? "page" : undefined}
               >
-                Change Password
+                Dashboard
               </button>
               <button
                 type="button"
@@ -902,7 +951,8 @@ export default function App() {
                     ? "btn-light text-success"
                     : "btn-link text-white text-decoration-none"
                 }`}
-                onClick={handleBackToTickets}
+                onClick={() => handleOpenRequesterTickets({})}
+                aria-current={appView === "tickets" ? "page" : undefined}
               >
                 My Tickets
               </button>
@@ -915,6 +965,7 @@ export default function App() {
                     : "btn-link text-white text-decoration-none"
                 }`}
                 onClick={handleOpenCreateTicket}
+                aria-current={appView === "create" ? "page" : undefined}
               >
                 Create Ticket
               </button>
@@ -930,6 +981,14 @@ export default function App() {
               <button
                 type="button"
                 className="btn btn-link btn-sm text-white p-0 text-decoration-none d-block mt-1"
+                onClick={() => setShowPasswordChange(true)}
+                disabled={submitState === "submitting"}
+              >
+                Change Password
+              </button>
+              <button
+                type="button"
+                className="btn btn-link btn-sm text-white p-0 text-decoration-none d-block mt-1"
                 onClick={handleLogout}
                 disabled={submitState === "submitting"}
               >
@@ -939,6 +998,15 @@ export default function App() {
           </nav>
 
           <div className="app-content">
+            {appView === "dashboard" && (
+              <RequesterDashboard
+                currentUser={currentUser}
+                onOpenTickets={handleOpenRequesterTickets}
+                onOpenTicket={(ticketId) => void handleViewTicket(ticketId, "dashboard")}
+                onCreateTicket={handleOpenCreateTicket}
+              />
+            )}
+
             {/* My Tickets View */}
             {appView === "tickets" && (
               <div className="card shadow-sm mb-4">
@@ -1092,12 +1160,53 @@ export default function App() {
                             className="form-select"
                             aria-label="My Tickets status filter"
                             value={ticketStatusFilter}
-                            onChange={(event) =>
-                              setTicketStatusFilter(event.target.value)
-                            }
+                            onChange={(event) => {
+                              const status = event.target.value;
+                              setTicketStatusFilter(status);
+                              if (
+                                ticketScopeFilter === "open" &&
+                                status !== "" &&
+                                !REQUESTER_RESOLUTION_ACTIVE_STATUSES.has(status)
+                              ) {
+                                setTicketScopeFilter("");
+                              }
+                            }}
                           >
                             <option value="">All Statuses</option>
                             <option value="NEW">New</option>
+                            <option value="OPEN">Open</option>
+                            <option value="IN_PROGRESS">In Progress</option>
+                            <option value="WAITING_FOR_REQUESTER">Waiting for Requester</option>
+                            <option value="RESOLVED">Resolved</option>
+                            <option value="CLOSED">Closed</option>
+                            <option value="REOPENED">Reopened</option>
+                            <option value="CANCELLED">Cancelled</option>
+                          </select>
+                        </div>
+
+                        <div className="col-md-6 col-lg-3">
+                          <label htmlFor="my-ticket-scope" className="form-label">
+                            Ticket Scope
+                          </label>
+                          <select
+                            id="my-ticket-scope"
+                            className="form-select"
+                            aria-label="My Tickets scope filter"
+                            value={ticketScopeFilter}
+                            onChange={(event) => {
+                              const scope = event.target.value as "" | "open";
+                              setTicketScopeFilter(scope);
+                              if (
+                                scope === "open" &&
+                                ticketStatusFilter !== "" &&
+                                !REQUESTER_RESOLUTION_ACTIVE_STATUSES.has(ticketStatusFilter)
+                              ) {
+                                setTicketStatusFilter("");
+                              }
+                            }}
+                          >
+                            <option value="">All Tickets</option>
+                            <option value="open">Open Tickets</option>
                           </select>
                         </div>
                       </div>
@@ -1193,7 +1302,8 @@ export default function App() {
                       ticketCategoryFilter !== null ||
                       ticketSystemFilter !== null ||
                       ticketPriorityFilter ||
-                      ticketStatusFilter
+                      ticketStatusFilter ||
+                      ticketScopeFilter
                         ? "No tickets match the current search or filters."
                         : "You have not created any tickets yet."}
                     </div>
@@ -1804,9 +1914,11 @@ export default function App() {
                     <button
                       type="button"
                       className="btn btn-link text-success p-0 text-decoration-none"
-                      onClick={handleBackToTickets}
+                      onClick={handleBackFromTicketDetail}
                     >
-                      ← Back to My Tickets
+                      {requesterDetailBackView === "dashboard"
+                        ? "Back to Dashboard"
+                        : "Back to My Tickets"}
                     </button>
                   </div>
 
