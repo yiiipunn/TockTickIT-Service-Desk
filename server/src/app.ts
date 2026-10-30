@@ -1549,6 +1549,30 @@ app.post("/api/tickets", requireRole("REQUESTER"), async (
     const prisma = getPrisma();
     const requesterId = authenticationContext(res).user.id;
 
+    const allowedFields = new Set([
+      "categoryId",
+      "relatedSystemId",
+      "summary",
+      "requestedPriority",
+      "description",
+      // Retained for Lab 3 compatibility but deliberately ignored below.
+      // The authenticated session remains the only Requester identity source.
+      "requesterId",
+    ]);
+    if (
+      !req.body ||
+      typeof req.body !== "object" ||
+      Array.isArray(req.body) ||
+      Object.keys(req.body).some((field) => !allowedFields.has(field))
+    ) {
+      return sendApiError(
+        res,
+        400,
+        "VALIDATION_ERROR",
+        "The request contains invalid data.",
+      );
+    }
+
     const {
       categoryId,
       relatedSystemId,
@@ -1703,11 +1727,46 @@ app.get("/api/tickets", requireRole("REQUESTER"), async (
     const prisma = getPrisma();
     const requesterId = authenticationContext(res).user.id;
 
+    const allowedQueryFields = new Set([
+      "search",
+      "categoryId",
+      "relatedSystemId",
+      "requestedPriority",
+      "status",
+      "scope",
+      "sortBy",
+      "sortOrder",
+      "page",
+      "pageSize",
+      // Retained for Lab 3 compatibility but deliberately ignored below.
+      "requesterId",
+    ]);
+    if (Object.keys(req.query).some((field) => !allowedQueryFields.has(field))) {
+      return sendApiError(
+        res,
+        400,
+        "INVALID_QUERY",
+        "The Ticket query is invalid.",
+      );
+    }
+
     // -----------------------------------------------------------------------
     // Query parameters
     // -----------------------------------------------------------------------
-    const search =
-      typeof req.query.search === "string" ? req.query.search.trim() : "";
+    if (
+      req.query.search !== undefined &&
+      (typeof req.query.search !== "string" || req.query.search.length > 120)
+    ) {
+      return sendApiError(
+        res,
+        400,
+        "INVALID_QUERY",
+        "The Ticket query is invalid.",
+      );
+    }
+    const search = typeof req.query.search === "string"
+      ? req.query.search.trim()
+      : "";
 
     const categoryIdQuery = req.query.categoryId;
     const relatedSystemIdQuery = req.query.relatedSystemId;
@@ -1879,7 +1938,7 @@ app.get("/api/tickets", requireRole("REQUESTER"), async (
 
       page = Number(pageQuery);
 
-      if (!Number.isInteger(page) || page <= 0) {
+      if (!Number.isSafeInteger(page) || page <= 0 || page > 1_000_000) {
         return res.status(400).json({
           error: "Invalid page",
         });

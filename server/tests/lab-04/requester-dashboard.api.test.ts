@@ -3,7 +3,10 @@ import { readFileSync } from "node:fs";
 import { readFile } from "node:fs/promises";
 import { resolve } from "node:path";
 import { PrismaClient } from "@prisma/client";
+import request from "supertest";
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
+import { app } from "../../src/app.js";
+import { SESSION_COOKIE_NAME } from "../../src/auth.js";
 import { hashPassword } from "../../src/password.js";
 import { getPrisma } from "../../src/prisma.js";
 import { getRequesterDashboardSnapshot } from "../../src/requester-dashboard.js";
@@ -277,5 +280,67 @@ describe("Lab 4 Requester Dashboard API", () => {
     } });
     expect(failed.body).not.toHaveProperty("data");
     expect(JSON.stringify(failed.body)).not.toContain("forced requester dashboard failure");
+  });
+
+  it("[SECURITY-HARDENING / AC-18, AC-27] treats a malformed session cookie as unauthenticated", async () => {
+    const response = await request(app)
+      .get("/api/auth/me")
+      .set("Cookie", `${SESSION_COOKIE_NAME}=%E0%A4%A`);
+
+    expect(response.status).toBe(401);
+    expect(response.body).toEqual({ error: {
+      code: "AUTH_REQUIRED",
+      message: "Authentication is required.",
+    } });
+    expect(JSON.stringify(response.body)).not.toMatch(/URIError|stack|decodeURIComponent/);
+  });
+
+  it("[SECURITY-HARDENING / AC-18, AC-27] rejects unknown, repeated, oversized, and unsafe Requester query values", async () => {
+    const responses = await Promise.all([
+      requester.get("/api/tickets?unexpected=1"),
+      requester.get("/api/tickets?search=one&search=two"),
+      requester.get(`/api/tickets?search=${"x".repeat(121)}`),
+      requester.get("/api/tickets?page=9007199254740991"),
+    ]);
+
+    for (const response of responses) {
+      expect(response.status).toBe(400);
+      expect(response.body).not.toHaveProperty("items");
+    }
+    expect(responses.slice(0, 3).map((response) => response.body.error.code))
+      .toEqual(["INVALID_QUERY", "INVALID_QUERY", "INVALID_QUERY"]);
+  });
+
+  it("[SECURITY-HARDENING / AC-15, AC-18, AC-27] ignores legacy identity spoofing but rejects genuinely unknown Ticket fields", async () => {
+    const beforeCount = await prisma.ticket.count();
+    const forgedCreate = await requester.post("/api/tickets").send({
+      categoryId,
+      relatedSystemId,
+      summary: "Forged Requester attempt",
+      requestedPriority: "MEDIUM",
+      description: "The authenticated identity must be the only Ticket owner source.",
+      requesterId: otherRequesterId,
+    });
+
+    expect(forgedCreate.status).toBe(201);
+    expect(forgedCreate.body.requesterId).toBe(requesterId);
+    expect(forgedCreate.body.requesterId).not.toBe(otherRequesterId);
+
+    const forgedQuery = await requester.get(`/api/tickets?requesterId=${otherRequesterId}&pageSize=50`);
+    expect(forgedQuery.status).toBe(200);
+    expect(forgedQuery.body.items.length).toBeGreaterThan(0);
+    expect(forgedQuery.body.items.every((ticket: { requesterId: number }) => ticket.requesterId === requesterId)).toBe(true);
+
+    const unknownField = await requester.post("/api/tickets").send({
+      categoryId,
+      relatedSystemId,
+      summary: "Unknown field attempt",
+      requestedPriority: "LOW",
+      description: "Unexpected fields must still be rejected.",
+      role: "ADMINISTRATOR",
+    });
+    expect(unknownField.status).toBe(400);
+    expect(unknownField.body.error.code).toBe("VALIDATION_ERROR");
+    expect(await prisma.ticket.count()).toBe(beforeCount + 1);
   });
 });

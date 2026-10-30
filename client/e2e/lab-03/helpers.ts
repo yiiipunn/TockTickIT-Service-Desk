@@ -14,12 +14,15 @@ export async function signIn(page: Page, email: string, expectedHeading: string)
 
   const passwordChangeRequired = page.getByRole("heading", { name: "Password change required" });
   const signInFailure = page.getByRole("alert");
+  const authenticatedLanding = page.getByRole("heading", {
+    name: /^(Your Dashboard|Staff Dashboard|My Tickets|Ticket Queue|User Management)$/,
+  });
   await expect(passwordChangeRequired.or(signInFailure)).toBeVisible();
 
   if (await signInFailure.isVisible()) {
     await page.getByRole("textbox", { name: "Password" }).fill(changedPassword(email));
     await page.getByRole("button", { name: "Sign in" }).click();
-    await expect(passwordChangeRequired.or(page.getByRole("heading", { name: expectedHeading }))).toBeVisible();
+    await expect(passwordChangeRequired.or(authenticatedLanding)).toBeVisible();
   }
 
   if (await passwordChangeRequired.isVisible()) {
@@ -30,5 +33,9 @@ export async function signIn(page: Page, email: string, expectedHeading: string)
     await page.getByRole("button", { name: "Change Password" }).click();
   }
 
+  await expect(authenticatedLanding).toBeVisible();
+  if (!await page.getByRole("heading", { name: expectedHeading }).isVisible()) {
+    await page.getByRole("button", { name: expectedHeading, exact: true }).click();
+  }
   await expect(page.getByRole("heading", { name: expectedHeading })).toBeVisible();
 }

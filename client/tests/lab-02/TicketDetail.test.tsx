@@ -187,11 +187,12 @@ describe("Requester Ticket Detail", () => {
 
     openTicketDetail();
 
-    expect(
-      await screen.findByRole("heading", {
-        name: "Ticket Detail",
-      }),
-    ).toBeInTheDocument();
+    const heading = await screen.findByRole("heading", {
+      level: 1,
+      name: "Ticket Detail",
+    });
+    expect(screen.getByRole("main")).toContainElement(heading);
+    expect(screen.getAllByRole("heading", { level: 1 })).toHaveLength(1);
 
     expect(
       screen.getByText("Printer is not working", {

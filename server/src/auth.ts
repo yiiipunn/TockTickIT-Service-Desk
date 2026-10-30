@@ -64,7 +64,13 @@ function cookieValue(req: Request, name: string) {
     const separator = cookie.indexOf("=");
     if (separator < 0) continue;
     if (cookie.slice(0, separator).trim() === name) {
-      return decodeURIComponent(cookie.slice(separator + 1).trim());
+      try {
+        return decodeURIComponent(cookie.slice(separator + 1).trim());
+      } catch {
+        // A malformed client cookie is equivalent to an unknown session. It
+        // must not escape as an internal server error.
+        return null;
+      }
     }
   }
   return null;
