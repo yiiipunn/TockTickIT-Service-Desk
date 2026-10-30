@@ -40,7 +40,9 @@ function installLab2ShellFetch() {
 
 async function openSystemStatus(user: ReturnType<typeof userEvent.setup>) {
   await user.click(await screen.findByRole("button", { name: "My Tickets" }));
-  await screen.findByRole("heading", { name: "My Tickets" });
+  const heading = await screen.findByRole("heading", { level: 1, name: "My Tickets" });
+  expect(screen.getByRole("main")).toContainElement(heading);
+  expect(screen.getAllByRole("heading", { level: 1 })).toHaveLength(1);
   await user.click(screen.getByText("System Status"));
 }
 

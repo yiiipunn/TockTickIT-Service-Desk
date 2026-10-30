@@ -997,7 +997,7 @@ export default function App() {
             </div>
           </nav>
 
-          <div className="app-content">
+          <main className="app-content">
             {appView === "dashboard" && (
               <RequesterDashboard
                 currentUser={currentUser}
@@ -1013,7 +1013,7 @@ export default function App() {
                 <div className="card-body p-4">
                   <div className="d-flex flex-wrap justify-content-between align-items-start gap-3 mb-4">
                     <div>
-                      <h2 className="h4 mb-1">My Tickets</h2>
+                      <h1 className="h4 mb-1">My Tickets</h1>
                       <p className="text-muted mb-0">
                         View and search your submitted tickets.
                       </p>
@@ -1375,7 +1375,11 @@ export default function App() {
                       </div>
 
                       {/* Mobile representation */}
-                      <div className="d-md-none">
+                      <div
+                        className="d-md-none"
+                        role="region"
+                        aria-label="Requester Tickets as cards"
+                      >
                         <div className="d-grid gap-3">
                           {tickets.map((ticket) => (
                             <article
@@ -1540,7 +1544,7 @@ export default function App() {
                     >
                       ← Back to My Tickets
                     </button>
-                    <h2 className="h4 mt-3 mb-2">Create Ticket</h2>
+                    <h1 className="h4 mt-3 mb-2">Create Ticket</h1>
                     <p className="text-muted mb-0">
                       Tell us about the issue you need help with.
                     </p>
@@ -1939,7 +1943,7 @@ export default function App() {
                       <>
                         <div className="d-flex flex-wrap justify-content-between align-items-start gap-3 mb-4">
                           <div>
-                            <h2 className="h4 mb-1">Ticket Detail</h2>
+                            <h1 className="h4 mb-1">Ticket Detail</h1>
                             <div className="fs-5 fw-semibold text-success">
                               {selectedTicketDetail.ticketNumber}
                             </div>
@@ -2321,7 +2325,7 @@ export default function App() {
                 </div>
               </details>
             )}
-          </div>
+          </main>
         </>
       )}
     </div>

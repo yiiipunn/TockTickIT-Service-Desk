@@ -73,6 +73,8 @@ test("captures PNG evidence for implemented Lab 3 screens and visible states", a
   await page.getByRole("textbox", { name: "New password", exact: true }).fill(requesterPassword);
   await page.getByLabel("Confirm new password").fill(requesterPassword);
   await page.getByRole("button", { name: "Change Password" }).click();
+  await expect(page.getByRole("heading", { name: "Your Dashboard" })).toBeVisible();
+  await page.getByRole("button", { name: "My Tickets", exact: true }).click();
   await expect(page.getByRole("heading", { name: "My Tickets" })).toBeVisible();
   await captureAtEveryViewport(page, "requester", "my-tickets");
 

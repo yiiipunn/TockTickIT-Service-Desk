@@ -201,6 +201,29 @@ These script names were confirmed from the current packages/README. They are com
 | Development migration | `server/` | `npm run prisma:migrate` | Planned / Not Run |
 | Idempotent seed | `server/` | `npm run prisma:seed` | Planned / Not Run |
 
+### 7.1 Issue #30 Execution Record
+
+Executed on 2026-10-30 (Asia/Bangkok) from `feature/lab4-regression-hardening`. Tests used PostgreSQL fixture schemas created and removed by the suites; the responsive browser checks used the isolated `lab4_issue30_browser_6f27412e4fbc4b21a8bb861fc33b1a90` schema.
+
+| Verification | Working directory | Command | Result |
+| --- | --- | --- | --- |
+| Server regression and security | `server/` | `npm test -- --run` | Passed: 33 files, 244 tests |
+| Client component regression | `client/` | `npm test -- --run` | Passed: 18 files, 139 tests |
+| Server production build | `server/` | `npm run build` | Passed |
+| Client production build | `client/` | `npm run build` | Passed |
+| Lab 3 browser continuity | `client/` | `$env:ISSUE30_TEST_DIR='./e2e/lab-03'; npx playwright test --config=playwright.issue30.config.ts` | Passed: 6 tests |
+| Issue #30 responsive/accessibility | `client/` | `npx playwright test --config=playwright.issue30.config.ts` | Passed: 2 tests |
+| Performance smoke | `server/` | `npx vitest run tests/lab-04/performance.smoke.test.ts --reporter=junit --outputFile=../tmp/performance-smoke.junit.xml` | Passed: 2 tests; dashboard p95 14.1 ms, Action-page p95 10.4 ms |
+| Repository whitespace audit | repository root | `git diff --check` | Passed |
+
+Issue #30 evidence is under `artifacts/lab-04/screenshots/issue-30/`. The responsive artifacts cover 1440×900 desktop, 800×1024 tablet, 390×844 mobile, 320×800 reflow, visible keyboard focus, and the 720 CSS-pixel equivalent of 200% desktop zoom. Browser listeners reported no console errors, uncaught page errors, or failed requests during these checks.
+
+Performance environment: Windows 10.0.26300, Intel Core Ultra 7 155H (22 logical processors), 15.6 GiB RAM, Node 24.19.0, and PostgreSQL 18.4 x64. PERF-01 used 20 warmed API samples against 1,000 Tickets and 5,000 Actions; its representative urgent-Ticket plan was `Limit -> Sort -> Bitmap Heap Scan -> BitmapAnd -> Bitmap Index Scan`. PERF-02 used four Action-page samples against one 500-Action Ticket; its page-25 plan was `Limit -> Sort -> Bitmap Heap Scan -> Bitmap Index Scan`. PostgreSQL reported representative execution times of 0.145 ms and 0.235 ms respectively. These are local smoke measurements, not production capacity claims.
+
+`frontend-regression-tests.png` and `backend-regression-tests.png` are Chromium screenshots of the genuine Vitest JUnit reports and show 139/244 tests with zero failures or errors. `performance-smoke.png` shows the two passing performance cases, environment, sample counts, p95 measurements, and plan summaries. The local hostname was removed from the temporary report before capture; result data was unchanged. Automated Windows Terminal capture was not used.
+
+Environment note: on this Windows host, Node 24.19.0 intermittently returned `uv_os_get_passwd ... ENOMEM` before `tsx` could start. The isolated browser schema was therefore seeded from the already compiled `dist/prisma/seed.js`; application tests, migrations, the compiled seed, builds, and browser suites completed successfully.
+
 ## 8. Issue, Branch, and Evidence Plan
 
 | Course issue | GitHub issue | Verification responsibility |

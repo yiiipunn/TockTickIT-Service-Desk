@@ -137,14 +137,17 @@ describe("authenticated application shell", () => {
     await screen.findByRole("heading", { name: "Your Dashboard" });
     expect(screen.getByText("Ari Example")).toBeInTheDocument();
     expect(screen.getByText("Requester")).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "My Tickets" })).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "Create Ticket" })).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "Dashboard" })).toHaveAttribute("aria-current", "page");
-    expect(screen.queryByRole("button", { name: "User Management" })).not.toBeInTheDocument();
-    expect(screen.queryByRole("button", { name: "Ticket Queue" })).not.toBeInTheDocument();
+    const navigation = within(screen.getByRole("navigation", {
+      name: "Requester application navigation",
+    }));
+    expect(navigation.getByRole("button", { name: "My Tickets" })).toBeInTheDocument();
+    expect(navigation.getByRole("button", { name: "Create Ticket" })).toBeInTheDocument();
+    expect(navigation.getByRole("button", { name: "Dashboard" })).toHaveAttribute("aria-current", "page");
+    expect(navigation.queryByRole("button", { name: "User Management" })).not.toBeInTheDocument();
+    expect(navigation.queryByRole("button", { name: "Ticket Queue" })).not.toBeInTheDocument();
     expect(screen.queryByLabelText("Development Requester")).not.toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "Change Password" })).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "Logout" })).toBeInTheDocument();
+    expect(navigation.getByRole("button", { name: "Change Password" })).toBeInTheDocument();
+    expect(navigation.getByRole("button", { name: "Logout" })).toBeInTheDocument();
   });
 
   it("blocks normal access when an initial password change is required", async () => {
