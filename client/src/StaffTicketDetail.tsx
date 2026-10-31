@@ -169,6 +169,10 @@ export default function StaffTicketDetail({
     }
   }
 
+  async function refreshTicketAfterAction() {
+    applyTicket(await getStaffTicketDetail(ticketId));
+  }
+
   async function claim() {
     if (savingAction || !ticket || ticket.owner !== null || !canOperate) return;
     setSavingAction("claim");
@@ -427,6 +431,7 @@ export default function StaffTicketDetail({
           currentUser={currentUser}
           refreshKey={actionsRefreshKey}
           focusActionId={focusActionId}
+          onChanged={refreshTicketAfterAction}
         />}
         {canOperate && <section className="border rounded-3 p-3 p-md-4 mt-4" aria-labelledby="ticket-workflow-history-heading">
           <h2 id="ticket-workflow-history-heading" className="h5">Ticket workflow history</h2>

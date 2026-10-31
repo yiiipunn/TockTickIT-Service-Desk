@@ -1,6 +1,6 @@
 # TokTickIT Service Desk
 
-TokTickIT is an IT service desk web application for CPE 334. Lab 3 adds authenticated, role-based workflows to the Lab 2 ticketing foundation: Requesters manage their own tickets, IT Staff operate the queue, and Administrators manage user accounts.
+TokTickIT is an IT service desk web application for CPE 334. Lab 4 completes the authenticated Lab 3 ticket workflow with role-specific dashboards and auditable Actions Taken, while preserving Requester ownership, IT Staff operations, and Administrator user management.
 
 ## Main Features
 
@@ -9,6 +9,8 @@ TokTickIT is an IT service desk web application for CPE 334. Lab 3 adds authenti
 - Requester ticket creation, My Tickets, Ticket Detail, and Lab 2 attachment continuity
 - IT Staff Ticket Queue and operational Ticket Detail
 - Ticket claim, assignment/reassignment, IT Priority, and status workflow
+- Requester and IT Staff operational dashboards with deterministic drill-downs
+- Planned and Completed Actions Taken, including assignment, optimistic concurrency, and append-only Action history
 - Public Comments and role-restricted Internal Notes
 - Administrator User Management for listing, filtering, creating, editing, activating/deactivating, and resetting user initial passwords
 - Attachment upload, download, and soft removal: JPG/JPEG, PNG, WEBP, or PDF; up to 5 MB per file and five active files per ticket
@@ -17,9 +19,9 @@ TokTickIT is an IT service desk web application for CPE 334. Lab 3 adds authenti
 
 | Role | Access |
 | --- | --- |
-| Requester | Creates and manages only their own tickets, attachments, and Public Comments. |
-| IT Staff | Uses the shared Ticket Queue and operational Ticket Detail, including ticket assignment, IT Priority, status changes, Public Comments, and Internal Notes. |
-| Administrator | Uses User Management and the IT Staff ticket operations permitted by the Lab 3 authorization matrix. |
+| Requester | Uses a private dashboard and creates and manages only their own tickets, attachments, Public Comments, and read-only Action information. |
+| IT Staff | Uses the operational dashboard, shared Ticket Queue, Ticket workflow, Internal Notes, and assigned Actions. |
+| Administrator | Uses User Management and the IT Staff operations permitted by the authorization matrix. |
 
 Authentication supplies the user identity. The server enforces roles, ownership, active-account status, session state, and password-change restrictions for every protected operation.
 
@@ -106,7 +108,7 @@ npm run dev
 
 Open <http://localhost:5173> in a browser.
 
-## Lab 3 Development Accounts
+## Development Accounts
 
 The following are fictional, local development accounts created by the seed. Each uses the initial password `TokTickIT-Lab3!` on a freshly seeded database and must change that password on first login.
 
@@ -132,9 +134,11 @@ The API base path is `http://localhost:3000/api`. Protected requests use the aut
 | Ticket Queue | Search, filter, sort, and page operational tickets | IT Staff, Administrator |
 | Ticket operations | Claim, assign/reassign, set IT Priority, and change status | IT Staff, Administrator |
 | Comments and notes | Public Comments; role-restricted Internal Notes | Per authorization matrix |
+| Dashboards | Role-specific metrics and deterministic operational lists | Requester dashboard or Staff/Admin dashboard |
+| Actions Taken | List, view, create, edit, assign, complete, and audit Actions | Per Lab 4 authorization matrix |
 | User Management | List, create, edit, activate/deactivate, and reset Users | Administrator |
 
-See the [Lab 3 API specification](docs/lab-03/api-spec.md) for exact endpoints, request bodies, validation, response shapes, and status codes.
+See the [Lab 4 API specification](docs/lab-04/api-spec.md) for the current endpoints, request bodies, validation, response shapes, and status codes. The Lab 3 API specification remains the source for preserved authentication, Ticket workflow, comments, notes, and User Management contracts.
 
 ## Testing
 
@@ -145,19 +149,22 @@ The server tests require the PostgreSQL database configured in `server/.env` and
 | Server tests | `server/` | `npm test` |
 | Client tests | `client/` | `npm test` |
 | Browser E2E tests | `client/` | `npx playwright install chromium` (once), then `npm run test:e2e` |
+| Lab 4 isolated E2E and Lab 3 continuity | `server/` | `npm run test:e2e:lab4` |
 | Server production build | `server/` | `npm run build` |
 | Client production build | `client/` | `npm run build` |
 
-The E2E configuration starts its own API on port 3100 and client on port 5174, then runs the Lab 3 Playwright suite.
+The default E2E configuration starts an API on port 3100 and a client on port 5174, then runs the Lab 3 Playwright continuity suite. It seeds the database configured in `server/.env`; point it only at a disposable local test database or isolated schema, never a shared database. Issue #30 adds `playwright.issue30.config.ts` for responsive and accessibility regression checks against an already-running isolated test environment.
 
-## Lab 3 Documentation
+For the Lab 4 release check, install Chromium once from `client/` with `npx playwright install chromium`, then run `npm run test:e2e:lab4` from `server/`. The runner requires `server/.env` to point to local PostgreSQL with `schema=public`; it creates a random isolated schema, deploys migrations, seeds twice and checks row-count idempotence, starts the API and client on ports 3100 and 5174, runs the Lab 4 scenarios and four Lab 3 continuity scenarios, and drops the schema afterward. Both ports must be free. Screenshots are saved under `artifacts/lab-04/screenshots/issue-31/`; passing JSON reports are copied to `artifacts/lab-04/test-results/issue-31/`. If the runner is interrupted before cleanup, `node scripts/cleanup-issue31-e2e.mjs <generated-schema-name>` removes only the named local Issue #31 schema.
 
-- [Specification](docs/lab-03/specification.md)
-- [Test plan and results](docs/lab-03/tests.md)
-- [UI specification](docs/lab-03/ui-spec.md)
-- [API specification](docs/lab-03/api-spec.md)
-- [Reviewer evidence](docs/lab-03/reviewer.md)
-- [AI-use record](docs/lab-03/ai-use.md)
+## Lab 4 Documentation
+
+- [Specification](docs/lab-04/specification.md)
+- [Test plan](docs/lab-04/tests.md)
+- [UI specification](docs/lab-04/ui-spec.md)
+- [API specification](docs/lab-04/api-spec.md)
+
+Lab 1–3 documentation remains under the corresponding `docs/lab-0X/` directories for continuity and regression reference.
 
 ## Repository Structure
 
@@ -165,7 +172,7 @@ The E2E configuration starts its own API on port 3100 and client on port 5174, t
 TokTickIT-Service-Desk/
 |-- client/                 # React app, component tests, and Playwright E2E tests
 |-- server/                 # Express API, Prisma schema/migrations/seed, and API tests
-|-- docs/lab-03/            # Lab 3 specifications, evidence, and records
-|-- artifacts/lab-03/       # Reviewed Lab 3 UI evidence
+|-- docs/lab-01..04/        # Versioned specifications, tests, and records
+|-- artifacts/lab-01..04/   # Reviewed UI and verification evidence
 `-- README.md
 ```
