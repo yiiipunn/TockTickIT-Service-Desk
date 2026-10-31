@@ -196,6 +196,7 @@ export default function ActionsTaken({
   currentUser,
   refreshKey = 0,
   focusActionId,
+  onChanged,
 }: {
   ticketId: number;
   ticketNumber: string;
@@ -204,6 +205,7 @@ export default function ActionsTaken({
   currentUser: AuthenticatedUser;
   refreshKey?: number;
   focusActionId?: number;
+  onChanged?: () => Promise<void>;
 }) {
   const canManage = currentUser.role === "IT_STAFF" || currentUser.role === "ADMINISTRATOR";
   const canCreate = canManage && ACTIVE_TICKET_STATUSES.has(ticketStatus as TicketStatus);
@@ -401,11 +403,30 @@ export default function ActionsTaken({
 
   async function refreshAfterMutation(successMessage: string, action: ActionTaken) {
     setSelected(action);
+    if (canManage) {
+      setEventsLoading(true);
+      setEventsError("");
+      try {
+        setEvents(await getActionEvents(action.id));
+      } catch {
+        setEvents([]);
+        setEventsError("Unable to load Action history right now.");
+      } finally {
+        setEventsLoading(false);
+      }
+    }
     setItems((current) => {
       const exists = current.some((item) => item.id === action.id);
       return exists ? current.map((item) => item.id === action.id ? action : item) : [action, ...current];
     });
     setFeedback(successMessage);
+    if (onChanged) {
+      try {
+        await onChanged();
+      } catch {
+        setFeedback(`${successMessage} The change succeeded, but Ticket details could not be refreshed.`);
+      }
+    }
     try {
       const refreshed = await getActions(ticketId, page, pageSize);
       setItems(refreshed.items);
