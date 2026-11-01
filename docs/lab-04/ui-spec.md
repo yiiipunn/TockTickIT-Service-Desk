@@ -32,6 +32,17 @@ Reuse primary `#006B3C`, secondary `#0B7A46`, pale green `#EAF6EF`, page backgro
 
 Direct navigation to a forbidden surface displays a safe forbidden state and no protected data. Hidden controls are never treated as authorization.
 
+### Screen Summary
+
+As in the [Lab 3 screen specifications](../lab-03/ui-spec.md#3-screens), the table separates each screen's purpose, role, controls, feedback, and mobile behavior. Sections 3–8 give the detailed field and state rules.
+
+| Screen | Purpose / role | Main controls | Important states | Mobile behavior |
+| --- | --- | --- | --- | --- |
+| Actions Taken on Ticket Detail | Show current work; owned Requester read-only, Staff/Admin operational | View, plan, edit, reassign, start, complete, cancel | Loading, empty, validation, success, forbidden, conflict, safe failure | Cards retain all fields and actions |
+| Ticket workflow | Show permitted formal transitions; Staff/Admin write | Next Status, confirmation, Requester advisory indication on own Ticket | Resolution gate, stale conflict, confirmation, history | Workflow precedes communication |
+| Requester Dashboard | Summarize only owned Tickets | Metric and Ticket drill-down, refresh | Loading, zero counts, attention/recent/resolved, forbidden, failure | Single-column cards and lists |
+| IT Staff/Admin Dashboard | Summarize operational Tickets and current-user Actions | Metric, Ticket, and Action drill-down, refresh | Loading, zero counts, urgent/recent, forbidden, failure | Single-column cards and lists |
+
 ## 3. Actions Taken on Ticket Detail
 
 ### 3.1 Placement and list
@@ -239,5 +250,19 @@ Destination screens reload authorized server data; dashboard data passed through
 - [ ] Validation appears next to fields and in a useful summary.
 - [ ] All earlier permitted screens/navigation remain available.
 - [ ] No broken link, blocking console error, placeholder, unfinished control, duplicate obsolete element, clipping, overlap, or horizontal overflow remains.
-- [ ] Genuine desktop/tablet/mobile screenshots for Staff Dashboard, Requester Dashboard, and Actions Taken are captured under the future Issue #31/#32 artifact structure only after implementation.
-- [ ] This checklist is not marked complete and no screenshot evidence is claimed by Issue #23.
+- [x] Genuine screenshots exist for representative Staff Dashboard, Requester Dashboard, Actions Taken, Ticket workflow, and responsive states; the exact screen/viewport coverage is listed below.
+- [x] Desktop, tablet, and mobile screenshots exist for both dashboards, the Actions Taken form, and Staff Ticket Detail with the resolution gate. Other UI states still need separate visual review.
+
+### Current Screenshot Evidence
+
+The table follows the [Lab 3 screenshot convention](../lab-03/ui-spec.md#current-screenshot-evidence): link each real PNG by screen and viewport. A dash means that no screenshot for that combination is present; it is not a failed test.
+
+| Screen / state | Desktop | Tablet | Mobile |
+| --- | --- | --- | --- |
+| IT Staff Dashboard | [1440 px](../../artifacts/lab-04/screenshots/staff-dashboard/desktop.png) | [800 px](../../artifacts/lab-04/screenshots/staff-dashboard/tablet.png) | [390 px](../../artifacts/lab-04/screenshots/staff-dashboard/mobile.png) |
+| Requester Dashboard | [1440 px](../../artifacts/lab-04/screenshots/requester-dashboard/desktop.png) | [800 px](../../artifacts/lab-04/screenshots/requester-dashboard/tablet.png) | [390 px](../../artifacts/lab-04/screenshots/requester-dashboard/mobile.png) |
+| Actions Taken form | [1440 px](../../artifacts/lab-04/screenshots/actions-taken/form-desktop.png) | [800 px](../../artifacts/lab-04/screenshots/actions-taken/form-tablet.png) | [390 px](../../artifacts/lab-04/screenshots/actions-taken/form-mobile.png) |
+| Staff Ticket Detail: Actions list and resolution gate | [1440 px](../../artifacts/lab-04/screenshots/actions-taken/ticket-detail-desktop.png) | [800 px](../../artifacts/lab-04/screenshots/actions-taken/ticket-detail-tablet.png) | [390 px](../../artifacts/lab-04/screenshots/actions-taken/ticket-detail-mobile.png) |
+| Lab 3 My Tickets regression | [1440 px](../../artifacts/lab-04/screenshots/requester-dashboard/my-tickets-desktop.png) | [800 px](../../artifacts/lab-04/screenshots/requester-dashboard/my-tickets-tablet.png) | [390 px](../../artifacts/lab-04/screenshots/requester-dashboard/my-tickets-mobile.png), [320 px](../../artifacts/lab-04/screenshots/issue-30/mobile-320-reflow.png) |
+
+The new captures were produced by the [Part 9 browser test](../../e2e/lab-04/part9-responsive-capture.spec.ts) against an isolated seeded schema. Each row shows a genuine full-page screenshot; the test checked page-level horizontal overflow and browser errors at 1440×900, 800×1024, and 390×844. The earlier [Action completion](../../artifacts/lab-04/screenshots/issue-31/actions-taken-flow.png), [cancellation](../../artifacts/lab-04/screenshots/issue-31/action-cancellation.png), and [Ticket resolution](../../artifacts/lab-04/screenshots/issue-31/ticket-resolution.png) captures provide workflow states beyond the new viewport set. The separate [200% zoom-equivalent screenshot](../../artifacts/lab-04/screenshots/issue-30/zoom-200-reflow.png), [focus evidence](../../artifacts/lab-04/screenshots/issue-30/accessibility-check.png), and [Issue #30 browser record](./tests.md#71-issue-30-execution-record) do not establish a complete screen-reader audit or every unchecked checklist item.

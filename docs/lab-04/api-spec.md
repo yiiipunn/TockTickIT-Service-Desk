@@ -1,6 +1,6 @@
 # Lab 4 API Specification
 
-Base path: `/api`. Dates are ISO 8601 UTC strings. React sends `credentials: "include"`. **Existing** means registered in the inspected `server/src/app.ts`; **Proposed** means required for Issues #24–#30 and not implemented by Issue #23.
+Base path: `/api`. Dates are ISO 8601 UTC strings. React sends `credentials: "include"`. This document preserves the Lab 3 routes and specifies the Lab 4 Action, dashboard, and workflow additions. The original `Existing` labels below distinguish the Lab 3 baseline; all listed Lab 4 routes are now implemented.
 
 ## 1. Existing Relevant API Baseline
 
@@ -29,7 +29,7 @@ Base path: `/api`. Dates are ISO 8601 UTC strings. React sends `credentials: "in
 | GET | `/api/attachments/:attachmentId/download` | Owner/Staff/Admin | Existing |
 | GET/POST | `/api/tickets/:ticketId/public-comments` | Owner/Staff/Admin; CSRF on POST | Existing |
 | GET/POST | `/api/staff/tickets/:ticketId/internal-notes` | Staff/Admin; CSRF on POST | Existing |
-| POST | `/api/tickets/:ticketId/resolution-indication` | Requester, own + CSRF | Lab 3 contract only; route is not currently registered and remains required |
+| POST | `/api/tickets/:ticketId/resolution-indication` | Requester, own + CSRF | Implemented in Lab 4; advisory only |
 
 ### Staff/Admin Ticket and User operations
 
@@ -85,7 +85,7 @@ Retained endpoints keep their current success shapes unless this document explic
 
 Requesters receive this current shape. They never receive Action event snapshots/history.
 
-## 3. Proposed Actions Taken API
+## 3. Actions Taken API
 
 ### 3.1 List Actions
 
@@ -277,7 +277,7 @@ No Action `DELETE` endpoint exists.
 }
 ```
 
-## 4. Proposed Dashboard API
+## 4. Dashboard API
 
 Responses represent one server `asOf` instant, use `Cache-Control: no-store`, contain all keys when zero/empty, and fail as one response if any required calculation fails.
 
@@ -353,7 +353,7 @@ Calculations are BR-26 and BR-31–BR-36. Administrator receives the same shape;
 
 ## 5. Drill-Down Query Extensions
 
-| Existing endpoint | Proposed query | Rule |
+| Existing endpoint | Lab 4 query | Rule |
 | --- | --- | --- |
 | `GET /api/tickets` | `scope=open` | Requester-owned five active/open statuses. |
 | `GET /api/staff/tickets` | `scope=open` | Global five active/open statuses. |
@@ -364,7 +364,7 @@ Calculations are BR-26 and BR-31–BR-36. Administrator receives the same shape;
 
 Existing paths remain but every mutation accepts `expectedVersion`, increments `Ticket.version`, and appends a workflow event atomically.
 
-| Endpoint | Proposed body |
+| Endpoint | Lab 4 body |
 | --- | --- |
 | `POST /api/staff/tickets/:ticketId/claim` | `{ "expectedVersion": 4 }` |
 | `PATCH /api/staff/tickets/:ticketId/owner` | `{ "expectedVersion": 4, "ownerId": 8 }` or null owner |
