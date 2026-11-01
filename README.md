@@ -10,7 +10,7 @@ TokTickIT is an IT service desk web application for CPE 334. Lab 4 completes the
 - IT Staff Ticket Queue and operational Ticket Detail
 - Ticket claim, assignment/reassignment, IT Priority, and status workflow
 - Requester and IT Staff operational dashboards with deterministic drill-downs
-- Planned and Completed Actions Taken, including assignment, optimistic concurrency, and append-only Action history
+- Actions Taken from planning through completion or cancellation, including assignment, optimistic concurrency, and append-only Action history
 - Public Comments and role-restricted Internal Notes
 - Administrator User Management for listing, filtering, creating, editing, activating/deactivating, and resetting user initial passwords
 - Attachment upload, download, and soft removal: JPG/JPEG, PNG, WEBP, or PDF; up to 5 MB per file and five active files per ticket
@@ -41,7 +41,7 @@ Authentication supplies the user identity. The server enforces roles, ownership,
 - Node.js and npm
 - PostgreSQL
 
-Create a local PostgreSQL database before applying migrations. The backend and frontend have separate dependencies.
+Create a local PostgreSQL database before applying migrations. The backend and frontend have separate dependencies. The checked-in `.env.example` files are templates; use credentials for your own local database and never commit `.env` files.
 
 ## Installation
 
@@ -52,11 +52,11 @@ git clone https://github.com/yiiipunn/TockTickIT-Service-Desk.git
 cd TockTickIT-Service-Desk
 
 cd server
-npm install
+npm ci
 Copy-Item .env.example .env
 
 cd ..\client
-npm install
+npm ci
 Copy-Item .env.example .env
 ```
 
@@ -73,7 +73,7 @@ DATABASE_URL="postgresql://<username>:<password>@localhost:5432/<database>?schem
 PORT=3000
 ```
 
-The PostgreSQL database named in `DATABASE_URL` must already exist. `client/.env` requires the API base URL:
+The PostgreSQL database named in `DATABASE_URL` must already exist. `PORT` defaults to 3000 when omitted. `client/.env` requires the API base URL:
 
 ```env
 VITE_API_URL="http://localhost:3000"
@@ -88,7 +88,7 @@ npm run prisma:migrate
 npm run prisma:seed
 ```
 
-`prisma:migrate` runs Prisma's development migration workflow. The seed is idempotent for its reference data, users, tickets, comments, and notes; it creates development data when it is missing.
+`prisma:migrate` runs Prisma's development migration workflow, including the additive Lab 4 Actions Taken migration. The seed is idempotent for its reference data, users, tickets, comments, notes, and Lab 4 Actions; it creates development data when missing. Back up existing data before applying migrations. See [migration and recovery decisions](docs/lab-04/specification.md#migration-backfill-recovery-and-seed).
 
 ## Running the Application
 
@@ -138,7 +138,7 @@ The API base path is `http://localhost:3000/api`. Protected requests use the aut
 | Actions Taken | List, view, create, edit, assign, complete, and audit Actions | Per Lab 4 authorization matrix |
 | User Management | List, create, edit, activate/deactivate, and reset Users | Administrator |
 
-See the [Lab 4 API specification](docs/lab-04/api-spec.md) for the current endpoints, request bodies, validation, response shapes, and status codes. The Lab 3 API specification remains the source for preserved authentication, Ticket workflow, comments, notes, and User Management contracts.
+See the [Lab 4 API specification](docs/lab-04/api-spec.md) for the Action, dashboard, and workflow endpoints, request bodies, validation, response shapes, and status codes. The [Lab 3 API specification](docs/lab-03/api-spec.md) documents preserved authentication, comments, notes, and User Management contracts.
 
 ## Testing
 
@@ -163,6 +163,10 @@ For the Lab 4 release check, install Chromium once from `client/` with `npx play
 - [Test plan](docs/lab-04/tests.md)
 - [UI specification](docs/lab-04/ui-spec.md)
 - [API specification](docs/lab-04/api-spec.md)
+- [AI use and reflection record](docs/lab-04/ai-use.md)
+- [Peer-review record](docs/lab-04/reviewer.md)
+- [Final report, Answer Parts 1–9](docs/lab-04/final-report.md)
+- [Submission PDF](artifacts/lab-04/final-report.pdf)
 
 Lab 1–3 documentation remains under the corresponding `docs/lab-0X/` directories for continuity and regression reference.
 
