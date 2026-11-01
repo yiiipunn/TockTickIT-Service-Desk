@@ -157,6 +157,8 @@ The default E2E configuration starts an API on port 3100 and a client on port 51
 
 For the Lab 4 release check, install Chromium once from `client/` with `npx playwright install chromium`, then run `npm run test:e2e:lab4` from `server/`. The runner requires `server/.env` to point to local PostgreSQL with `schema=public`; it creates a random isolated schema, deploys migrations, seeds twice and checks row-count idempotence, starts the API and client on ports 3100 and 5174, runs the Lab 4 scenarios and four Lab 3 continuity scenarios, and drops the schema afterward. Both ports must be free. Screenshots are saved under `artifacts/lab-04/screenshots/issue-31/`; passing JSON reports are copied to `artifacts/lab-04/test-results/issue-31/`. If the runner is interrupted before cleanup, `node scripts/cleanup-issue31-e2e.mjs <generated-schema-name>` removes only the named local Issue #31 schema.
 
+The separate [Part 9 responsive screenshot matrix](docs/lab-04/ui-spec.md#current-screenshot-evidence) links desktop, tablet, and mobile captures grouped under `artifacts/lab-04/screenshots/staff-dashboard/`, `requester-dashboard/`, and `actions-taken/`.
+
 ## Lab 4 Documentation
 
 - [Specification](docs/lab-04/specification.md)
@@ -165,8 +167,8 @@ For the Lab 4 release check, install Chromium once from `client/` with `npx play
 - [API specification](docs/lab-04/api-spec.md)
 - [AI use and reflection record](docs/lab-04/ai-use.md)
 - [Peer-review record](docs/lab-04/reviewer.md)
-- [Final report, Answer Parts 1–9](docs/lab-04/final-report.md)
-- [Submission PDF](artifacts/lab-04/final-report.pdf)
+
+The final Answer Part 1–9 PDF is prepared separately and is not stored in this documentation set.
 
 Lab 1–3 documentation remains under the corresponding `docs/lab-0X/` directories for continuity and regression reference.
 

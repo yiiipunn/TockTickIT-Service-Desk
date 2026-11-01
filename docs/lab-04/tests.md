@@ -1,6 +1,6 @@
-# Lab 4 Test Plan and Traceability
+# Lab 4 Test Plan
 
-This Test DD plan precedes implementation. Every listed test is **Planned / Not Run**; no passing result, screenshot, reviewer approval, or implementation evidence is claimed by Issue #23.
+This Test DD plan began before implementation, as in [Lab 3](../lab-03/tests.md). The matrix preserves the original case plan and AC links; the execution records in §7 distinguish what was actually run from missing planned files and final-`main` work.
 
 ## 1. Strategy
 
@@ -15,7 +15,7 @@ Priority risks:
 5. broken Lab 1–3 workflows;
 6. inaccessible or clipped final UI.
 
-## 2. Planned Test Files
+## 2. Test Files
 
 ### Handout minimum structure
 
@@ -57,7 +57,7 @@ e2e/lab-04/
   responsive-accessibility.spec.ts
 ```
 
-All paths in this section are future paths. Issue #23 does not create them. Playwright currently discovers `client/e2e/lab-03`; Issue #31 must configure discovery for the required repository-root `e2e/lab-04/` directory without removing Lab 3 regression.
+These paths were the Issue #23 plan. The implemented Lab 4 browser flows are under `e2e/lab-04/`; the responsive/accessibility suite is under `client/e2e/lab-04/`. The §7.3 status table identifies planned files that are absent and records the passing suite evidence.
 
 ## 3. Traceability Matrix
 
@@ -187,21 +187,22 @@ Tests create isolated stable-key fixtures and clean only their own rows. Do not 
 - Seed verification executes twice and compares stable keys/counts/content.
 - Existing Lab 1–3 suites run in full; assertions change only where approved Lab 4 version fields intentionally extend responses.
 - Performance thresholds are provisional lab-machine smoke gates, not production capacity claims. Record hardware, PostgreSQL version, fixture size, samples, timings, and query plans before assigning final status.
-- The known Lab 3 gap—no registered resolution-indication route—must be implemented/tested before AC-14 can pass.
+- The Lab 3 resolution-indication route gap was closed in Lab 4; keep its ownership and advisory-only checks in the regression suite.
 
-## 7. Verified Repository Commands
+## 7. Final Verification
 
-These script names were confirmed from the current packages/README. They are commands, not results.
+The table follows the [Lab 3 final-verification format](../lab-03/tests.md#4-final-verification). Results are tied to the execution records below; a command listed here is not a claim that it ran during this follow-up.
 
-| Purpose | Directory | Command | Current status |
+| Purpose | Directory | Command | Recorded result |
 | --- | --- | --- | --- |
-| Server tests | `server/` | `npm test` | Planned / Not Run |
-| Client component tests | `client/` | `npm test` | Planned / Not Run |
-| Browser E2E | `client/` | `npm run test:e2e` | Planned / Not Run |
-| Server build | `server/` | `npm run build` | Planned / Not Run |
-| Client build | `client/` | `npm run build` | Planned / Not Run |
-| Development migration | `server/` | `npm run prisma:migrate` | Planned / Not Run |
-| Idempotent seed | `server/` | `npm run prisma:seed` | Planned / Not Run |
+| Server tests | `server/` | `npm test -- --run` | Passed: 33 files/244 tests in Issues #30 and #31; not rerun in this Markdown follow-up. |
+| Client component tests | `client/` | `npm test -- --run` (Issue #32); `npm test` (this follow-up) | Passed: 18 files/139 tests in both runs. |
+| Lab 4 E2E and Lab 3 continuity | `server/` | `npm run test:e2e:lab4` | Passed: four Lab 4 and four Lab 3 tests in Issue #31; zero skips/flaky in checked-in JSON. |
+| Responsive/accessibility browser checks | `client/` | `npx playwright test --config=playwright.issue30.config.ts` | Passed: two Issue #30 responsive/accessibility tests; see §7.1 for environment. |
+| Part 9 responsive captures | Repository root | `$env:ISSUE31_TEST_GREP='Part 9 responsive capture'; npm --prefix server run test:e2e:lab4` | Passed: 3 viewport cases; 15 full-page PNGs. See §7.4. |
+| Server build | `server/` | `npm run build` | Passed in Issue #32 and the filtered Part 9 E2E rerun. |
+| Client build | `client/` | `npm run build` | Passed in Issue #32 and this audited follow-up. |
+| Fresh migration and repeat seed | Isolated Issue #31 schema | `npm run test:e2e:lab4` runner | Six migrations deployed; seed ran twice with stable row counts. No shared database was reset. |
 
 ### 7.1 Issue #30 Execution Record
 
@@ -258,6 +259,14 @@ On 2026-11-01 (Asia/Bangkok), `feature/lab4-final-documentation` was created fro
 | Lab 1–3 regression | Included in the Issue #30 244-server/139-client results and Issue #31 four-case Lab 3 browser continuity report. |
 | Final release | Main-branch verification and final release PR remain outstanding. |
 
+### 7.4 Part 9 Responsive Capture
+
+On 2026-11-01 (Asia/Bangkok), the [Part 9 Playwright test](../../e2e/lab-04/part9-responsive-capture.spec.ts) ran through the Issue #31 E2E runner with `ISSUE31_TEST_GREP='Part 9 responsive capture'`. The runner built the server, deployed all six migrations to a random isolated PostgreSQL schema, seeded that schema twice with stable row counts, and removed it after the run. It did not reset or seed the shared `public` schema.
+
+The test captured the IT Staff Dashboard, Staff Ticket Detail with Actions and resolution gate, Actions Taken form, Requester Dashboard, and My Tickets at 1440×900 desktop, 800×1024 tablet, and 390×844 mobile. The [screenshot matrix](./ui-spec.md#current-screenshot-evidence) links all 15 genuine PNGs under `artifacts/lab-04/screenshots/staff-dashboard/`, `requester-dashboard/`, and `actions-taken/`. The browser checks found no page-level horizontal overflow on the checked Action form and requester ticket list, and no unexpected console errors, page errors, or failed requests.
+
+The first run passed desktop and mobile but failed tablet: the Action table was 880 px wide at an 800 px viewport. The responsive breakpoint was changed to show Action cards below 992 px. After the screenshots were reorganized by feature, a fresh isolated-schema rerun passed all three viewport cases with zero retries and removed its temporary schema. The full client component suite passed 18 files/139 tests, and both server and client builds passed. The focused Actions Taken component suite had also passed 20/20 tests. These captures document representative screens; they do not complete every accessibility checklist item or a screen-reader audit. The full server test suite was not rerun in this follow-up.
+
 ## 8. Issue, Branch, and Evidence Plan
 
 | Course issue | GitHub issue | Verification responsibility |
@@ -273,11 +282,11 @@ On 2026-11-01 (Asia/Bangkok), `feature/lab4-final-documentation` was created fro
 | #31 | #62 | Integrated E2E/build/release and genuine screenshot/test output. |
 | #32 | #63 | README, reviewer/AI-use docs, evidence audit, final Answer Part 1–9 report. |
 
-The user-managed branch flow is feature branch → `lab4-staging` → `main`. Each implementation PR requires peer review before staged integration. This plan does not perform or claim those Git/PR actions.
+The user-managed branch flow is feature branch → `lab4-staging` → `main`. The [review record](./reviewer.md) documents completed peer approvals and staging merges. The final `main` release is still pending.
 
-## 9. Required Future Repository/Evidence Structure
+## 9. Repository and Evidence Structure
 
-The minimum structure is listed in [`specification.md`](./specification.md#required-future-repository-structure). The contract files, tests, Lab 4 E2E files, screenshots, and README update exist through Issue #31. Issue #32 adds the [review record](./reviewer.md), [AI-use record](./ai-use.md), and [nine-part report](./final-report.md), with unresolved personal and final-main evidence stated explicitly.
+The implemented structure is listed in [`specification.md`](./specification.md#repository-structure). The [review record](./reviewer.md) links approved PRs #64–#73 and partner reviews #69–#78. The [AI-use record](./ai-use.md) contains two verbatim prompt excerpts, eight labeled reconstructions, and a drafted reflection; its personal confirmation and additional tool/model disclosure remain TODOs. The nine-part final report is prepared separately by the student as a PDF and is not stored in `docs/lab-04/`.
 
 ## 10. Handout Sections 4–14 Coverage Audit
 
@@ -298,23 +307,23 @@ The minimum structure is listed in [`specification.md`](./specification.md#requi
 | §9 Spec DD | Exactly 11 required sections with numbered FR/BR/AC and supporting UI/API docs | `specification.md` §§1–11 | Covered |
 | §10 Test DD/TDD | Seven-column planned traceability; all required test types; no fabricated passes | `tests.md` §§1–7 | Covered |
 | §11 Workflow | Issues #23–#32, peer review, feature → staging → main, AI/coding separation | `specification.md` §11; `tests.md` §8 | Covered |
-| §12 Repository | Required docs/server/client/E2E/screenshot structure; evidence files remain truthful | `specification.md` §11; `tests.md` §9; template `reviewer.md`; template `ai-use.md` | Covered |
-| §13 Product DoD | Functionality, authorization, migration, tests, responsive/a11y, regression/review/integration | `specification.md` §10 | Covered |
-| §14 Final submission | Nine-part evidence support; final PDF deferred; no fabricated evidence | Grading map below; `specification.md` §§10–11 | Covered |
+| §12 Repository | Required docs/server/client/E2E/screenshot structure; evidence files remain truthful | `specification.md` §11; `tests.md` §9; `reviewer.md`; `ai-use.md` | Covered with stated evidence gaps |
+| §13 Product DoD | Functionality, authorization, migration, tests, responsive/a11y, regression/review/integration | `specification.md` §10 | Partly open: final `main` and full visual evidence |
+| §14 Final submission | Nine-part evidence support; student prepares PDF separately | Grading map below | Evidence map prepared; TODO: student-prepared PDF |
 
 ### Nine-part grading evidence map
 
-| Report part | Planned support | Current Issue #23 state |
+| Report part | Source / evidence | Current status |
 | --- | --- | --- |
-| 1. Git Use with Engineering Workflow | Issues #23–#32, feature → `lab4-staging` → `main`, `reviewer.md` template, README/tree evidence | Template present; no Git/review evidence claimed |
-| 2. Spec DD | Four contract documents, numbered requirements/rules/criteria, pre-implementation history | Covered as specification deliverable |
-| 3. Test DD and Traceability | This matrix, actual future paths/status, later main-branch outputs | Covered as plan; all tests Not Run |
-| 4. AI Use with Reflection | `docs/lab-04/ai-use.md` template for 6–10 real prompts, decisions, verification, and reflection | Template present; real entries planned for Issue #32 |
-| 5. Working Staff Dashboard | STAFF-DASH/UI-STAFF/E2E-05 plus DB query comparison/screenshots | Planned for Issues #28/#31 |
-| 6. Working Actions Taken UI | ACT-API/UI-ACT/E2E-01–04 including multiple Actions | Planned for Issues #24–#26/#31 |
-| 7. Working Ticket Workflow | UNIT-03/FLOW-API/UI-FLOW/E2E-03 with ordered append-only history | Planned for Issue #27/#31 |
-| 8. Requester Dashboard/Regression | REQ-DASH/UI-REQ/E2E-05 and REG-01–08 | Planned for Issues #29–#31 |
-| 9. Zen Green/Responsive/A11y/Polish | UI-STYLE/UI-A11Y/E2E-06–07/HARDEN plus genuine screenshots/checklist | Planned for Issues #30–#32 |
+| 1. Git Use with Engineering Workflow | [PR and review record](./reviewer.md), README, repository tree | Own PRs #64–#73 approved and merged to staging; ten partner PRs approved by `yiiipunn`; final `main` release and Kanban evidence open |
+| 2. Spec DD | Four contract documents, numbered requirements/rules/criteria, [PR #64](https://github.com/yiiipunn/TockTickIT-Service-Desk/pull/64) | Available |
+| 3. Test DD and Traceability | This matrix and §7 execution records | Staging evidence available; final `main` output open |
+| 4. AI Use with Reflection | [`ai-use.md`](./ai-use.md) | Two verbatim excerpts, eight reconstructions, and a draft reflection available; student confirmation and tool/model disclosure open |
+| 5. Working Staff Dashboard | STAFF-DASH/UI-STAFF/E2E-05 and [screenshot matrix](./ui-spec.md#current-screenshot-evidence) | Desktop, tablet, and mobile images available; independent SQL comparison open |
+| 6. Working Actions Taken UI | ACT-API/UI-ACT/E2E-01–04 and [screenshot matrix](./ui-spec.md#current-screenshot-evidence) | Desktop, tablet, and mobile form/detail images available; other states retain prior evidence |
+| 7. Working Ticket Workflow | UNIT-03/FLOW-API/UI-FLOW/E2E-03 and resolution screenshot | Representative evidence |
+| 8. Requester Dashboard/Regression | REQ-DASH/UI-REQ/E2E-05 and REG-01–08 | Representative evidence and three viewport images |
+| 9. Zen Green/Responsive/A11y/Polish | UI-STYLE/UI-A11Y/Issue #30 browser checks, [Part 9 captures](#74-part-9-responsive-capture), and [UI checklist](./ui-spec.md#10-accessibility-checklist) | Five screens captured at three viewports; other UI states and screen-reader audit open |
 
 ## 11. Evidence Rules
 

@@ -814,7 +814,7 @@ export default function ActionsTaken({
       {canCreate && <button type="button" className="btn btn-outline-success mt-3" onClick={openCreate} disabled={editorMode !== null}>Plan action</button>}
     </div>}
     {state === "success" && items.length > 0 && <>
-      <div className="table-responsive action-table-region d-none d-md-block" role="region" aria-label="Actions Taken table" tabIndex={0}>
+      <div className="table-responsive action-table-region d-none d-lg-block" role="region" aria-label="Actions Taken table" tabIndex={0}>
         <table className="table align-middle action-table">
           <thead><tr><th scope="col">Action Date/Time</th><th scope="col">Description</th><th scope="col">Status</th><th scope="col">Assigned to</th><th scope="col">Result</th><th scope="col"><span className="visually-hidden">Action</span></th></tr></thead>
           <tbody>{items.map((action) => <tr key={action.id} id={`action-${action.id}`} tabIndex={-1}>
@@ -827,7 +827,7 @@ export default function ActionsTaken({
           </tr>)}</tbody>
         </table>
       </div>
-      <div className="d-grid gap-3 d-md-none">{items.map(renderMobileCard)}</div>
+      <div className="d-grid gap-3 d-lg-none">{items.map(renderMobileCard)}</div>
       <div className="d-flex flex-wrap justify-content-between align-items-center gap-3 mt-3">
         <label className="d-flex align-items-center gap-2" htmlFor="actions-page-size">Rows per page
           <select id="actions-page-size" className="form-select form-select-sm action-page-size" value={pageSize} onChange={(event) => { if (dirty && !window.confirm("Discard your unsaved Action changes?")) return; setEditorMode(null); setDirty(false); setPageSize(Number(event.target.value) as 10 | 20 | 50); setPage(1); }}>

@@ -1,4 +1,4 @@
-# Lab 4 Engineering Contract
+# Lab 4 Specification
 
 Source basis: the complete 11-page official **CPE 334 Lab 4: TokTickIT Actions Taken, Dashboards, and Final Regression** assignment, the inspected Lab 1–3 repository, and GitHub Issues #23–#32. This document distinguishes mandatory assignment behavior, confirmed existing behavior, and engineering decisions made where the handout leaves implementation details open.
 
@@ -24,7 +24,7 @@ IT Staff need to plan, assign, perform, and record work beneath a Ticket while t
 - Additive Prisma migration/backfill, idempotent seed, security, concurrency, safe failures, responsive/accessibility work, and complete Lab 1–3 regression.
 - Planning for Issues #24–#32, repository evidence, peer review, staged integration, and final nine-part report support.
 
-### Explicitly excluded
+### Excluded
 
 - SLA clocks, escalation engines, on-call scheduling, or breach notifications.
 - Email, SMS, LINE, push, or other external notifications.
@@ -155,7 +155,7 @@ Capture one backend `asOf` instant per response. Store/compare UTC; relative win
 | BR-40 | Missing and inaccessible Requester resources use the same safe `404`; errors never expose protected data, hashes, tokens, SQL, stack traces, paths, or stored filenames. |
 | BR-41 | Duplicate clicks are blocked client-side; server version/state predicates and transactions prevent duplicate/partial effects during retries or races. |
 
-## 6. UI Specification Summary
+## 6. UI Summary
 
 | Area | Required behavior |
 | --- | --- |
@@ -171,7 +171,7 @@ Detailed screen structure, fields, messages, focus behavior, and responsive rule
 
 ## 7. Data Changes
 
-### Proposed Prisma increment
+### Prisma increment
 
 | Model/change | Fields/purpose |
 | --- | --- |
@@ -206,7 +206,7 @@ Database decisions:
 
 ## 8. API Contract
 
-Existing Lab 1–3 routes remain. Proposed Lab 4 routes are:
+Existing Lab 1–3 routes remain. Lab 4 added these routes:
 
 | Method | Endpoint | Authorization | Purpose |
 | --- | --- | --- | --- |
@@ -258,15 +258,16 @@ Existing Ticket owner, priority, and status routes gain `expectedVersion`; statu
 
 ## 10. Definition of Done
 
-- [ ] AC-01–AC-29 are implemented and traced to automated/planned verification; actual results replace `Planned / Not Run` only after execution.
-- [ ] Migration is verified on populated Lab 3 data, recovery is documented, and seed is idempotent.
-- [ ] Backend authorization, validation, concurrency, Action/Ticket history, and dashboard calculations are tested directly.
-- [ ] Staff/Admin and Requester UI cover required Action, workflow, dashboard, feedback, responsive, and accessibility behavior.
-- [ ] Lab 1–3 regression, production builds, performance smoke, and representative E2E suites pass with no required skips.
-- [ ] Desktop, tablet, mobile, 320 px, 200% zoom, keyboard, contrast, focus, clipping, overlap, and overflow checks have genuine evidence.
-- [ ] README setup/migration/seed/test/demo instructions are current; no real secret, placeholder, broken link, or blocking console error remains.
-- [ ] Each implementation issue receives peer review; the `reviewer.md` and `ai-use.md` templates are completed with real review, AI-use, reflection, and verification evidence, and genuine screenshots are retained.
-- [ ] Feature branches merge through `lab4-staging` and then `main`; Issue #32 prepares—but Issue #23 does not generate—the final Answer Part 1–9 PDF.
+- [ ] AC-01–AC-29 are implemented and traced to automated/planned verification; actual results replace `Planned / Not Run` only after execution. Final acceptance remains open for the visual/accessibility and release items below.
+- [x] Migration is verified on populated Lab 3 data, recovery is documented, and seed is idempotent.
+- [x] Backend authorization, validation, concurrency, Action/Ticket history, and dashboard calculations are tested directly.
+- [ ] Staff/Admin and Requester UI cover required Action, workflow, dashboard, feedback, responsive, and accessibility behavior. Representative browser and component checks pass; a complete screen-reader audit remains open.
+- [x] Lab 1–3 regression, production builds, performance smoke, and representative E2E suites pass with no required skips.
+- [ ] Desktop, tablet, mobile, 320 px, 200% zoom, keyboard, contrast, focus, clipping, overlap, and overflow checks have genuine evidence. The linked screenshots and Issue #30 browser checks are representative; not every screen and state has been audited.
+- [ ] README setup/migration/seed/test/demo instructions are current; no real secret, placeholder, broken link, or blocking console error remains. Current links and representative browser flows were checked; a full final-release audit remains open.
+- [x] Lab 4 PRs #64–#73 have recorded peer approvals and merges to `lab4-staging`; [`reviewer.md`](./reviewer.md) links the reviews.
+- [ ] The [AI-use record](./ai-use.md) contains two verbatim prompt excerpts, eight labeled reconstructions, and a drafted reflection; the student still needs to confirm the personal reflection and additional tool/model disclosure.
+- [ ] The final reviewed release reaches `main`; the student prepares the Answer Part 1–9 PDF separately. Neither item is recorded as complete.
 
 ## 11. Assumptions and Decisions
 
@@ -301,9 +302,9 @@ Existing Ticket owner, priority, and status routes gain `expectedVersion`; statu
 | #31 | GitHub #62 | E2E tests, release integration, genuine evidence. |
 | #32 | GitHub #63 | README/final docs, review/AI/screenshot evidence, final report preparation. |
 
-### Required future repository structure
+### Repository structure
 
-The following tree preserves the handout's minimum Lab 4 structure and filename order. The handout abbreviates the component-test location as `client/.../lab-04 tests/`; this contract resolves that placeholder to the repository's established `client/tests/lab-04/` Vitest directory. The handout's repository-root `e2e/lab-04/` path is retained exactly. `dashboards.spec.ts` appears at the top of the handout's following page and completes that E2E subtree.
+The tree shows the implemented minimum Lab 4 structure and the issue-grouped screenshot folders. The handout abbreviates the component-test location as `client/.../lab-04 tests/`; this project uses `client/tests/lab-04/`. The repository-root `e2e/lab-04/` contains the integrated Lab 4 browser flows. The additional Issue #30 responsive/accessibility browser file lives in `client/e2e/lab-04/`; see [the test record](./tests.md#73-issue-32-documentation-verification-and-current-file-status).
 
 ```text
 docs/lab-04/
@@ -311,8 +312,8 @@ docs/lab-04/
   tests.md
   ui-spec.md
   api-spec.md
-  reviewer.md                 # template now; real evidence completed by Issue #32
-  ai-use.md                   # template now; real evidence completed by Issue #32
+  reviewer.md                 # verified PR and review links
+  ai-use.md                   # sourced prompts and drafted reflection; confirmation pending
 server/tests/lab-04/
   actions-taken.api.test.ts
   ticket-workflow.api.test.ts
@@ -328,11 +329,11 @@ e2e/lab-04/
   ticket-resolution.spec.ts
   dashboards.spec.ts
 artifacts/lab-04/screenshots/
-  staff-dashboard/
-  requester-dashboard/
   actions-taken/
+  requester-dashboard/
+  staff-dashboard/
 ```
 
-This is the required minimum, not the complete verification inventory. Additional unit, migration, seed, performance, style, responsive, and accessibility test files listed in [`tests.md`](./tests.md#supplementary-planned-test-files) remain inside the same required `server/tests/lab-04/`, `client/tests/lab-04/`, and `e2e/lab-04/` directories.
+This is a compact inventory, not every verification file. The [test plan](./tests.md) identifies implemented and missing planned paths, while the [UI screenshot matrix](./ui-spec.md#current-screenshot-evidence) links the actual viewport evidence.
 
-Issue #23 originally produced the four contract documents. At the user's request, `reviewer.md` and `ai-use.md` now exist as clearly marked templates only; their real evidence remains an Issue #32 responsibility. Future tests, evidence folders, README changes, implementation, Git operations, and the final PDF still belong to Issues #24–#32 and the user-managed branch/PR workflow.
+Issue #23 originally produced the four contract documents before implementation PRs. Issues #24–#32 added code, tests, screenshots, README changes, and review evidence through approved PRs #65–#73. This follow-up aligns the Markdown with the Lab 3 documentation style. The student owns confirmation of the AI-use reflection and tool disclosure, final `main` verification, and PDF preparation.
