@@ -107,11 +107,11 @@ All paths in this section are future paths. Issue #23 does not create them. Play
 | UI-STAFF-01 | UI Component | FR-14–FR-18 / AC-16–AC-18, AC-21 | Staff/Admin metrics/lists, role label, empty/error, drill-down | Exact values/keys/current-user Actions; Admin reuse; correct destinations/feedback | `client/tests/lab-04/StaffDashboard.test.tsx` | Planned / Not Run |
 | UI-STYLE-01 | UI Style | FR-20 / AC-23–AC-24 | Zen Green token/classes, text-plus-color states, focus styles | Required design hooks/conventions present; no color-only state | `client/tests/lab-04/ZenGreenStyle.test.tsx` | Planned / Not Run |
 | UI-A11Y-01 | UI Component/A11y | FR-20 / AC-24 | Labels, headings, table semantics, keyboard, announcements, dialogs | Logical keyboard/focus behavior and no configured automated accessibility violations | `client/tests/lab-04/ZenGreenStyle.test.tsx` | Planned / Not Run |
-| E2E-01 | E2E | AC-01, AC-06–AC-11 | Staff creates/reassigns; assignee starts/completes; Admin edits/cancels another Action | Identities remain distinct; lifecycle/history survives reload; multiple Actions visible | `e2e/lab-04/actions-taken-flow.spec.ts` | Planned / Not Run |
-| E2E-02 | E2E/Auth | AC-04, AC-25 | Requester reads own Actions and probes/mutates another Ticket/Action | Own current Actions visible/read-only; cross-owner/writes/history safely denied | `e2e/lab-04/actions-taken-flow.spec.ts` | Planned / Not Run |
-| E2E-03 | E2E/Workflow | AC-12–AC-14 | Ticket cannot resolve with active/no-completed work; complete/cancel remaining; resolve/close/reopen | Gate enforced; formal/advisory states remain separate; history/order stable | `e2e/lab-04/ticket-resolution.spec.ts` | Planned / Not Run |
-| E2E-04 | E2E/Concurrency | AC-10, AC-22, AC-26 | Two browser contexts edit/transition same Action/Ticket | First wins; second sees recoverable conflict and retained draft; no duplicate effect | `e2e/lab-04/actions-taken-flow.spec.ts` | Planned / Not Run |
-| E2E-05 | E2E/Dashboard | AC-02, AC-15–AC-18 | Requester/Staff/Admin dashboards and every representative drill-down | Role-scoped values match fixtures and destinations; empty/error states are accurate | `e2e/lab-04/dashboards.spec.ts` | Planned / Not Run |
+| E2E-01 | E2E | AC-01, AC-06–AC-11 | Staff creates/reassigns; assignee starts/completes; Admin edits/cancels another Action | Identities remain distinct; lifecycle/history survives reload; multiple Actions visible | `e2e/lab-04/actions-taken-flow.spec.ts` | Passed 2026-10-31 |
+| E2E-02 | E2E/Auth | AC-04, AC-25 | Requester reads own Actions and probes/mutates another Ticket/Action | Own current Actions visible/read-only; cross-owner/writes/history safely denied | `e2e/lab-04/actions-taken-flow.spec.ts` | Passed 2026-10-31 |
+| E2E-03 | E2E/Workflow | AC-12–AC-14 | Ticket cannot resolve with active/no-completed work; complete/cancel remaining; resolve/close/reopen | Gate enforced; formal/advisory states remain separate; history/order stable | `e2e/lab-04/ticket-resolution.spec.ts` | Passed 2026-10-31 for the implemented resolve/close/reopen and advisory path; cancelled remaining work remains API/component coverage |
+| E2E-04 | E2E/Concurrency | AC-10, AC-22, AC-26 | Two browser contexts edit/transition same Action/Ticket | First wins; second sees recoverable conflict and retained draft; no duplicate effect | `e2e/lab-04/actions-taken-flow.spec.ts` | Passed 2026-10-31 |
+| E2E-05 | E2E/Dashboard | AC-02, AC-15–AC-18 | Requester/Staff/Admin dashboards and every representative drill-down | Role-scoped values match fixtures and destinations; empty/error states are accurate | `e2e/lab-04/dashboards.spec.ts` | Passed 2026-10-31 for Staff/Requester metrics and representative drill-downs; Admin and remaining states covered by component/API suites |
 | E2E-06 | Responsive | AC-23 | Major screens at 1440×900, 800×1024, 390×844, 320×800 and 200% zoom | No clipping, overlap, hidden action, obscured focus, or page-level horizontal scroll | `e2e/lab-04/responsive-accessibility.spec.ts` | Planned / Not Run |
 | E2E-07 | Accessibility | AC-24 | Keyboard-only Action/Ticket/dashboard flows and dialog focus | All operations reachable; focus visible/trapped/returned; feedback readable | `e2e/lab-04/responsive-accessibility.spec.ts` | Planned / Not Run |
 | HARDEN-01 | E2E/UI Audit | FR-26 / AC-29 | Crawl role navigation and inspect console/text/control state | No broken link, blocking console error, placeholder, unfinished/obsolete duplicate control | `e2e/lab-04/responsive-accessibility.spec.ts` | Planned / Not Run |
@@ -224,6 +224,25 @@ Performance environment: Windows 10.0.26300, Intel Core Ultra 7 155H (22 logical
 
 Environment note: on this Windows host, Node 24.19.0 intermittently returned `uv_os_get_passwd ... ENOMEM` before `tsx` could start. The isolated browser schema was therefore seeded from the already compiled `dist/prisma/seed.js`; application tests, migrations, the compiled seed, builds, and browser suites completed successfully.
 
+### 7.2 Issue #31 E2E and Release Integration Record
+
+Executed on 2026-10-31 (Asia/Bangkok) from `feature/lab4-e2e-release`, based on `lab4-staging` commit `7bec151` with the Issue #31 working-tree changes recorded here. The host used Node 24.19.0, local PostgreSQL, and installed Playwright Chromium. The final browser run created and removed its own random `lab4_issue31_e2e_*` schema; it did not seed the shared `public` schema.
+
+| Verification | Working directory | Command | Result |
+| --- | --- | --- | --- |
+| Server unit/API/integration/regression | `server/` | `npm test -- --run` | Passed: 33 files, 244 tests |
+| Client component regression | `client/` | `npm test -- --run` | Passed: 18 files, 139 tests |
+| Action component check after history-refresh fix | `client/` | `npm test -- --run tests/lab-04/ActionsTaken.test.tsx` | Passed: 1 file, 20 tests |
+| Server production build | `server/` | `npm run build` (inside the E2E runner) | Passed |
+| Client production build | `client/` | `npm run build` | Passed after the history-refresh fix |
+| Fresh migration and seed | `server/` | `npm run test:e2e:lab4` | Passed: all six migrations deployed to the isolated schema; compiled seed ran twice with stable row counts: 10 Users, 4 Categories, 6 Related Systems, 8 Tickets, 8 Actions, 17 Action events |
+| Lab 4 browser flows | `server/` | `npm run test:e2e:lab4` | Passed: 4 tests, 0 skipped, 0 flaky |
+| Lab 3 browser continuity | `server/` | `npm run test:e2e:lab4` | Passed: 4 tests, 0 skipped, 0 flaky |
+
+The final raw Playwright reports are in `artifacts/lab-04/test-results/issue-31/`; six genuine browser screenshots are in `artifacts/lab-04/screenshots/issue-31/`. They cover Staff/Requester dashboards, mobile reflow, Action completion, Action cancellation, and Ticket resolution. Browser assertions checked exact dashboard metrics against API snapshots, role and ownership denial, two stale-write conflicts, retained Action draft, Action/Ticket history, resolution gating, and no unexpected browser errors. The two expected HTTP 409 responses in the stale-write scenario were identified explicitly.
+
+Known limits: the Issue #31 browser run covers representative dashboard drill-downs and one mobile viewport. Issue #30 retains the wider desktop/tablet/mobile/320 px/200% reflow and keyboard evidence; those checks were not rerun in this isolated Issue #31 runner. Admin dashboard and empty/error states have API/component coverage, not this browser scenario. Seed idempotence in this runner compares row counts; detailed stable-key/content checks remain in the migration/seed test suites. Peer review and merge evidence remain pending.
+
 ## 8. Issue, Branch, and Evidence Plan
 
 | Course issue | GitHub issue | Verification responsibility |
@@ -243,7 +262,7 @@ The user-managed branch flow is feature branch → `lab4-staging` → `main`. Ea
 
 ## 9. Required Future Repository/Evidence Structure
 
-The minimum structure is listed in [`specification.md`](./specification.md#required-future-repository-structure). The four contract files plus user-requested `reviewer.md` and `ai-use.md` templates now exist. The templates claim no completed review or AI evidence; later issues must replace placeholders with genuine evidence. Tests, E2E files, screenshot folders, README changes, and the final PDF remain later deliverables.
+The minimum structure is listed in [`specification.md`](./specification.md#required-future-repository-structure). The contract files, tests, Lab 4 E2E files, screenshots, and README update exist through Issue #31. The `reviewer.md` and `ai-use.md` templates claim no completed review or AI evidence; Issue #32 must replace placeholders with genuine evidence and complete the final PDF.
 
 ## 10. Handout Sections 4–14 Coverage Audit
 
