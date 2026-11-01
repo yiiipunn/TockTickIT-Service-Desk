@@ -61,7 +61,9 @@ All paths in this section are future paths. Issue #23 does not create them. Play
 
 ## 3. Traceability Matrix
 
-| Test ID | Test Type | Requirement / AC | What It Tests | Expected Result | Planned Automated Test File | Current Status |
+The matrix retains the original per-case plan and later E2E annotations. Its `Planned / Not Run` cells are not current suite results; use the executed file-level record in §7.3 below. Planned paths that differ from implemented paths are identified there.
+
+| Test ID | Test Type | Requirement / AC | What It Tests | Expected Result | Planned Automated Test File | Planning / case status |
 | --- | --- | --- | --- | --- | --- | --- |
 | UNIT-01 | Unit | BR-04–BR-08 / AC-05 | Action date/text/follow-up/attachment boundary validation | Exact valid boundaries normalize; malformed/conditional-invalid values return field errors | `server/tests/lab-04/action-validation.unit.test.ts` | Planned / Not Run |
 | UNIT-02 | Unit | BR-03, BR-09–BR-15 / AC-06–AC-09 | Action lifecycle, actor, assignee, completion, cancellation policy | Only listed transitions/roles pass; terminal states reject edits/transitions | `server/tests/lab-04/action-workflow.unit.test.ts` | Planned / Not Run |
@@ -241,7 +243,20 @@ Executed on 2026-10-31 (Asia/Bangkok) from `feature/lab4-e2e-release`, based on 
 
 The final raw Playwright reports are in `artifacts/lab-04/test-results/issue-31/`; six genuine browser screenshots are in `artifacts/lab-04/screenshots/issue-31/`. They cover Staff/Requester dashboards, mobile reflow, Action completion, Action cancellation, and Ticket resolution. Browser assertions checked exact dashboard metrics against API snapshots, role and ownership denial, two stale-write conflicts, retained Action draft, Action/Ticket history, resolution gating, and no unexpected browser errors. The two expected HTTP 409 responses in the stale-write scenario were identified explicitly.
 
-Known limits: the Issue #31 browser run covers representative dashboard drill-downs and one mobile viewport. Issue #30 retains the wider desktop/tablet/mobile/320 px/200% reflow and keyboard evidence; those checks were not rerun in this isolated Issue #31 runner. Admin dashboard and empty/error states have API/component coverage, not this browser scenario. Seed idempotence in this runner compares row counts; detailed stable-key/content checks remain in the migration/seed test suites. Peer review and merge evidence remain pending.
+Known limits: the Issue #31 browser run covers representative dashboard drill-downs and one mobile viewport. Issue #30 retains the wider desktop/tablet/mobile/320 px/200% reflow and keyboard evidence; those checks were not rerun in this isolated Issue #31 runner. Admin dashboard and empty/error states have API/component coverage, not this browser scenario. Seed idempotence in this runner compares row counts; detailed stable-key/content checks remain in the migration/seed test suites. [PR #72](https://github.com/yiiipunn/TockTickIT-Service-Desk/pull/72) was subsequently approved by `DEV4952` and merged into `lab4-staging`.
+
+### 7.3 Issue #32 Documentation Verification and Current File Status
+
+On 2026-11-01 (Asia/Bangkok), `feature/lab4-final-documentation` was created from `lab4-staging` merge commit `47c5f94`. The Issue #32 documentation pass ran `npm run build` in `server/` (passed), `npm run build` in `client/` (passed), and `npm test -- --run` in `client/` (18 files, 139 tests passed). The full server suite and E2E runner were not rerun in this pass because they use PostgreSQL; the prior isolated-schema results above remain the recorded server/browser evidence. No shared database was reset or seeded for Issue #32.
+
+| Planned coverage | Current evidence / limitation |
+| --- | --- |
+| Action API, workflow, dashboard, migration, seed, and performance | Implemented under `server/tests/lab-04/`; full 33-file/244-test server suite passed in Issues #30 and #31. The planned standalone `action-validation.unit.test.ts`, `action-workflow.unit.test.ts`, and `dashboard-policy.unit.test.ts` files do not exist. |
+| Action, workflow, Staff/Requester dashboard, and style components | Five files under `client/tests/lab-04/`; included in the Issue #32 18-file/139-test passing client suite. |
+| Action, resolution, and dashboard browser flows | Three files under `e2e/lab-04/`; four Lab 4 cases passed in Issue #31's JSON report. |
+| Responsive, accessibility, and hardening browser checks | Implemented at `client/e2e/lab-04/responsive-accessibility.spec.ts`, rather than planned `e2e/lab-04/responsive-accessibility.spec.ts`; two cases passed in Issue #30. The evidence covers representative workflows and does not establish a complete screen-reader audit. |
+| Lab 1–3 regression | Included in the Issue #30 244-server/139-client results and Issue #31 four-case Lab 3 browser continuity report. |
+| Final release | Main-branch verification and final release PR remain outstanding. |
 
 ## 8. Issue, Branch, and Evidence Plan
 
@@ -262,7 +277,7 @@ The user-managed branch flow is feature branch → `lab4-staging` → `main`. Ea
 
 ## 9. Required Future Repository/Evidence Structure
 
-The minimum structure is listed in [`specification.md`](./specification.md#required-future-repository-structure). The contract files, tests, Lab 4 E2E files, screenshots, and README update exist through Issue #31. The `reviewer.md` and `ai-use.md` templates claim no completed review or AI evidence; Issue #32 must replace placeholders with genuine evidence and complete the final PDF.
+The minimum structure is listed in [`specification.md`](./specification.md#required-future-repository-structure). The contract files, tests, Lab 4 E2E files, screenshots, and README update exist through Issue #31. Issue #32 adds the [review record](./reviewer.md), [AI-use record](./ai-use.md), and [nine-part report](./final-report.md), with unresolved personal and final-main evidence stated explicitly.
 
 ## 10. Handout Sections 4–14 Coverage Audit
 
