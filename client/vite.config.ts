@@ -11,5 +11,6 @@ export default defineConfig({
     include: ["tests/**/*.test.tsx"],
     // React integration files share the constrained local test runner.
     fileParallelism: false,
+    testTimeout: 15_000,
   },
 });

@@ -182,6 +182,9 @@ function mockBaseFetch(
 async function selectRequester(
   _requesterId = "1",
 ) {
+  await userEvent.click(await screen.findByRole("button", {
+    name: "My Tickets",
+  }));
   await screen.findByRole("heading", {
     name: "My Tickets",
   });

@@ -21,8 +21,8 @@ let restricted: ReturnType<typeof request.agent>;
 
 const priorityPath = () => `/api/staff/tickets/${ticketId}/it-priority`;
 const statusPath = () => `/api/staff/tickets/${ticketId}/status`;
-const transition = (currentStatus: string, status: string, confirmed?: boolean) =>
-  ({ currentStatus, status, ...(confirmed === undefined ? {} : { confirmed }) });
+const transition = (currentStatus: string, status: string, confirmed?: boolean, expectedVersion = 1) =>
+  ({ expectedVersion, currentStatus, status, ...(confirmed === undefined ? {} : { confirmed }) });
 
 describe("Staff Ticket priority and status operations", () => {
   beforeAll(async () => {
@@ -58,42 +58,49 @@ describe("Staff Ticket priority and status operations", () => {
 
   afterAll(async () => {
     await prisma.session.deleteMany({ where: { userId: { in: [staffId, requesterId, adminId, restrictedId] } } });
+    await prisma.ticketWorkflowEvent.deleteMany({ where: { ticketId } });
+    await prisma.actionTakenEvent.deleteMany({ where: { actionTaken: { ticketId } } });
+    await prisma.actionTaken.deleteMany({ where: { ticketId } });
     await prisma.ticket.deleteMany({ where: { id: ticketId } });
     await prisma.user.deleteMany({ where: { id: { in: [staffId, requesterId, adminId, restrictedId] } } });
   });
 
   beforeEach(async () => {
+    await prisma.ticketWorkflowEvent.deleteMany({ where: { ticketId } });
+    await prisma.actionTakenEvent.deleteMany({ where: { actionTaken: { ticketId } } });
+    await prisma.actionTaken.deleteMany({ where: { ticketId } });
     await prisma.ticket.update({ where: { id: ticketId }, data: {
       status: "NEW", ownerId: staffId, ownerAssignedAt: new Date(),
       requestedPriority: "MEDIUM", itPriority: "MEDIUM", requesterResolutionIndicatedAt: null,
+      version: 1, resolvedAt: null,
     } });
   });
 
   it("updates and persists IT Priority while preserving Requested Priority", async () => {
-    const response = await staff.patch(priorityPath()).send({ itPriority: "HIGH" });
+    const response = await staff.patch(priorityPath()).send({ expectedVersion: 1, itPriority: "HIGH" });
     expect(response.status).toBe(200);
     expect(response.body.data).toMatchObject({ requestedPriority: "MEDIUM", itPriority: "HIGH", updatedAt: expect.any(String) });
     expect(await prisma.ticket.findUniqueOrThrow({ where: { id: ticketId }, select: { requestedPriority: true, itPriority: true } })).toEqual({ requestedPriority: "MEDIUM", itPriority: "HIGH" });
     expect((await staff.get(`/api/staff/tickets/${ticketId}`)).body.data.itPriority).toBe("HIGH");
-    const adminUpdate = await admin.patch(priorityPath()).send({ itPriority: "LOW" });
+    const adminUpdate = await admin.patch(priorityPath()).send({ expectedVersion: 2, itPriority: "LOW" });
     expect(adminUpdate.status).toBe(200);
     expect(adminUpdate.body.data.requestedPriority).toBe("MEDIUM");
   });
 
   it("rejects invalid priority, extra fields, missing resources, and unauthorized actors", async () => {
-    for (const body of [{ itPriority: "URGENT" }, { itPriority: null }, { itPriority: "HIGH", requestedPriority: "HIGH" }, {}]) {
+    for (const body of [{ expectedVersion: 1, itPriority: "URGENT" }, { expectedVersion: 1, itPriority: null }, { expectedVersion: 1, itPriority: "HIGH", requestedPriority: "HIGH" }, {}]) {
       const response = await staff.patch(priorityPath()).send(body);
       expect(response.status).toBe(400);
       expect(response.body.error.code).toBe("VALIDATION_ERROR");
     }
-    expect((await staff.patch("/api/staff/tickets/999999999/it-priority").send({ itPriority: "HIGH" })).status).toBe(404);
+    expect((await staff.patch("/api/staff/tickets/999999999/it-priority").send({ expectedVersion: 1, itPriority: "HIGH" })).status).toBe(404);
     const malformed = await staff.patch(priorityPath()).set("Content-Type", "application/json").send('{"itPriority":');
     expect(malformed.status).toBe(400);
     expect(malformed.body.error.code).toBe("VALIDATION_ERROR");
-    expect((await requester.patch(priorityPath()).set("X-Role", "IT_STAFF").send({ itPriority: "HIGH" })).status).toBe(403);
-    expect((await request(app).patch(priorityPath()).send({ itPriority: "HIGH" })).status).toBe(401);
+    expect((await requester.patch(priorityPath()).set("X-Role", "IT_STAFF").send({ expectedVersion: 1, itPriority: "HIGH" })).status).toBe(403);
+    expect((await request(app).patch(priorityPath()).send({ expectedVersion: 1, itPriority: "HIGH" })).status).toBe(401);
     expect((await restricted.patch(statusPath()).send(transition("NEW", "OPEN"))).status).toBe(403);
-    expect((await restricted.patch(priorityPath()).send({ itPriority: "HIGH" })).status).toBe(403);
+    expect((await restricted.patch(priorityPath()).send({ expectedVersion: 1, itPriority: "HIGH" })).status).toBe(403);
     expect((await prisma.ticket.findUniqueOrThrow({ where: { id: ticketId } })).itPriority).toBe("MEDIUM");
   });
 
@@ -107,7 +114,17 @@ describe("Staff Ticket priority and status operations", () => {
       ["REOPENED", "IN_PROGRESS"], ["REOPENED", "WAITING_FOR_REQUESTER"], ["REOPENED", "RESOLVED"], ["REOPENED", "CANCELLED"],
     ] as const;
     for (const [currentStatus, nextStatus] of cases) {
-      await prisma.ticket.update({ where: { id: ticketId }, data: { status: currentStatus } });
+      await prisma.ticketWorkflowEvent.deleteMany({ where: { ticketId } });
+      await prisma.actionTakenEvent.deleteMany({ where: { actionTaken: { ticketId } } });
+      await prisma.actionTaken.deleteMany({ where: { ticketId } });
+      await prisma.ticket.update({ where: { id: ticketId }, data: { status: currentStatus, version: 1, resolvedAt: ["RESOLVED", "CLOSED"].includes(currentStatus) ? new Date() : null } });
+      if (nextStatus === "RESOLVED") {
+        await prisma.actionTaken.create({ data: {
+          ticketId, actionAt: new Date(), description: "Completed workflow prerequisite", result: "Verified",
+          status: "COMPLETED", assigneeId: staffId, createdById: staffId, performedById: staffId,
+          completedAt: new Date(), followUpRequired: false, version: 1,
+        } });
+      }
       const response = await staff.patch(statusPath()).send(transition(currentStatus, nextStatus, ["CLOSED", "CANCELLED"].includes(nextStatus) ? true : undefined));
       expect(response.status, `${currentStatus} -> ${nextStatus}`).toBe(200);
       expect(response.body.data.status).toBe(nextStatus);
@@ -134,7 +151,7 @@ describe("Staff Ticket priority and status operations", () => {
     expect((await staff.patch(statusPath()).send(transition("RESOLVED", "CLOSED"))).status).toBe(400);
     await prisma.ticket.update({ where: { id: ticketId }, data: { status: "NEW" } });
     expect((await staff.patch(statusPath()).send(transition("NEW", "CANCELLED", true))).status).toBe(200);
-    expect((await staff.patch(statusPath()).send(transition("CANCELLED", "OPEN"))).status).toBe(409);
+    expect((await staff.patch(statusPath()).send(transition("CANCELLED", "OPEN", undefined, 2))).status).toBe(409);
     expect((await staff.patch("/api/staff/tickets/999999999/status").send(transition("NEW", "OPEN"))).status).toBe(404);
     expect((await staff.patch("/api/staff/tickets/999999999/status").send(transition("NEW", "CANCELLED"))).status).toBe(404);
   });

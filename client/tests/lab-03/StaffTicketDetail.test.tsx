@@ -10,12 +10,17 @@ const eligibleOwners = [
   { id: staff.id, name: staff.name, email: staff.email, role: "IT_STAFF" as const },
   { id: 9, name: "Mali Staff", email: "mali@example.com", role: "IT_STAFF" as const },
 ];
+const staffOwner = { id: staff.id, name: staff.name, isActive: true, role: "IT_STAFF" as const };
+const maliOwner = { id: 9, name: "Mali Staff", isActive: true, role: "IT_STAFF" as const };
 const unassigned: StaffTicketDetailData = {
   id: 25, ticketNumber: "TKT-000025", summary: "Cannot connect", description: "The connection fails after login.",
   requester: { id: 3, name: "Narin", email: "narin@example.com" }, category: { id: 1, name: "Network" }, relatedSystem: { id: 1, name: "Wi-Fi" },
   status: "OPEN", requestedPriority: "MEDIUM", itPriority: "HIGH", owner: null, ownerAssignedAt: null,
   requesterResolutionIndicatedAt: null, createdAt: "2026-09-11T03:00:00.000Z", updatedAt: "2026-09-11T03:15:00.000Z", attachments: [],
   publicComments: [], internalNotes: [],
+  version: 1, resolvedAt: null,
+  resolutionGate: { canResolve: false, completedActions: 0, activeActions: 0, missing: ["owner", "completedActions"] },
+  workflowEvents: [],
   allowedTransitions: ["WAITING_FOR_REQUESTER", "CANCELLED"],
 };
 const publicEntry: CommunicationEntry = {
@@ -48,7 +53,7 @@ afterEach(() => { vi.unstubAllGlobals(); vi.restoreAllMocks(); });
 
 describe("IT Staff Ticket Detail assignment", () => {
   it("shows Claim Ticket for an unassigned Ticket to IT Staff and updates ownership after success", async () => {
-    const assigned = { ...unassigned, owner: { id: staff.id, name: staff.name }, ownerAssignedAt: "2026-09-12T03:15:00.000Z" };
+    const assigned = { ...unassigned, owner: staffOwner, ownerAssignedAt: "2026-09-12T03:15:00.000Z" };
     installFetch(unassigned, response(detail(assigned)));
     render(<StaffTicketDetail ticketId={25} currentUser={staff} onBack={vi.fn()} />);
     expect(await screen.findByRole("button", { name: "Claim Ticket" })).toBeInTheDocument();
@@ -59,7 +64,7 @@ describe("IT Staff Ticket Detail assignment", () => {
   });
 
   it("shows the current owner and Reassign control for an assigned Ticket", async () => {
-    const assigned = { ...unassigned, owner: { id: staff.id, name: staff.name }, ownerAssignedAt: "2026-09-12T03:15:00.000Z" };
+    const assigned = { ...unassigned, owner: staffOwner, ownerAssignedAt: "2026-09-12T03:15:00.000Z" };
     installFetch(assigned);
     render(<StaffTicketDetail ticketId={25} currentUser={staff} onBack={vi.fn()} />);
     expect(await screen.findByText("Ari Staff")).toBeInTheDocument();
@@ -94,13 +99,13 @@ describe("IT Staff Ticket Detail assignment", () => {
     expect(saving).toBeDisabled();
     await userEvent.click(saving);
     expect(fetchMock).toHaveBeenCalledTimes(3);
-    resolveClaim(response(detail({ ...unassigned, owner: { id: staff.id, name: staff.name }, ownerAssignedAt: "2026-09-12T03:15:00.000Z" })));
+    resolveClaim(response(detail({ ...unassigned, owner: staffOwner, ownerAssignedAt: "2026-09-12T03:15:00.000Z" })));
     await waitFor(() => expect(screen.getByText("Ari Staff")).toBeInTheDocument());
   });
 
   it("reassigns to an eligible active IT Staff user and updates the displayed owner", async () => {
-    const assigned = { ...unassigned, owner: { id: staff.id, name: staff.name }, ownerAssignedAt: "2026-09-12T03:15:00.000Z" };
-    const reassigned = { ...unassigned, owner: { id: 9, name: "Mali Staff" }, ownerAssignedAt: "2026-09-12T04:15:00.000Z" };
+    const assigned = { ...unassigned, owner: staffOwner, ownerAssignedAt: "2026-09-12T03:15:00.000Z" };
+    const reassigned = { ...unassigned, owner: maliOwner, ownerAssignedAt: "2026-09-12T04:15:00.000Z" };
     const fetchMock = installFetch(assigned, response(detail(reassigned)));
     render(<StaffTicketDetail ticketId={25} currentUser={staff} onBack={vi.fn()} />);
     await userEvent.selectOptions(await screen.findByLabelText("Reassign Ticket"), "9");
@@ -109,23 +114,23 @@ describe("IT Staff Ticket Detail assignment", () => {
     expect(screen.getByText("Mali Staff")).toBeInTheDocument();
     expect(fetchMock).toHaveBeenLastCalledWith(
       "http://localhost:3000/api/staff/tickets/25/owner",
-      expect.objectContaining({ method: "PATCH", body: JSON.stringify({ ownerId: 9 }) }),
+      expect.objectContaining({ method: "PATCH", body: JSON.stringify({ expectedVersion: 1, ownerId: 9 }) }),
     );
   });
 
   it("does not falsely update ownership when reassignment fails", async () => {
-    const assigned = { ...unassigned, owner: { id: staff.id, name: staff.name }, ownerAssignedAt: "2026-09-12T03:15:00.000Z" };
+    const assigned = { ...unassigned, owner: staffOwner, ownerAssignedAt: "2026-09-12T03:15:00.000Z" };
     installFetch(assigned, response({ error: { code: "VALIDATION_ERROR", message: "detail" } }, 400));
     render(<StaffTicketDetail ticketId={25} currentUser={staff} onBack={vi.fn()} />);
     await userEvent.selectOptions(await screen.findByLabelText("Reassign Ticket"), "9");
     await userEvent.click(screen.getByRole("button", { name: "Reassign Ticket" }));
-    expect(await screen.findByRole("alert")).toHaveTextContent("selected assignee is no longer available");
+    expect(await screen.findByRole("alert")).toHaveTextContent("selected owner is inactive or no longer eligible");
     expect(screen.getByText("Ari Staff")).toBeInTheDocument();
     expect(screen.queryByText("Mali Staff")).not.toBeInTheDocument();
   });
 
   it("prevents duplicate reassignment while saving", async () => {
-    const assigned = { ...unassigned, owner: { id: staff.id, name: staff.name }, ownerAssignedAt: "2026-09-12T03:15:00.000Z" };
+    const assigned = { ...unassigned, owner: staffOwner, ownerAssignedAt: "2026-09-12T03:15:00.000Z" };
     let resolveAssignment!: (value: Response) => void;
     const fetchMock = installFetch(assigned, new Promise<Response>((resolve) => { resolveAssignment = resolve; }));
     render(<StaffTicketDetail ticketId={25} currentUser={staff} onBack={vi.fn()} />);
@@ -135,7 +140,7 @@ describe("IT Staff Ticket Detail assignment", () => {
     expect(saving).toBeDisabled();
     await userEvent.click(saving);
     expect(fetchMock).toHaveBeenCalledTimes(3);
-    resolveAssignment(response(detail({ ...unassigned, owner: { id: 9, name: "Mali Staff" }, ownerAssignedAt: "2026-09-12T04:15:00.000Z" })));
+    resolveAssignment(response(detail({ ...unassigned, owner: maliOwner, ownerAssignedAt: "2026-09-12T04:15:00.000Z" })));
     await waitFor(() => expect(screen.getByText("Mali Staff")).toBeInTheDocument());
   });
 });
@@ -160,7 +165,7 @@ describe("IT Staff Ticket priority and status", () => {
     expect(screen.getByText("Requested Priority:").parentElement).toHaveTextContent("MEDIUM");
     expect(fetchMock).toHaveBeenLastCalledWith(
       "http://localhost:3000/api/staff/tickets/25/it-priority",
-      expect.objectContaining({ method: "PATCH", body: JSON.stringify({ itPriority: "LOW" }) }),
+      expect.objectContaining({ method: "PATCH", body: JSON.stringify({ expectedVersion: 1, itPriority: "LOW" }) }),
     );
   });
 
@@ -191,7 +196,7 @@ describe("IT Staff Ticket priority and status", () => {
     expect(screen.getByText("Current Status:").parentElement).toHaveTextContent("Waiting for Requester");
     expect(fetchMock).toHaveBeenLastCalledWith(
       "http://localhost:3000/api/staff/tickets/25/status",
-      expect.objectContaining({ method: "PATCH", body: JSON.stringify({ currentStatus: "OPEN", status: "WAITING_FOR_REQUESTER", confirmed: false }) }),
+      expect.objectContaining({ method: "PATCH", body: JSON.stringify({ expectedVersion: 1, currentStatus: "OPEN", status: "WAITING_FOR_REQUESTER", confirmed: false }) }),
     );
   });
 
@@ -215,25 +220,24 @@ describe("IT Staff Ticket priority and status", () => {
     render(<StaffTicketDetail ticketId={25} currentUser={staff} onBack={vi.fn()} />);
     await userEvent.selectOptions(await screen.findByLabelText("Next Status"), "WAITING_FOR_REQUESTER");
     await userEvent.click(screen.getByRole("button", { name: "Update Status" }));
-    expect(await screen.findByRole("alert")).toHaveTextContent("status changed");
+    expect(await screen.findByRole("alert")).toHaveTextContent("transition is no longer available");
     await waitFor(() => expect(screen.getByText("Current Status:").parentElement).toHaveTextContent("Resolved"));
     expect(screen.queryByText("Ticket status updated successfully.")).not.toBeInTheDocument();
     expect(fetchMock).toHaveBeenCalledTimes(4);
   });
 
   it("requires confirmation before cancellation", async () => {
-    const confirm = vi.spyOn(window, "confirm").mockReturnValueOnce(false).mockReturnValueOnce(true);
     const fetchMock = installFetch(unassigned, response(detail({ ...unassigned, status: "CANCELLED", allowedTransitions: [] })));
     render(<StaffTicketDetail ticketId={25} currentUser={staff} onBack={vi.fn()} />);
     await userEvent.selectOptions(await screen.findByLabelText("Next Status"), "CANCELLED");
-    await userEvent.click(screen.getByRole("button", { name: "Update Status" }));
+    await userEvent.click(screen.getByRole("button", { name: "Cancel ticket" }));
     expect(fetchMock).toHaveBeenCalledTimes(2);
-    await userEvent.click(screen.getByRole("button", { name: "Update Status" }));
+    expect(screen.getByRole("dialog", { name: "Cancel ticket confirmation" })).toHaveTextContent("TKT-000025");
+    await userEvent.click(screen.getByRole("button", { name: "Confirm Cancelled" }));
     expect(await screen.findByText("Ticket status updated successfully.")).toBeInTheDocument();
-    expect(confirm).toHaveBeenCalledTimes(2);
     expect(fetchMock).toHaveBeenLastCalledWith(
       "http://localhost:3000/api/staff/tickets/25/status",
-      expect.objectContaining({ body: JSON.stringify({ currentStatus: "OPEN", status: "CANCELLED", confirmed: true }) }),
+      expect.objectContaining({ body: JSON.stringify({ expectedVersion: 1, currentStatus: "OPEN", status: "CANCELLED", confirmed: true }) }),
     );
   });
 

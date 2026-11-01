@@ -60,6 +60,7 @@ export class ApiError extends Error {
     public readonly status: number,
     public readonly fields?: Record<string, string>,
     public readonly retryAfter?: number,
+    public readonly current?: Record<string, unknown>,
   ) {
     super(message);
     this.name = "ApiError";
@@ -164,6 +165,7 @@ export interface GetTicketsParams {
   relatedSystemId?: number;
   requestedPriority?: RequestedPriority;
   status?: string;
+  scope?: "open";
   sortBy?: "createdAt" | "updatedAt" | "ticketNumber";
   sortOrder?: "asc" | "desc";
   page?: number;
@@ -202,18 +204,113 @@ export interface StaffQueueResponse {
   };
 }
 
+export interface StaffDashboardTicket {
+  id: number;
+  ticketNumber: string;
+  summary: string;
+  status: TicketStatus;
+  itPriority: RequestedPriority;
+  updatedAt: string;
+}
+
+export interface StaffDashboardAction {
+  id: number;
+  status: "PLANNED" | "IN_PROGRESS" | "COMPLETED" | "CANCELLED";
+  actionAt: string;
+  description: string;
+  completedAt: string | null;
+  ticket: {
+    id: number;
+    ticketNumber: string;
+    summary: string;
+  };
+}
+
+export interface StaffDashboardData {
+  asOf: string;
+  timezone: "UTC";
+  metrics: {
+    unassignedOpenCount: number;
+    myOpenTicketCount: number;
+    myActiveActionsCount: number;
+    countsByStatus: Record<TicketStatus, number>;
+    countsByItPriority: Record<RequestedPriority, number>;
+  };
+  urgentTickets: StaffDashboardTicket[];
+  recentlyUpdated: StaffDashboardTicket[];
+  myActiveActions: StaffDashboardAction[];
+  myRecentCompletedActions: StaffDashboardAction[];
+  links: {
+    unassigned: string;
+    mine: string;
+    urgent: string;
+  };
+}
+
+export interface RequesterDashboardTicket {
+  id: number;
+  ticketNumber: string;
+  summary: string;
+  status: TicketStatus;
+  requestedPriority: RequestedPriority;
+  updatedAt: string;
+  resolvedAt: string | null;
+}
+
+export interface RequesterDashboardData {
+  asOf: string;
+  timezone: "UTC";
+  metrics: {
+    openCount: number;
+    waitingForRequesterCount: number;
+  };
+  attentionRequired: RequesterDashboardTicket[];
+  recentlyUpdated: RequesterDashboardTicket[];
+  recentlyResolved: RequesterDashboardTicket[];
+  links: {
+    open: string;
+    waitingForRequester: string;
+  };
+}
+
 export interface StaffTicketDetail extends StaffQueueTicket {
   status: TicketStatus;
+  owner: ({
+    id: number;
+    name: string;
+    isActive: boolean;
+    role: "IT_STAFF" | "ADMINISTRATOR";
+  }) | null;
   description: string;
   category: Category;
   relatedSystem: RelatedSystem;
   ownerAssignedAt: string | null;
   requesterResolutionIndicatedAt: string | null;
+  version: number;
+  resolvedAt: string | null;
   createdAt: string;
   attachments: TicketAttachment[];
   publicComments: CommunicationEntry[];
   internalNotes: CommunicationEntry[];
   allowedTransitions: TicketStatus[];
+  resolutionGate: {
+    canResolve: boolean;
+    completedActions: number;
+    activeActions: number;
+    missing: string[];
+  };
+  workflowEvents: TicketWorkflowEvent[];
+}
+
+export interface TicketWorkflowEvent {
+  id: number;
+  eventType: "OWNER_CHANGED" | "PRIORITY_CHANGED" | "STATUS_CHANGED";
+  actor: { id: number; name: string; role: UserRole };
+  fromStatus: TicketStatus | null;
+  toStatus: TicketStatus | null;
+  fromOwner: { id: number; name: string } | null;
+  toOwner: { id: number; name: string } | null;
+  createdAt: string;
 }
 
 export interface EligibleOwner {
@@ -223,8 +320,78 @@ export interface EligibleOwner {
   role: "IT_STAFF" | "ADMINISTRATOR";
 }
 
+// ---------------------------------------------------------------------------
+// Lab 4 - Actions Taken
+// ---------------------------------------------------------------------------
+
+export type ActionStatus = "PLANNED" | "IN_PROGRESS" | "COMPLETED" | "CANCELLED";
+
+export interface ActionPerson {
+  id: number;
+  name: string;
+  role: UserRole;
+  isActive?: boolean;
+}
+
+export interface ActionTaken {
+  id: number;
+  ticketId: number;
+  actionAt: string;
+  description: string;
+  result: string | null;
+  status: ActionStatus;
+  assignee: ActionPerson & { isActive: boolean };
+  createdBy: ActionPerson;
+  performedBy: ActionPerson | null;
+  followUpRequired: boolean;
+  followUpNote: string | null;
+  attachmentNotes: string | null;
+  completedAt: string | null;
+  cancelledAt: string | null;
+  cancelledBy: ActionPerson | null;
+  cancellationReason: string | null;
+  version: number;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface ActionListResponse {
+  items: ActionTaken[];
+  pagination: TicketPagination;
+}
+
+export interface ActionEvent {
+  id: number;
+  type: "CREATED" | "UPDATED" | "ASSIGNEE_CHANGED" | "STATUS_CHANGED";
+  actor: ActionPerson;
+  fromStatus: ActionStatus | null;
+  toStatus: ActionStatus | null;
+  fromAssignee: Pick<ActionPerson, "id" | "name"> | null;
+  toAssignee: Pick<ActionPerson, "id" | "name"> | null;
+  createdAt: string;
+}
+
+export interface ActionEditableInput {
+  actionAt: string;
+  description: string;
+  result: string | null;
+  followUpRequired: boolean;
+  followUpNote: string | null;
+  attachmentNotes: string | null;
+}
+
+export interface CreateActionInput extends ActionEditableInput {
+  assigneeId: number;
+}
+
+export type ActionStatusInput =
+  | { expectedVersion: number; status: "IN_PROGRESS" }
+  | ({ expectedVersion: number; status: "COMPLETED" } & Omit<ActionEditableInput, "description">)
+  | { expectedVersion: number; status: "CANCELLED"; confirmed: true; cancellationReason: string };
+
 export interface GetStaffQueueParams {
   search?: string;
+  scope?: "open";
   status?: string;
   requestedPriority?: RequestedPriority;
   itPriority?: RequestedPriority;
@@ -259,7 +426,8 @@ export interface TicketDetail {
   summary: string;
   requestedPriority: RequestedPriority;
   description: string;
-  status: string;
+  status: TicketStatus;
+  requesterResolutionIndicatedAt: string | null;
   createdAt: string;
   updatedAt: string;
   category: {
@@ -321,6 +489,7 @@ async function throwApiError(response: Response, fallback: string): Promise<neve
         response.status,
         body.error.fields,
         Number(response.headers.get("Retry-After")) || undefined,
+        body.error.current,
       );
     }
   } catch (error) {
@@ -527,6 +696,10 @@ export async function getTickets(
     );
   }
 
+  if (params.scope !== undefined) {
+    searchParams.set("scope", params.scope);
+  }
+
   if (params.sortBy !== undefined) {
     searchParams.set(
       "sortBy",
@@ -599,6 +772,30 @@ export async function getStaffTickets(
   return response.json() as Promise<StaffQueueResponse>;
 }
 
+export async function getStaffDashboard(): Promise<StaffDashboardData> {
+  const response = await fetch(`${API_URL}/api/dashboards/staff`, {
+    credentials: "include",
+    cache: "no-store",
+  });
+  if (!response.ok) {
+    await throwApiError(response, "Unable to load the Staff Dashboard right now.");
+  }
+  const body = await response.json() as { data: StaffDashboardData };
+  return body.data;
+}
+
+export async function getRequesterDashboard(): Promise<RequesterDashboardData> {
+  const response = await fetch(`${API_URL}/api/dashboards/requester`, {
+    credentials: "include",
+    cache: "no-store",
+  });
+  if (!response.ok) {
+    await throwApiError(response, "Unable to load your Dashboard right now.");
+  }
+  const body = await response.json() as { data: RequesterDashboardData };
+  return body.data;
+}
+
 export async function getStaffTicketDetail(ticketId: number): Promise<StaffTicketDetail> {
   const response = await fetch(`${API_URL}/api/staff/tickets/${ticketId}`, {
     credentials: "include",
@@ -608,12 +805,12 @@ export async function getStaffTicketDetail(ticketId: number): Promise<StaffTicke
   return body.data;
 }
 
-export async function claimStaffTicket(ticketId: number): Promise<StaffTicketDetail> {
+export async function claimStaffTicket(ticketId: number, expectedVersion: number): Promise<StaffTicketDetail> {
   const response = await fetch(`${API_URL}/api/staff/tickets/${ticketId}/claim`, {
     method: "POST",
     credentials: "include",
     headers: authenticatedHeaders({ "Content-Type": "application/json" }, true),
-    body: JSON.stringify({}),
+    body: JSON.stringify({ expectedVersion }),
   });
   if (!response.ok) await throwApiError(response, "Unable to claim the Ticket right now.");
   const body = await response.json() as { data: StaffTicketDetail };
@@ -629,15 +826,98 @@ export async function getEligibleOwners(): Promise<EligibleOwner[]> {
   return body.items;
 }
 
+export async function getActions(
+  ticketId: number,
+  page = 1,
+  pageSize: 10 | 20 | 50 = 20,
+): Promise<ActionListResponse> {
+  const query = new URLSearchParams({ page: String(page), pageSize: String(pageSize) });
+  const response = await fetch(`${API_URL}/api/tickets/${ticketId}/actions?${query}`, {
+    credentials: "include",
+  });
+  if (!response.ok) await throwApiError(response, "Unable to load Actions Taken right now.");
+  return response.json() as Promise<ActionListResponse>;
+}
+
+export async function getAction(actionId: number): Promise<ActionTaken> {
+  const response = await fetch(`${API_URL}/api/actions/${actionId}`, { credentials: "include" });
+  if (!response.ok) await throwApiError(response, "Unable to load the Action right now.");
+  return (await response.json() as { data: ActionTaken }).data;
+}
+
+export async function getActionEvents(actionId: number): Promise<ActionEvent[]> {
+  const response = await fetch(`${API_URL}/api/staff/actions/${actionId}/events`, {
+    credentials: "include",
+  });
+  if (!response.ok) await throwApiError(response, "Unable to load Action history right now.");
+  return (await response.json() as { items: ActionEvent[] }).items;
+}
+
+export async function createAction(ticketId: number, input: CreateActionInput): Promise<ActionTaken> {
+  const response = await fetch(`${API_URL}/api/staff/tickets/${ticketId}/actions`, {
+    method: "POST",
+    credentials: "include",
+    headers: authenticatedHeaders({ "Content-Type": "application/json" }, true),
+    body: JSON.stringify(input),
+  });
+  if (!response.ok) await throwApiError(response, "Unable to plan the Action right now.");
+  return (await response.json() as { data: ActionTaken }).data;
+}
+
+export async function updateAction(
+  actionId: number,
+  expectedVersion: number,
+  input: ActionEditableInput,
+): Promise<ActionTaken> {
+  const response = await fetch(`${API_URL}/api/staff/actions/${actionId}`, {
+    method: "PATCH",
+    credentials: "include",
+    headers: authenticatedHeaders({ "Content-Type": "application/json" }, true),
+    body: JSON.stringify({ expectedVersion, ...input }),
+  });
+  if (!response.ok) await throwApiError(response, "Unable to save the Action right now.");
+  return (await response.json() as { data: ActionTaken }).data;
+}
+
+export async function reassignAction(
+  actionId: number,
+  expectedVersion: number,
+  assigneeId: number,
+): Promise<ActionTaken> {
+  const response = await fetch(`${API_URL}/api/staff/actions/${actionId}/assignee`, {
+    method: "PATCH",
+    credentials: "include",
+    headers: authenticatedHeaders({ "Content-Type": "application/json" }, true),
+    body: JSON.stringify({ expectedVersion, assigneeId }),
+  });
+  if (!response.ok) await throwApiError(response, "Unable to reassign the Action right now.");
+  return (await response.json() as { data: ActionTaken }).data;
+}
+
+export async function transitionAction(
+  actionId: number,
+  input: ActionStatusInput,
+): Promise<ActionTaken> {
+  const response = await fetch(`${API_URL}/api/staff/actions/${actionId}/status`, {
+    method: "PATCH",
+    credentials: "include",
+    headers: authenticatedHeaders({ "Content-Type": "application/json" }, true),
+    body: JSON.stringify(input),
+  });
+  if (!response.ok) await throwApiError(response, "Unable to change the Action status right now.");
+  return (await response.json() as { data: ActionTaken }).data;
+}
+
 export async function assignStaffTicket(
   ticketId: number,
+  expectedVersion: number,
   ownerId: number | null,
 ): Promise<StaffTicketDetail> {
   const response = await fetch(`${API_URL}/api/staff/tickets/${ticketId}/owner`, {
     method: "PATCH",
     credentials: "include",
     headers: authenticatedHeaders({ "Content-Type": "application/json" }, true),
-    body: JSON.stringify({ ownerId }),
+    body: JSON.stringify({ expectedVersion, ownerId }),
   });
   if (!response.ok) await throwApiError(response, "Unable to update the Ticket assignment right now.");
   const body = await response.json() as { data: StaffTicketDetail };
@@ -646,13 +926,14 @@ export async function assignStaffTicket(
 
 export async function updateStaffTicketPriority(
   ticketId: number,
+  expectedVersion: number,
   itPriority: RequestedPriority,
 ): Promise<StaffTicketDetail> {
   const response = await fetch(`${API_URL}/api/staff/tickets/${ticketId}/it-priority`, {
     method: "PATCH",
     credentials: "include",
     headers: authenticatedHeaders({ "Content-Type": "application/json" }, true),
-    body: JSON.stringify({ itPriority }),
+    body: JSON.stringify({ expectedVersion, itPriority }),
   });
   if (!response.ok) await throwApiError(response, "Unable to update IT Priority right now.");
   const body = await response.json() as { data: StaffTicketDetail };
@@ -661,6 +942,7 @@ export async function updateStaffTicketPriority(
 
 export async function updateStaffTicketStatus(
   ticketId: number,
+  expectedVersion: number,
   currentStatus: TicketStatus,
   status: TicketStatus,
   confirmed = false,
@@ -669,11 +951,30 @@ export async function updateStaffTicketStatus(
     method: "PATCH",
     credentials: "include",
     headers: authenticatedHeaders({ "Content-Type": "application/json" }, true),
-    body: JSON.stringify({ currentStatus, status, confirmed }),
+    body: JSON.stringify({ expectedVersion, currentStatus, status, confirmed }),
   });
   if (!response.ok) await throwApiError(response, "Unable to update the Ticket status right now.");
   const body = await response.json() as { data: StaffTicketDetail };
   return body.data;
+}
+
+export async function indicateRequesterResolution(ticketId: number): Promise<{
+  ticketId: number;
+  status: TicketStatus;
+  requesterResolutionIndicatedAt: string;
+}> {
+  const response = await fetch(`${API_URL}/api/tickets/${ticketId}/resolution-indication`, {
+    method: "POST",
+    credentials: "include",
+    headers: authenticatedHeaders({ "Content-Type": "application/json" }, true),
+    body: JSON.stringify({}),
+  });
+  if (!response.ok) await throwApiError(response, "Unable to notify IT right now.");
+  return (await response.json() as { data: {
+    ticketId: number;
+    status: TicketStatus;
+    requesterResolutionIndicatedAt: string;
+  } }).data;
 }
 
 export async function getPublicComments(ticketId: number): Promise<CommunicationEntry[]> {

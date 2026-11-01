@@ -131,6 +131,10 @@ function installFetchMock(options?: {
         });
       }
 
+      if (pathname === "/api/tickets/101/actions") {
+        return jsonResponse({ items: [], pagination: { page: 1, pageSize: 20, totalItems: 0, totalPages: 0 } });
+      }
+
       if (pathname === "/api/tickets") {
         return jsonResponse(ticketListResponse);
       }
@@ -146,6 +150,9 @@ function installFetchMock(options?: {
 }
 
 async function selectRequester() {
+  fireEvent.click(await screen.findByRole("button", {
+    name: "My Tickets",
+  }));
   await screen.findByRole("heading", {
     name: "My Tickets",
   });
@@ -180,11 +187,12 @@ describe("Requester Ticket Detail", () => {
 
     openTicketDetail();
 
-    expect(
-      await screen.findByRole("heading", {
-        name: "Ticket Detail",
-      }),
-    ).toBeInTheDocument();
+    const heading = await screen.findByRole("heading", {
+      level: 1,
+      name: "Ticket Detail",
+    });
+    expect(screen.getByRole("main")).toContainElement(heading);
+    expect(screen.getAllByRole("heading", { level: 1 })).toHaveLength(1);
 
     expect(
       screen.getByText("Printer is not working", {

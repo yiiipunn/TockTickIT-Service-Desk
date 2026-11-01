@@ -10,6 +10,8 @@ import {
   getRelatedSystems,
   getTicketDetail,
   getTickets,
+  indicateRequesterResolution,
+  GetStaffQueueParams,
   GetTicketsParams,
   RelatedSystem,
   RequestedPriority,
@@ -28,12 +30,15 @@ import StaffTicketQueue from "./StaffTicketQueue";
 import StaffTicketDetail from "./StaffTicketDetail";
 import TicketCommunication from "./TicketCommunication";
 import UserManagement from "./UserManagement";
+import ActionsTaken from "./ActionsTaken";
+import StaffDashboard from "./StaffDashboard";
+import RequesterDashboard from "./RequesterDashboard";
 
 type UiState = "idle" | "loading" | "success" | "error";
 type AuthState = "loading" | "unauthenticated" | "authenticated" | "error";
 type ReferenceDataState = "idle" | "loading" | "success" | "error";
 type SubmitState = "idle" | "submitting" | "success" | "error";
-type AppView = "tickets" | "create" | "detail" | "queue" | "staff-detail" | "users";
+type AppView = "tickets" | "create" | "detail" | "dashboard" | "queue" | "staff-detail" | "users";
 
 const MAX_ATTACHMENT_SIZE = 5 * 1024 * 1024;
 const ALLOWED_ATTACHMENT_TYPES = new Set([
@@ -42,6 +47,7 @@ const ALLOWED_ATTACHMENT_TYPES = new Set([
   "image/webp",
   "application/pdf",
 ]);
+const REQUESTER_RESOLUTION_ACTIVE_STATUSES = new Set(["NEW", "OPEN", "IN_PROGRESS", "WAITING_FOR_REQUESTER", "REOPENED"]);
 
 function getAttachmentValidationError(file: File) {
   if (!ALLOWED_ATTACHMENT_TYPES.has(file.type)) {
@@ -65,22 +71,36 @@ function AuthenticatedNavbar({
   user,
   onChangePassword,
   onLogout,
+  onDashboard,
   onTicketQueue,
   onUserManagement,
+  dashboardActive = false,
   ticketQueueActive = false,
   userManagementActive = false,
 }: {
   user: AuthenticatedUser;
   onChangePassword?: () => void;
   onLogout: () => void;
+  onDashboard?: () => void;
   onTicketQueue?: () => void;
   onUserManagement?: () => void;
+  dashboardActive?: boolean;
   ticketQueueActive?: boolean;
   userManagementActive?: boolean;
 }) {
   return (
     <nav className="navbar flex-wrap gap-2 bg-success shadow-sm px-4 py-3" aria-label="Application navigation">
       <span className="navbar-brand text-white fw-bold mb-0">TokTickIT</span>
+      {onDashboard && (
+        <button
+          type="button"
+          className={`btn btn-link text-white ${dashboardActive ? "text-decoration-underline fw-semibold" : "text-decoration-none"}`}
+          onClick={onDashboard}
+          aria-current={dashboardActive ? "page" : undefined}
+        >
+          Dashboard
+        </button>
+      )}
       {onUserManagement && (
         <button
           type="button"
@@ -135,7 +155,11 @@ export default function App() {
   const [showPasswordChange, setShowPasswordChange] = useState(false);
 
   const [appView, setAppView] = useState<AppView>("tickets");
-  const [selectedStaffTicket, setSelectedStaffTicket] = useState<StaffQueueTicket | null>(null);
+  const [selectedStaffTicketId, setSelectedStaffTicketId] = useState<number | null>(null);
+  const [selectedStaffActionId, setSelectedStaffActionId] = useState<number | null>(null);
+  const [staffDetailBackView, setStaffDetailBackView] = useState<"dashboard" | "queue">("queue");
+  const [staffQueueQuery, setStaffQueueQuery] = useState<GetStaffQueueParams>({});
+  const [staffQueueKey, setStaffQueueKey] = useState(0);
 
   // -------------------------------------------------------------------------
   // Lab 2 - Create Ticket Reference Data
@@ -177,6 +201,7 @@ export default function App() {
   const [ticketPriorityFilter, setTicketPriorityFilter] =
     useState<RequestedPriority | "">("");
   const [ticketStatusFilter, setTicketStatusFilter] = useState("");
+  const [ticketScopeFilter, setTicketScopeFilter] = useState<"" | "open">("");
   const [ticketSortBy, setTicketSortBy] =
     useState<GetTicketsParams["sortBy"]>("updatedAt");
   const [ticketSortOrder, setTicketSortOrder] =
@@ -209,6 +234,11 @@ export default function App() {
   const [removalReason, setRemovalReason] = useState("");
   const [downloadingAttachmentId, setDownloadingAttachmentId] =
     useState<number | null>(null);
+  const [resolutionIndicationState, setResolutionIndicationState] = useState<SubmitState>("idle");
+  const [resolutionIndicationError, setResolutionIndicationError] = useState("");
+  const [resolutionIndicationSuccess, setResolutionIndicationSuccess] = useState("");
+  const [requesterDetailBackView, setRequesterDetailBackView] =
+    useState<"tickets" | "dashboard">("tickets");
 
   useEffect(() => {
     void restoreAuthentication();
@@ -249,14 +279,12 @@ export default function App() {
     setAuthState("authenticated");
     setAuthFailure("");
     setShowPasswordChange(false);
-    setAppView(user.role === "REQUESTER" ? "tickets" : user.role === "ADMINISTRATOR" ? "users" : "queue");
-    setSelectedStaffTicket(null);
+    setAppView("dashboard");
+    setSelectedStaffTicketId(null);
+    setSelectedStaffActionId(null);
 
     if (user.role === "REQUESTER" && !user.mustChangePassword) {
-      await Promise.all([
-        loadTicketReferenceData(),
-        loadTickets(1),
-      ]);
+      await loadTicketReferenceData();
     }
   }
 
@@ -272,7 +300,8 @@ export default function App() {
     setAuthState("unauthenticated");
     setShowPasswordChange(false);
     setAppView("tickets");
-    setSelectedStaffTicket(null);
+    setSelectedStaffTicketId(null);
+    setSelectedStaffActionId(null);
 
     resetTicketForm();
 
@@ -288,6 +317,7 @@ export default function App() {
     setTicketSystemFilter(null);
     setTicketPriorityFilter("");
     setTicketStatusFilter("");
+    setTicketScopeFilter("");
     setTicketSortBy("updatedAt");
     setTicketSortOrder("desc");
     setTicketPageSize(10);
@@ -308,6 +338,10 @@ export default function App() {
     setAttachmentSuccess("");
     setRemovalTargetId(null);
     setRemovalReason("");
+    setResolutionIndicationState("idle");
+    setResolutionIndicationError("");
+    setResolutionIndicationSuccess("");
+    setRequesterDetailBackView("tickets");
   }
 
   function handleSessionExpired() {
@@ -315,12 +349,37 @@ export default function App() {
     setAuthState("unauthenticated");
     setShowPasswordChange(false);
     setAuthFailure("Your session expired. Sign in again.");
-    setSelectedStaffTicket(null);
+    setSelectedStaffTicketId(null);
+    setSelectedStaffActionId(null);
   }
 
   function handleOpenStaffTicket(ticket: StaffQueueTicket) {
-    setSelectedStaffTicket(ticket);
+    setSelectedStaffTicketId(ticket.id);
+    setSelectedStaffActionId(null);
+    setStaffDetailBackView("queue");
     setAppView("staff-detail");
+  }
+
+  function handleOpenDashboardTicket(ticketId: number) {
+    setSelectedStaffTicketId(ticketId);
+    setSelectedStaffActionId(null);
+    setStaffDetailBackView("dashboard");
+    setAppView("staff-detail");
+  }
+
+  function handleOpenDashboardAction(ticketId: number, actionId: number) {
+    setSelectedStaffTicketId(ticketId);
+    setSelectedStaffActionId(actionId);
+    setStaffDetailBackView("dashboard");
+    setAppView("staff-detail");
+  }
+
+  function handleOpenStaffQueue(query: GetStaffQueueParams = {}) {
+    setSelectedStaffTicketId(null);
+    setSelectedStaffActionId(null);
+    setStaffQueueQuery(query);
+    setStaffQueueKey((current) => current + 1);
+    setAppView("queue");
   }
 
   // -------------------------------------------------------------------------
@@ -426,13 +485,13 @@ export default function App() {
 
   function handleCancelCreateTicket() {
     resetTicketForm();
-    setAppView("tickets");
+    handleOpenRequesterTickets({});
   }
 
   // -------------------------------------------------------------------------
   // My Tickets
   // -------------------------------------------------------------------------
-  async function loadTickets(page = 1) {
+  async function loadTickets(page = 1, overrides: GetTicketsParams = {}) {
     setTicketsState("loading");
     setTicketsError("");
 
@@ -443,10 +502,12 @@ export default function App() {
         relatedSystemId: ticketSystemFilter ?? undefined,
         requestedPriority: ticketPriorityFilter || undefined,
         status: ticketStatusFilter || undefined,
+        scope: ticketScopeFilter || undefined,
         sortBy: ticketSortBy,
         sortOrder: ticketSortOrder,
         page,
         pageSize: ticketPageSize,
+        ...overrides,
       });
 
       setTickets(result.items);
@@ -478,20 +539,56 @@ export default function App() {
     setTicketSystemFilter(null);
     setTicketPriorityFilter("");
     setTicketStatusFilter("");
+    setTicketScopeFilter("");
     setTicketSortBy("updatedAt");
     setTicketSortOrder("desc");
     setTicketPageSize(10);
   }
 
+  function handleOpenRequesterDashboard() {
+    setAppView("dashboard");
+    setSelectedTicketDetail(null);
+    setTicketDetailState("idle");
+    setTicketDetailError("");
+  }
+
+  function handleOpenRequesterTickets(query: GetTicketsParams = {}) {
+    setTicketSearch("");
+    setTicketCategoryFilter(null);
+    setTicketSystemFilter(null);
+    setTicketPriorityFilter("");
+    setTicketStatusFilter(query.status ?? "");
+    setTicketScopeFilter(query.scope ?? "");
+    setTicketSortBy("updatedAt");
+    setTicketSortOrder("desc");
+    setTicketPageSize(10);
+    setAppView("tickets");
+    void loadTickets(1, {
+      search: undefined,
+      categoryId: undefined,
+      relatedSystemId: undefined,
+      requestedPriority: undefined,
+      status: query.status,
+      scope: query.scope,
+      sortBy: "updatedAt",
+      sortOrder: "desc",
+      pageSize: 10,
+    });
+  }
+
   // -------------------------------------------------------------------------
   // Requester Ticket Detail
   // -------------------------------------------------------------------------
-  async function handleViewTicket(ticketId: number) {
+  async function handleViewTicket(
+    ticketId: number,
+    backView: "tickets" | "dashboard" = "tickets",
+  ) {
     if (currentUser?.role !== "REQUESTER") {
       return;
     }
 
     setAppView("detail");
+    setRequesterDetailBackView(backView);
     setSelectedTicketDetail(null);
     setTicketDetailState("loading");
     setTicketDetailError("");
@@ -501,6 +598,9 @@ export default function App() {
     setAttachmentSuccess("");
     setRemovalTargetId(null);
     setRemovalReason("");
+    setResolutionIndicationState("idle");
+    setResolutionIndicationError("");
+    setResolutionIndicationSuccess("");
 
     try {
       const result = await getTicketDetail(ticketId);
@@ -529,12 +629,42 @@ export default function App() {
     setAttachmentSuccess("");
     setRemovalTargetId(null);
     setRemovalReason("");
+    setResolutionIndicationState("idle");
+    setResolutionIndicationError("");
+    setResolutionIndicationSuccess("");
+  }
+
+  function handleBackFromTicketDetail() {
+    const destination = requesterDetailBackView;
+    handleBackToTickets();
+    setAppView(destination);
   }
 
   async function refreshTicketDetail(ticketId: number) {
     if (currentUser?.role !== "REQUESTER") return;
     const result = await getTicketDetail(ticketId);
     setSelectedTicketDetail(result);
+  }
+
+  async function handleResolutionIndication() {
+    if (currentUser?.role !== "REQUESTER" || !selectedTicketDetail ||
+        resolutionIndicationState === "submitting" ||
+        selectedTicketDetail.requesterResolutionIndicatedAt ||
+        !REQUESTER_RESOLUTION_ACTIVE_STATUSES.has(selectedTicketDetail.status)) return;
+
+    setResolutionIndicationState("submitting");
+    setResolutionIndicationError("");
+    setResolutionIndicationSuccess("");
+
+    try {
+      await indicateRequesterResolution(selectedTicketDetail.id);
+      await refreshTicketDetail(selectedTicketDetail.id);
+      setResolutionIndicationState("success");
+      setResolutionIndicationSuccess("IT has been notified that the problem appears resolved.");
+    } catch (error) {
+      setResolutionIndicationState("error");
+      setResolutionIndicationError(error instanceof Error ? error.message : "Unable to notify IT right now.");
+    }
   }
 
   async function handleUploadAttachment(event: FormEvent<HTMLFormElement>) {
@@ -740,28 +870,46 @@ export default function App() {
               user={currentUser}
               onChangePassword={() => setShowPasswordChange(true)}
               onLogout={handleLogout}
-              onTicketQueue={() => {
-                setSelectedStaffTicket(null);
-                setAppView("queue");
+              onDashboard={() => {
+                setSelectedStaffTicketId(null);
+                setSelectedStaffActionId(null);
+                setAppView("dashboard");
               }}
+              onTicketQueue={() => handleOpenStaffQueue()}
               onUserManagement={currentUser.role === "ADMINISTRATOR" ? () => {
-                setSelectedStaffTicket(null);
+                setSelectedStaffTicketId(null);
+                setSelectedStaffActionId(null);
                 setAppView("users");
               } : undefined}
+              dashboardActive={appView === "dashboard"}
               ticketQueueActive={appView === "queue" || appView === "staff-detail"}
               userManagementActive={appView === "users"}
             />
             <main className="app-content">
               {authFailure && <div className="alert alert-danger" role="alert">{authFailure}</div>}
-              {currentUser.role === "ADMINISTRATOR" && appView === "users" ? (
-                <UserManagement currentUser={currentUser} />
-              ) : appView === "staff-detail" && selectedStaffTicket ? (
-                <StaffTicketDetail
-                  ticketId={selectedStaffTicket.id}
+              {appView === "dashboard" ? (
+                <StaffDashboard
                   currentUser={currentUser}
-                  onBack={() => setAppView("queue")}
+                  onOpenQueue={handleOpenStaffQueue}
+                  onOpenTicket={handleOpenDashboardTicket}
+                  onOpenAction={handleOpenDashboardAction}
                 />
-              ) : <StaffTicketQueue onOpenTicket={handleOpenStaffTicket} role={currentUser.role} />}
+              ) : currentUser.role === "ADMINISTRATOR" && appView === "users" ? (
+                <UserManagement currentUser={currentUser} />
+              ) : appView === "staff-detail" && selectedStaffTicketId !== null ? (
+                <StaffTicketDetail
+                  ticketId={selectedStaffTicketId}
+                  currentUser={currentUser}
+                  onBack={() => setAppView(staffDetailBackView)}
+                  showActions
+                  focusActionId={selectedStaffActionId ?? undefined}
+                />
+              ) : <StaffTicketQueue
+                key={staffQueueKey}
+                onOpenTicket={handleOpenStaffTicket}
+                role={currentUser.role}
+                initialQuery={staffQueueQuery}
+              />}
             </main>
           </>
         )}
@@ -778,9 +926,7 @@ export default function App() {
             <button
               type="button"
               className="navbar-brand btn btn-link text-decoration-none p-0 me-3 text-white fw-bold"
-              onClick={() => {
-                handleBackToTickets();
-              }}
+              onClick={handleOpenRequesterDashboard}
             >
               TokTickIT
             </button>
@@ -788,11 +934,15 @@ export default function App() {
             <div className="requester-nav-actions d-flex flex-wrap align-items-center gap-2 flex-grow-1">
               <button
                 type="button"
-                className="btn btn-link btn-sm text-white p-0 text-decoration-none d-block mt-1"
-                onClick={() => setShowPasswordChange(true)}
-                disabled={submitState === "submitting"}
+                className={`btn btn-sm ${
+                  appView === "dashboard"
+                    ? "btn-light text-success"
+                    : "btn-link text-white text-decoration-none"
+                }`}
+                onClick={handleOpenRequesterDashboard}
+                aria-current={appView === "dashboard" ? "page" : undefined}
               >
-                Change Password
+                Dashboard
               </button>
               <button
                 type="button"
@@ -801,7 +951,8 @@ export default function App() {
                     ? "btn-light text-success"
                     : "btn-link text-white text-decoration-none"
                 }`}
-                onClick={handleBackToTickets}
+                onClick={() => handleOpenRequesterTickets({})}
+                aria-current={appView === "tickets" ? "page" : undefined}
               >
                 My Tickets
               </button>
@@ -814,6 +965,7 @@ export default function App() {
                     : "btn-link text-white text-decoration-none"
                 }`}
                 onClick={handleOpenCreateTicket}
+                aria-current={appView === "create" ? "page" : undefined}
               >
                 Create Ticket
               </button>
@@ -829,6 +981,14 @@ export default function App() {
               <button
                 type="button"
                 className="btn btn-link btn-sm text-white p-0 text-decoration-none d-block mt-1"
+                onClick={() => setShowPasswordChange(true)}
+                disabled={submitState === "submitting"}
+              >
+                Change Password
+              </button>
+              <button
+                type="button"
+                className="btn btn-link btn-sm text-white p-0 text-decoration-none d-block mt-1"
                 onClick={handleLogout}
                 disabled={submitState === "submitting"}
               >
@@ -837,14 +997,23 @@ export default function App() {
             </div>
           </nav>
 
-          <div className="app-content">
+          <main className="app-content">
+            {appView === "dashboard" && (
+              <RequesterDashboard
+                currentUser={currentUser}
+                onOpenTickets={handleOpenRequesterTickets}
+                onOpenTicket={(ticketId) => void handleViewTicket(ticketId, "dashboard")}
+                onCreateTicket={handleOpenCreateTicket}
+              />
+            )}
+
             {/* My Tickets View */}
             {appView === "tickets" && (
               <div className="card shadow-sm mb-4">
                 <div className="card-body p-4">
                   <div className="d-flex flex-wrap justify-content-between align-items-start gap-3 mb-4">
                     <div>
-                      <h2 className="h4 mb-1">My Tickets</h2>
+                      <h1 className="h4 mb-1">My Tickets</h1>
                       <p className="text-muted mb-0">
                         View and search your submitted tickets.
                       </p>
@@ -991,12 +1160,53 @@ export default function App() {
                             className="form-select"
                             aria-label="My Tickets status filter"
                             value={ticketStatusFilter}
-                            onChange={(event) =>
-                              setTicketStatusFilter(event.target.value)
-                            }
+                            onChange={(event) => {
+                              const status = event.target.value;
+                              setTicketStatusFilter(status);
+                              if (
+                                ticketScopeFilter === "open" &&
+                                status !== "" &&
+                                !REQUESTER_RESOLUTION_ACTIVE_STATUSES.has(status)
+                              ) {
+                                setTicketScopeFilter("");
+                              }
+                            }}
                           >
                             <option value="">All Statuses</option>
                             <option value="NEW">New</option>
+                            <option value="OPEN">Open</option>
+                            <option value="IN_PROGRESS">In Progress</option>
+                            <option value="WAITING_FOR_REQUESTER">Waiting for Requester</option>
+                            <option value="RESOLVED">Resolved</option>
+                            <option value="CLOSED">Closed</option>
+                            <option value="REOPENED">Reopened</option>
+                            <option value="CANCELLED">Cancelled</option>
+                          </select>
+                        </div>
+
+                        <div className="col-md-6 col-lg-3">
+                          <label htmlFor="my-ticket-scope" className="form-label">
+                            Ticket Scope
+                          </label>
+                          <select
+                            id="my-ticket-scope"
+                            className="form-select"
+                            aria-label="My Tickets scope filter"
+                            value={ticketScopeFilter}
+                            onChange={(event) => {
+                              const scope = event.target.value as "" | "open";
+                              setTicketScopeFilter(scope);
+                              if (
+                                scope === "open" &&
+                                ticketStatusFilter !== "" &&
+                                !REQUESTER_RESOLUTION_ACTIVE_STATUSES.has(ticketStatusFilter)
+                              ) {
+                                setTicketStatusFilter("");
+                              }
+                            }}
+                          >
+                            <option value="">All Tickets</option>
+                            <option value="open">Open Tickets</option>
                           </select>
                         </div>
                       </div>
@@ -1092,7 +1302,8 @@ export default function App() {
                       ticketCategoryFilter !== null ||
                       ticketSystemFilter !== null ||
                       ticketPriorityFilter ||
-                      ticketStatusFilter
+                      ticketStatusFilter ||
+                      ticketScopeFilter
                         ? "No tickets match the current search or filters."
                         : "You have not created any tickets yet."}
                     </div>
@@ -1164,7 +1375,11 @@ export default function App() {
                       </div>
 
                       {/* Mobile representation */}
-                      <div className="d-md-none">
+                      <div
+                        className="d-md-none"
+                        role="region"
+                        aria-label="Requester Tickets as cards"
+                      >
                         <div className="d-grid gap-3">
                           {tickets.map((ticket) => (
                             <article
@@ -1329,7 +1544,7 @@ export default function App() {
                     >
                       ← Back to My Tickets
                     </button>
-                    <h2 className="h4 mt-3 mb-2">Create Ticket</h2>
+                    <h1 className="h4 mt-3 mb-2">Create Ticket</h1>
                     <p className="text-muted mb-0">
                       Tell us about the issue you need help with.
                     </p>
@@ -1703,9 +1918,11 @@ export default function App() {
                     <button
                       type="button"
                       className="btn btn-link text-success p-0 text-decoration-none"
-                      onClick={handleBackToTickets}
+                      onClick={handleBackFromTicketDetail}
                     >
-                      ← Back to My Tickets
+                      {requesterDetailBackView === "dashboard"
+                        ? "Back to Dashboard"
+                        : "Back to My Tickets"}
                     </button>
                   </div>
 
@@ -1726,7 +1943,7 @@ export default function App() {
                       <>
                         <div className="d-flex flex-wrap justify-content-between align-items-start gap-3 mb-4">
                           <div>
-                            <h2 className="h4 mb-1">Ticket Detail</h2>
+                            <h1 className="h4 mb-1">Ticket Detail</h1>
                             <div className="fs-5 fw-semibold text-success">
                               {selectedTicketDetail.ticketNumber}
                             </div>
@@ -1784,6 +2001,30 @@ export default function App() {
                             {selectedTicketDetail.description}
                           </p>
                         </div>
+
+                        <section className="ticket-resolution-feedback border border-success-subtle bg-success-subtle rounded-3 p-3 mb-4" aria-labelledby="resolution-feedback-heading">
+                          <h3 id="resolution-feedback-heading" className="h6">Resolution feedback</h3>
+                          <p className="mb-2">This notifies IT; it does not change the Ticket status.</p>
+                          {selectedTicketDetail.requesterResolutionIndicatedAt && <p className="small text-muted mb-2">
+                            IT notified {new Date(selectedTicketDetail.requesterResolutionIndicatedAt).toLocaleString()}.
+                          </p>}
+                          {REQUESTER_RESOLUTION_ACTIVE_STATUSES.has(selectedTicketDetail.status) ? <button
+                            type="button"
+                            className="btn btn-success"
+                            onClick={() => void handleResolutionIndication()}
+                            disabled={resolutionIndicationState === "submitting" || Boolean(selectedTicketDetail.requesterResolutionIndicatedAt)}
+                          >
+                            {resolutionIndicationState === "submitting"
+                              ? "Notifying IT…"
+                              : selectedTicketDetail.requesterResolutionIndicatedAt
+                                ? "IT has been notified"
+                                : "Problem Appears Resolved"}
+                          </button> : <p className="small text-muted mb-0">
+                            This Ticket is no longer active, so resolution feedback is unavailable.
+                          </p>}
+                          {resolutionIndicationSuccess && <div className="alert alert-success py-2 mt-3 mb-0" role="status">{resolutionIndicationSuccess}</div>}
+                          {resolutionIndicationError && <div className="alert alert-danger py-2 mt-3 mb-0" role="alert">{resolutionIndicationError}</div>}
+                        </section>
 
                         <div className="mb-4">
                           <div className="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-3">
@@ -1995,6 +2236,13 @@ export default function App() {
                           )}
                         </div>
 
+                        <ActionsTaken
+                          ticketId={selectedTicketDetail.id}
+                          ticketNumber={selectedTicketDetail.ticketNumber}
+                          ticketStatus={selectedTicketDetail.status}
+                          currentUser={currentUser}
+                        />
+
                         <TicketCommunication ticketId={selectedTicketDetail.id} kind="public" headingLevel={3} />
 
                         <div className="row g-3 border-top pt-3">
@@ -2077,7 +2325,7 @@ export default function App() {
                 </div>
               </details>
             )}
-          </div>
+          </main>
         </>
       )}
     </div>

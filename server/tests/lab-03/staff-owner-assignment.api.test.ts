@@ -57,9 +57,10 @@ describe("IT Staff Ticket owner assignment API", () => {
   });
 
   beforeEach(async () => {
+    await prisma.ticketWorkflowEvent.deleteMany({ where: { ticketId } });
     await prisma.ticket.update({
       where: { id: ticketId },
-      data: { ownerId: actor.user.id, ownerAssignedAt: new Date() },
+      data: { ownerId: actor.user.id, ownerAssignedAt: new Date(), version: 1 },
     });
   });
 
@@ -75,31 +76,31 @@ describe("IT Staff Ticket owner assignment API", () => {
       expect.objectContaining({ id: requesterId }),
     ]));
 
-    const reassigned = await actor.patch(`/api/staff/tickets/${ticketId}/owner`).send({ ownerId: eligibleOwnerId });
+    const reassigned = await actor.patch(`/api/staff/tickets/${ticketId}/owner`).send({ expectedVersion: 1, ownerId: eligibleOwnerId });
     expect(reassigned.status).toBe(200);
-    expect(reassigned.body.data.owner).toEqual({ id: eligibleOwnerId, name: "Eligible Assignment Staff" });
+    expect(reassigned.body.data.owner).toEqual(expect.objectContaining({ id: eligibleOwnerId, name: "Eligible Assignment Staff" }));
     expect(reassigned.body.data.ownerAssignedAt).toEqual(expect.any(String));
     expect((await prisma.ticket.findUniqueOrThrow({ where: { id: ticketId } })).ownerId).toBe(eligibleOwnerId);
-    expect((await actor.get(`/api/staff/tickets/${ticketId}`)).body.data.owner).toEqual({ id: eligibleOwnerId, name: "Eligible Assignment Staff" });
+    expect((await actor.get(`/api/staff/tickets/${ticketId}`)).body.data.owner).toEqual(expect.objectContaining({ id: eligibleOwnerId, name: "Eligible Assignment Staff" }));
   });
 
   it("rejects inactive, Requester, and nonexistent assignees without changing ownership", async () => {
-    const inactive = await actor.patch(`/api/staff/tickets/${ticketId}/owner`).send({ ownerId: inactiveOwnerId });
+    const inactive = await actor.patch(`/api/staff/tickets/${ticketId}/owner`).send({ expectedVersion: 1, ownerId: inactiveOwnerId });
     expect(inactive.status).toBe(400);
-    expect(inactive.body.error.code).toBe("VALIDATION_ERROR");
+    expect(inactive.body.error.code).toBe("INELIGIBLE_OWNER");
 
-    const requesterAssignee = await actor.patch(`/api/staff/tickets/${ticketId}/owner`).send({ ownerId: requesterId });
+    const requesterAssignee = await actor.patch(`/api/staff/tickets/${ticketId}/owner`).send({ expectedVersion: 1, ownerId: requesterId });
     expect(requesterAssignee.status).toBe(400);
-    expect(requesterAssignee.body.error.code).toBe("VALIDATION_ERROR");
+    expect(requesterAssignee.body.error.code).toBe("INELIGIBLE_OWNER");
 
-    const nonexistent = await actor.patch(`/api/staff/tickets/${ticketId}/owner`).send({ ownerId: 999_999_999 });
-    expect(nonexistent.status).toBe(404);
-    expect(nonexistent.body.error.code).toBe("USER_NOT_FOUND");
+    const nonexistent = await actor.patch(`/api/staff/tickets/${ticketId}/owner`).send({ expectedVersion: 1, ownerId: 999_999_999 });
+    expect(nonexistent.status).toBe(400);
+    expect(nonexistent.body.error.code).toBe("INELIGIBLE_OWNER");
     expect((await prisma.ticket.findUniqueOrThrow({ where: { id: ticketId } })).ownerId).toBe(actor.user.id);
   });
 
   it("rejects a Requester actor even if client headers claim a Staff role", async () => {
-    const result = await requester.patch(`/api/staff/tickets/${ticketId}/owner`).set("X-Role", "IT_STAFF").send({ ownerId: eligibleOwnerId });
+    const result = await requester.patch(`/api/staff/tickets/${ticketId}/owner`).set("X-Role", "IT_STAFF").send({ expectedVersion: 1, ownerId: eligibleOwnerId });
     expect(result.status).toBe(403);
     expect((await prisma.ticket.findUniqueOrThrow({ where: { id: ticketId } })).ownerId).toBe(actor.user.id);
   });

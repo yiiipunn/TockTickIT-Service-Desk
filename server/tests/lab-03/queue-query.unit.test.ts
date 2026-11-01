@@ -18,6 +18,7 @@ describe("IT Staff Ticket Queue query parser", () => {
   it("accepts each approved filter, sort, and page value", () => {
     expect(parseStaffQueueQuery({
       search: "  Narin  ",
+      scope: "open",
       status: "OPEN",
       requestedPriority: "LOW",
       itPriority: "HIGH",
@@ -28,6 +29,7 @@ describe("IT Staff Ticket Queue query parser", () => {
       pageSize: "50",
     })).toEqual({
       search: "Narin",
+      scope: "open",
       status: "OPEN",
       requestedPriority: "LOW",
       itPriority: "HIGH",
@@ -43,6 +45,8 @@ describe("IT Staff Ticket Queue query parser", () => {
 
   it.each([
     { status: "UNKNOWN" },
+    { scope: "all" },
+    { scope: "open", status: "RESOLVED" },
     { requestedPriority: "URGENT" },
     { owner: "0" },
     { sortBy: "owner" },

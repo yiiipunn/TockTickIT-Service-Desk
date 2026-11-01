@@ -20,3 +20,5 @@ server/storage/
 client/playwright-report/
 client/test-results/
 artifacts/lab-02/runtime-screenshots/
+# local verification scratch files and rendered source material
+tmp/

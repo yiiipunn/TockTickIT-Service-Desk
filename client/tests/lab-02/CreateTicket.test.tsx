@@ -156,9 +156,8 @@ function mockFetchForCreateTicket(options: { attachmentError?: string } = {}) {
 }
 
 async function selectRequesterAndContinue() {
-  await screen.findByRole("heading", { name: "My Tickets" });
   await userEvent.click(
-    screen.getByRole("button", {
+    await screen.findByRole("button", {
       name: "Create Ticket",
     }),
   );
@@ -216,6 +215,13 @@ describe("Lab 2 - Create Ticket UI", () => {
       render(<App />);
 
       await selectRequesterAndContinue();
+
+      const heading = screen.getByRole("heading", {
+        level: 1,
+        name: "Create Ticket",
+      });
+      expect(screen.getByRole("main")).toContainElement(heading);
+      expect(screen.getAllByRole("heading", { level: 1 })).toHaveLength(1);
 
       expect(
         getCreateTicketCategory(),
