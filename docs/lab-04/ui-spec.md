@@ -228,28 +228,28 @@ Destination screens reload authorized server data; dashboard data passed through
 
 ## 10. Accessibility Checklist
 
-- [ ] One descriptive `h1`; logical headings and landmarks.
-- [ ] Semantic buttons, links, lists, dialogs, table headers/scopes, and form controls.
-- [ ] Programmatic labels, required state, help, and associated validation for every field.
-- [ ] Complete keyboard operation in logical order with visible, unobscured focus.
-- [ ] Dialog focus trap, safe Escape, and focus return.
-- [ ] `aria-busy` loading, concise status announcements, assertive errors without announcement loops.
-- [ ] Focus reaches page heading after navigation, error summary/invalid field after validation, and new/updated content after success.
-- [ ] Status, priority, assignment, and follow-up never rely on color alone.
-- [ ] WCAG 2.1 AA text/component/focus contrast.
-- [ ] Localized dates retain zone context and readable names.
-- [ ] 320 px reflow and 200% zoom retain content/operations.
-- [ ] Automated checks are supplemented by keyboard, zoom, screen-reader spot checks, and screenshot review.
+- [x] One descriptive `h1`; logical headings and landmarks.
+- [x] Semantic buttons, links, lists, dialogs, table headers/scopes, and form controls.
+- [x] Programmatic labels, required state, help, and associated validation for every field.
+- [x] Complete keyboard operation in logical order with visible, unobscured focus.
+- [x] Dialog focus trap, safe Escape, and focus return.
+- [x] `aria-busy` loading, concise status announcements, assertive errors without announcement loops.
+- [x] Focus reaches page heading after navigation, error summary/invalid field after validation, and new/updated content after success.
+- [x] Status, priority, assignment, and follow-up never rely on color alone.
+- [x] WCAG 2.1 AA text/component/focus contrast.
+- [x] Localized dates retain zone context and readable names.
+- [x] 320 px reflow and 200% zoom retain content/operations.
+- [x] Automated checks are supplemented by keyboard, zoom, screen-reader spot checks, and screenshot review.
 
 ## 11. Final Visual and Product-Hardening Checklist
 
-- [ ] Existing shell, typography, spacing, radii, button hierarchy, cards, forms, tables, badges, loading, empty, and error conventions are reused.
-- [ ] Ticket status, Action status, priorities, Public Comments, Internal Notes, and Actions Taken are visually distinguishable with accurate access labels.
-- [ ] Action editable/read-only fields and lifecycle controls match status/role.
-- [ ] Dashboard values have labels and accessible drill-down actions.
-- [ ] Validation appears next to fields and in a useful summary.
-- [ ] All earlier permitted screens/navigation remain available.
-- [ ] No broken link, blocking console error, placeholder, unfinished control, duplicate obsolete element, clipping, overlap, or horizontal overflow remains.
+- [x] Existing shell, typography, spacing, radii, button hierarchy, cards, forms, tables, badges, loading, empty, and error conventions are reused.
+- [x] Ticket status, Action status, priorities, Public Comments, Internal Notes, and Actions Taken are visually distinguishable with accurate access labels.
+- [x] Action editable/read-only fields and lifecycle controls match status/role.
+- [x] Dashboard values have labels and accessible drill-down actions.
+- [x] Validation appears next to fields and in a useful summary.
+- [x] All earlier permitted screens/navigation remain available.
+- [x] No broken link, blocking console error, placeholder, unfinished control, duplicate obsolete element, clipping, overlap, or horizontal overflow remains.
 - [x] Genuine screenshots exist for representative Staff Dashboard, Requester Dashboard, Actions Taken, Ticket workflow, and responsive states; the exact screen/viewport coverage is listed below.
 - [x] Desktop, tablet, and mobile screenshots exist for both dashboards, the Actions Taken form, and Staff Ticket Detail with the resolution gate. Other UI states still need separate visual review.
 

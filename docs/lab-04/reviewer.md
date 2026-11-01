@@ -64,27 +64,27 @@ These are review criteria, not claims that every manual check was performed.
 
 ### 5.1 Specification
 
-- [ ] Implementation matches [`specification.md`](./specification.md), [`api-spec.md`](./api-spec.md), and [`ui-spec.md`](./ui-spec.md).
-- [ ] Numbered FR, BR, and AC rules remain traceable to [tests](./tests.md).
+- [x] Implementation matches [`specification.md`](./specification.md), [`api-spec.md`](./api-spec.md), and [`ui-spec.md`](./ui-spec.md).
+- [x] Numbered FR, BR, and AC rules remain traceable to [tests](./tests.md).
 
 ### 5.2 Data and API
 
-- [ ] Migration preserves Lab 1–3 data; seed is repeatable.
-- [ ] Backend enforces role, ownership, lifecycle, stale-write, and safe-error rules.
+- [x] Migration preserves Lab 1–3 data; seed is repeatable.
+- [x] Backend enforces role, ownership, lifecycle, stale-write, and safe-error rules.
 
 ### 5.3 UI
 
-- [ ] Actions Taken, Ticket workflow, and both dashboards match the UI contract.
-- [ ] Desktop, tablet, mobile, focus, and accessibility evidence is checked against the [screenshot matrix](./ui-spec.md#current-screenshot-evidence).
+- [x] Actions Taken, Ticket workflow, and both dashboards match the UI contract.
+- [x] Desktop, tablet, mobile, focus, and accessibility evidence is checked against the [screenshot matrix](./ui-spec.md#current-screenshot-evidence).
 
 ### 5.4 Tests
 
-- [ ] The required suites pass and no required test is skipped.
-- [ ] The final `main` commit receives fresh complete test and build output.
+- [x] The required suites pass and no required test is skipped.
+- [x] The final `main` commit receives fresh complete test and build output.
 
 ### 5.5 Code Quality
 
-- [ ] No secret, temporary output, obsolete control, or unsupported claim is included.
+- [x] No secret, temporary output, obsolete control, or unsupported claim is included.
 
 ---
 
@@ -148,10 +148,10 @@ The Issue #31 history-refresh correction in [the test record](./tests.md#72-issu
 | PRs with a `DEV4952` approval | 10: #64–#73 |
 | PRs merged to `lab4-staging` | 10: #64–#73 |
 | Lab 4 partner PRs reviewed by the author | 10 approved reviews: [#69–#78](#7-my-review-records-for-my-partner) |
-| Final `lab4-staging` → `main` PR, approval, merge | Not recorded |
+| Final `lab4-staging` → `main` PR,`yiiipunn`approval, merge | #74 |
 
 Final condition:
 
 - PRs #64–#73 have recorded approval and merge evidence.
 - Partner PRs #69–#78 have recorded approval evidence.
-- Final `lab4-staging` to `main` Pull Request, approval, and merge evidence: TODO.
+- Final `lab4-staging` to `main` Pull Request, approval, and merge evidence: 
